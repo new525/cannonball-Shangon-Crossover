@@ -107,6 +107,13 @@ void Harness::apply(const Cmd& c)
         snap_pending = true;
         snap_name = c.args.empty() ? "" : c.args[0];
     }
+    else if (c.op == "steerto")          // steerto <x> [abs] | steerto off
+    {
+        steer_on = !c.args.empty() && c.args[0] != "off";
+        if (steer_on) { steer_target = num(0); steer_abs = c.args.size() > 1 && c.args[1] == "abs"; }
+    }
+    else if (c.op == "autopilot")
+        bike.autopilot = !c.args.empty() && c.args[0] == "on";
     else if (c.op == "trace")
     {
         if (!c.args.empty()) trace = fopen(c.args[0].c_str(), "w");
@@ -129,6 +136,13 @@ void Harness::before_tick()
         if (frame >= it->until) { it = held_keys.erase(it); continue; }
         input.keys[it->key] = true;
         ++it;
+    }
+    // steering autopilot: + X is left, and wheel > 0x80 steers right (moves X down)
+    if (steer_on)
+    {
+        int x = steer_abs ? oinitengine.car_x_pos : (bike.enabled ? bike.car_x_relative() : oinitengine.car_x_pos);
+        int w = 0x80 + (x - steer_target) / 3;
+        wheel = w < 0x48 ? 0x48 : (w > 0xB8 ? 0xB8 : w);
     }
     // analog overrides
     if (wheel >= 0 || accel >= 0 || brake >= 0)

@@ -34,6 +34,7 @@ class CrossoverBike
 public:
     bool enabled = false;       // vehicle selected (config); requires Super Hang-On ROMs
     bool ready   = false;       // ROMs loaded and graphics converted
+    bool autopilot = false;     // test harness: Super Hang-On's demo driver rides in a game too
 
     bool init();                // after sh_roms are loaded
     void reset();               // new race / attract start
@@ -44,6 +45,7 @@ public:
     // For the HUD / sound / tests
     int16_t  speed_kmh() const;
     int16_t  bike_x() const;
+    int16_t  car_x_relative() const { return bike_x(); }   // X relative to the bike's road centre
     bool     offroad() const;
 
     // Palette expansion entries added for the bike (index base set at init)

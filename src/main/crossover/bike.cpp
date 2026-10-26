@@ -261,7 +261,7 @@ void CrossoverBike::tick()
 
     bool ingame = outrun.game_state == GS_INGAME;
     bool countdown = outrun.game_state >= GS_START1 && outrun.game_state <= GS_START3;
-    WW(W_INGAME, ingame ? 1 : 0);
+    WW(W_INGAME, (ingame && !autopilot) ? 1 : 0);   // 0 = Super Hang-On's demo driver steers
     WB(W_SC_BUTTON, sc ? 0x20 : 0x00);
     WB(W_TIMER, (ostats.time_counter & 0xFF) ? 0x99 : 0x00);             // time over cuts the throttle
     WW(V_CRASH, (ocrash.crash_counter && ocrash.spin_control1 <= 0) ? 1 : 0);
