@@ -302,7 +302,8 @@ void OInitEngine::update_engine()
         // Blit High/Low Gear
         if ((config.controls.gear == config.controls.GEAR_BUTTON ||
             config.controls.gear == config.controls.GEAR_SEPARATE)
-            && !config.smartypi.enabled)
+            && !config.smartypi.enabled
+            && !bike.enabled)   // crossover: the bike has no gearbox (the gear buttons are its supercharger)
         {
             if (oinputs.gear)
                 ohud.blit_text_new(9, 26, "H", OHud::GREEN);
