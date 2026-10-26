@@ -196,8 +196,14 @@ set(src_engine_audio
     "${main_cpp_base}/engine/audio/osoundint.cpp"
     )
 
+set(src_crossover
+    "${main_cpp_base}/crossover/harness.hpp"
+    "${main_cpp_base}/crossover/harness.cpp"
+    )
+
 set(SRCS
     ${src_main}
+    ${src_crossover}
     ${src_frontend}
     ${src_hwvideo}
     ${src_hwaudio}
@@ -211,6 +217,7 @@ set(SRCS
 
 # Group files into relevant filters for Visual Studio build
 SOURCE_GROUP(src FILES ${src_main})
+SOURCE_GROUP(src\\crossover FILES ${src_crossover})
 SOURCE_GROUP(src\\frontend FILES ${src_frontend})
 SOURCE_GROUP(src\\hwvideo FILES ${src_hwvideo})
 SOURCE_GROUP(src\\hwaudio FILES ${src_hwaudio})

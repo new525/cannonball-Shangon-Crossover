@@ -1,3 +1,4 @@
+#include <cmath>
 /***************************************************************************
     Video Rendering. 
     
@@ -150,7 +151,27 @@ int Video::set_video_mode(video_settings_t* settings)
 
 void Video::set_shadow_intensity(float f)
 {
+    shadow_f = f;
     renderer->set_shadow_intensity(f);
+}
+
+// Colour of one frame-buffer pixel, computed from palette RAM exactly as refresh_palette() and
+// RenderBase::convert_palette() do (shadow pixels are offset by S16_PALETTE_ENTRIES).
+uint32_t Video::rgb_of(uint16_t pixel)
+{
+    bool shadow = pixel >= S16_PALETTE_ENTRIES;
+    uint32_t adr = (pixel & (S16_PALETTE_ENTRIES - 1)) << 1;
+    uint32_t a = (palette[adr] << 8) | palette[adr + 1];
+    uint32_t r = ((a & 0x000f) << 1) | ((a >> 12) & 1);
+    uint32_t g = ((a & 0x00f0) >> 3) | ((a >> 13) & 1);
+    uint32_t b = ((a & 0x0f00) >> 7) | ((a >> 14) & 1);
+    if (shadow)
+    {
+        int m = (int) std::round(255.0f * shadow_f);
+        r = r * m / 31; g = g * m / 31; b = b * m / 31;
+    }
+    else { r *= 8; g *= 8; b *= 8; }
+    return (r << 16) | (g << 8) | b;
 }
 
 void Video::prepare_frame()

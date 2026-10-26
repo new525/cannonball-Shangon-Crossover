@@ -19,6 +19,7 @@
 #include <SDL.h>
 
 #include "sdl2/audio.hpp"
+#include "crossover/harness.hpp"
 #include "frontend/config.hpp" // fps
 #include "engine/audio/osoundint.hpp"
 
@@ -59,6 +60,20 @@ void Audio::init()
 
 void Audio::start_audio()
 {
+    if (!sound_enabled && harness.headless)
+    {
+        // Crossover harness: mix without an output device (captured via -wav)
+        bytes_per_sample = CHANNELS * (BITS / 8);
+        sound_enabled = true;
+        const int DSP_BUFFER_FRAGS = 5;
+        int dsp_buffer_samps = SAMPLES * DSP_BUFFER_FRAGS + (config.sound.rate * SND_DELAY) / 1000;
+        dsp_buffer_bytes = CHANNELS * dsp_buffer_samps * (BITS / 8);
+        dsp_buffer = new uint8_t[dsp_buffer_bytes];
+        mix_buffer = new uint16_t[(config.sound.rate / config.fps) * CHANNELS];
+        clear_buffers();
+        clear_wav();
+        return;
+    }
     if (!sound_enabled)
     {
         // Since many GNU/Linux distros are infected with PulseAudio, SDL2 could chose PA as first
@@ -221,6 +236,10 @@ void Audio::tick()
         if (++wavfile.pos >= wavfile.length)
             wavfile.pos = 0;
     }
+
+    // Crossover harness: capture the mix; headless runs don't feed the SDL device (no pacing)
+    harness.audio_out((const int16_t*) mix_buffer, samples_written, config.sound.rate);
+    if (harness.headless) return;
 
     // Cast mix_buffer to a byte array, to align it with internal SDL format 
     uint8_t* mbuf8 = (uint8_t*) mix_buffer;

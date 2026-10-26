@@ -44,6 +44,7 @@ public:
     void disable();
     int set_video_mode(video_settings_t* settings);
     void set_shadow_intensity(float);
+    uint32_t rgb_of(uint16_t pixel);    // 0x00RRGGBB of a frame-buffer pixel (crossover harness)
     void prepare_frame();
     void render_frame();
     bool supports_window();
@@ -81,6 +82,7 @@ private:
     RenderBase* renderer;
     
 	uint8_t palette[S16_PALETTE_ENTRIES * 2]; // 2 Bytes Per Palette Entry
+    float shadow_f = 0.63f;                   // set_shadow_intensity() value, for rgb_of()
     void refresh_palette(uint32_t);
 };
 

@@ -33,6 +33,9 @@
 // Fine to include on non-windows builds as dummy functions used.
 #include "directx/ffeedback.hpp"
 
+// Crossover test harness (headless scripted runs)
+#include "crossover/harness.hpp"
+
 // ------------------------------------------------------------------------------------------------
 // Initialize Shared Variables
 // ------------------------------------------------------------------------------------------------
@@ -56,6 +59,7 @@ bool pause_engine;
 
 static void quit_func(int code)
 {
+    harness.close();
     audio.stop_audio();
     input.close_joy();
     forcefeedback::close();
@@ -224,18 +228,20 @@ static void main_loop()
     while (state != STATE_QUIT)
     {
         frame_time.start();
+        if (harness.active) harness.before_tick();
         // Tick Engine
         tick();
 
         // Draw SDL Video
         video.prepare_frame();
         video.render_frame();
+        harness.after_render(video.pixels, config.s16_width, config.s16_height);
 
         // Fill SDL Audio Buffer For Callback
         audio.tick();
         
         // Calculate Timings. Cap Frame Rate. Note this might be trumped by V-Sync
-        if (!vsync)
+        if (!vsync && !harness.headless)
         {
             deltatime += (frame_ms * audio.adjust_speed());
             deltaintegral = (int)deltatime;
@@ -278,11 +284,15 @@ static bool parse_command_line(int argc, char* argv[])
             if (!trackloader.set_layout_track(argv[i+1]))
                 return false;
         }
+        else if (harness.parse_arg(i, argc, argv))
+        {
+        }
         else if (strcmp(argv[i], "-help") == 0)
         {
             std::cout << "Command Line Options:\n\n" <<
                          "-cfgfile: Location and name of config.xml\n" <<
-                         "-file   : LayOut Editor track data to load\n" << std::endl;
+                         "-file   : LayOut Editor track data to load\n" <<
+                         "-headless, -script <file>, -snapdir <dir>, -wav <file>: test harness (see crossover/harness.cpp)\n" << std::endl;
             return false;
         }
     }
@@ -297,7 +307,7 @@ int main(int argc, char* argv[])
     if (ok)
     {
         config.load(); // Load config.XML file
-        ok = roms.load_revb_roms(config.sound.fix_samples);
+        ok = harness.load() && roms.load_revb_roms(config.sound.fix_samples);
     }
     if (!ok)
     {

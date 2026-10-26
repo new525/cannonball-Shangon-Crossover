@@ -265,3 +265,5 @@ pip-log.txt
 .DS_Store
 old_version
 
+build-*/
+test/out/
