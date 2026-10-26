@@ -60,7 +60,7 @@ SegaPCM::SegaPCM(uint32_t clock, RomLoader* rom, uint8_t* ram, int32_t bank)
 {
     this->ram = ram;
     pcm_rom = rom->rom;  
-    low = new uint8_t[16];
+    low = new uint8_t[16]();    // zero-initialised (was uninitialised: platform-dependent first sample position)
     max_addr = rom->length;
     bankshift = bank & 0xFF;
     rgnmask = max_addr - 1;

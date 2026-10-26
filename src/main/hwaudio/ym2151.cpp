@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <cstdio>
 /***************************************************************************
     Yamaha YM2151 driver (version 2.150 final beta) - May, 11th 2002
     
@@ -1297,6 +1299,19 @@ void YM2151::init(int rate, int fps)
     this->sampfreq = rate ? rate : 44100;    /* avoid division by 0 in init_chip_tables() */
 
     init_chip_tables();
+
+    // Debug: dump all generated tables to compare builds/platforms (env CB_YM_DUMP=<file>)
+    if (const char* dump = getenv("CB_YM_DUMP"))
+    {
+        if (FILE* f = fopen(dump, "wb"))
+        {
+            fwrite(tl_tab, sizeof tl_tab, 1, f);   fwrite(sin_tab, sizeof sin_tab, 1, f);
+            fwrite(d1l_tab, sizeof d1l_tab, 1, f); fwrite(freq, sizeof freq, 1, f);
+            fwrite(dt1_freq, sizeof dt1_freq, 1, f); fwrite(noise_tab, sizeof noise_tab, 1, f);
+            fwrite(tim_A_tab, sizeof tim_A_tab, 1, f); fwrite(tim_B_tab, sizeof tim_B_tab, 1, f);
+            fclose(f);
+        }
+    }
 
     lfo_timer_add = (uint32_t) ((1<<LFO_SH) * (clock/64.0) / sampfreq);
 

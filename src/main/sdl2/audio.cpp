@@ -16,6 +16,8 @@
 
 #include <iostream>
 #include <cstring>
+#include <string>
+#include <cstdlib>
 #include <SDL.h>
 
 #include "sdl2/audio.hpp"
@@ -235,6 +237,15 @@ void Audio::tick()
         // Loop wav files
         if (++wavfile.pos >= wavfile.length)
             wavfile.pos = 0;
+    }
+
+    // Debug: raw per-chip streams (env CB_AUDIO_SPLIT=<prefix>) for cross-platform comparisons
+    if (const char* split = getenv("CB_AUDIO_SPLIT"))
+    {
+        static FILE *fp = nullptr, *fy = nullptr;
+        if (!fp) { fp = fopen((std::string(split) + "_pcm.raw").c_str(), "wb"); fy = fopen((std::string(split) + "_ym.raw").c_str(), "wb"); }
+        if (fp) { fwrite(pcm_buffer, 2, samples_written, fp); fflush(fp); }
+        if (fy) { fwrite(ym_buffer, 2, samples_written, fy); fflush(fy); }
     }
 
     // Crossover harness: capture the mix; headless runs don't feed the SDL device (no pacing)
