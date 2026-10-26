@@ -143,10 +143,19 @@ struct engine_settings_t
     int car_pal;          // Car Palette
 };
 
+// Crossover (OutRun / Super Hang-On / Hang-On) settings
+struct crossover_settings_t
+{
+    int vehicle;                    // 0 = OutRun Ferrari, 1 = Super Hang-On bike
+    std::string shangon_rompath;    // folder with the shangon1 ROM files (any names; found by CRC)
+    std::string hangon_rompath;     // folder with the hangon ROM files
+};
+
 class Config
 {
 public:
     data_settings_t        data;
+    crossover_settings_t   crossover;
     menu_settings_t        menu;
     video_settings_t       video;
     sound_settings_t       sound;

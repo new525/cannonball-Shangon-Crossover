@@ -128,6 +128,10 @@ public:
     void clear_palette_data();
 	void copy_palette_data();
 	void map_palette(oentry* spr);
+	// Crossover: append 16-colour palettes (8 longs each, PALETTE_EXPANSION format); returns the
+	// pal_src index of the first one.
+	uint16_t add_palettes(const uint32_t* longs, int count);
+	static const int PAL_EXTRA_MAX = 32;
 	void sprite_copy();
 	void blit_sprites();
 
@@ -170,7 +174,9 @@ private:
 	uint16_t pal_addresses[PAL_ENTRIES]; // todo: rename to pal_mapping
 
 	// Palette Lookup Table (was 0x100, but extended to account for extra palettes in CannonBall)
-	uint8_t pal_lookup[PAL_LOOKUP_LENGTH];
+	uint8_t pal_lookup[PAL_LOOKUP_LENGTH + PAL_EXTRA_MAX];
+	uint32_t pal_extra[PAL_EXTRA_MAX * 8];       // crossover: palettes appended after PALETTE_EXPANSION
+	uint16_t pal_extra_count = 0;
 
 	// Converted sprite entries in RAM for hardware.
 	uint8_t sprite_order[0x2000];

@@ -92,6 +92,11 @@ void Config::load()
     data.save_path        = pt_config.get("data.savepath", "./");    // Path to Save Data
     data.crc32            = pt_config.get("data.crc32", 1);
 
+    // Crossover
+    crossover.vehicle         = pt_config.get("crossover.vehicle", 0);
+    crossover.shangon_rompath = pt_config.get("crossover.shangon_rompath", "roms/shangon1/");
+    crossover.hangon_rompath  = pt_config.get("crossover.hangon_rompath",  "roms/hangon/");
+
     data.file_scores      = data.save_path + "hiscores.xml";
     data.file_scores_jap  = data.save_path + "hiscores_jap.xml";
     data.file_ttrial      = data.save_path + "hiscores_timetrial.xml";
@@ -317,6 +322,9 @@ bool Config::save()
     pt_config.put("controls.analog.axis.accel", controls.axis[1]);
     pt_config.put("controls.analog.axis.brake", controls.axis[2]);
 
+    pt_config.put("crossover.vehicle",         crossover.vehicle);
+    pt_config.put("crossover.shangon_rompath", crossover.shangon_rompath);
+    pt_config.put("crossover.hangon_rompath",  crossover.hangon_rompath);
     pt_config.put("engine.freeplay",        (int) engine.freeplay);
     pt_config.put("engine.time",            engine.freeze_timer ? 4 : engine.dip_time);
     pt_config.put("engine.traffic",         engine.disable_traffic ? 4 : engine.dip_traffic);

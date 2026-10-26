@@ -23,6 +23,12 @@
 #include "main.hpp"
 #include "sdl2/input.hpp"
 #include "video.hpp"
+#include "engine/outrun.hpp"
+#include "engine/oroad.hpp"
+#include "engine/oinitengine.hpp"
+#include "engine/oferrari.hpp"
+#include "engine/ocrash.hpp"
+#include "crossover/bike.hpp"
 
 Harness harness;
 
@@ -101,6 +107,11 @@ void Harness::apply(const Cmd& c)
         snap_pending = true;
         snap_name = c.args.empty() ? "" : c.args[0];
     }
+    else if (c.op == "trace")
+    {
+        if (!c.args.empty()) trace = fopen(c.args[0].c_str(), "w");
+        if (trace) fprintf(trace, "frame state road_pos road_width road_ctrl split car_x car_kmh wheels bike_kmh bike_x bike_off crash_ctr crash_state coll1 ingame_eng spin1\n");
+    }
     else if (c.op == "exit")    cannonball::state = cannonball::STATE_QUIT;
     else std::cerr << "harness: unknown command '" << c.op << "' at frame " << c.frame << std::endl;
 }
@@ -132,6 +143,13 @@ void Harness::before_tick()
 
 void Harness::after_render(const uint16_t* pixels, int w, int h)
 {
+    if (trace)
+        fprintf(trace, "%d %d %u %d %d %d %d %d %d %d %d %d\n", frame, outrun.game_state, oroad.road_pos >> 16,
+                (int16_t)(oroad.road_width >> 16), oroad.road_ctrl, oinitengine.rd_split_state, oinitengine.car_x_pos,
+                oinitengine.car_increment >> 16, oferrari.wheel_state, bike.speed_kmh(), bike.bike_x(), bike.offroad());
+    if (trace)
+        fprintf(trace, "    crash %d %d %d %d %d\n", ocrash.crash_counter, ocrash.crash_state, ocrash.coll_count1,
+                oinitengine.ingame_engine, ocrash.spin_control1);
     if (!snap_pending) return;
     snap_pending = false;
     char name[64];
@@ -167,6 +185,7 @@ static void put16(uint8_t* p, uint16_t v) { p[0] = v; p[1] = v >> 8; }
 
 void Harness::close()
 {
+    if (trace) { fclose(trace); trace = nullptr; }
     if (!wav) return;
     uint8_t h[44];
     memcpy(h, "RIFF", 4); put32(h + 4, 36 + wav_samples * 2); memcpy(h + 8, "WAVEfmt ", 8);

@@ -68,7 +68,9 @@ void hwsprites::init(const uint8_t* src_sprites)
         // Convert S16 tiles to a more useable format
         const uint8_t *spr = src_sprites;
 
-        for (uint32_t i = 0; i < SPRITES_LENGTH; i++)
+        for (uint32_t i = SPRITES_ROM_LENGTH; i < SPRITES_LENGTH; i++)
+            sprites[i] = 0;
+        for (uint32_t i = 0; i < SPRITES_ROM_LENGTH; i++)
         {
             uint8_t d3 = *spr++;
             uint8_t d2 = *spr++;

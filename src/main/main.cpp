@@ -35,6 +35,8 @@
 
 // Crossover test harness (headless scripted runs)
 #include "crossover/harness.hpp"
+#include "crossover/romset.hpp"
+#include "crossover/bike.hpp"
 
 // ------------------------------------------------------------------------------------------------
 // Initialize Shared Variables
@@ -334,6 +336,13 @@ int main(int argc, char* argv[])
     config.set_fps(config.video.fps);
     if (!video.init(&roms, &config.video))
         quit_func(1);
+
+    // Crossover: other games' ROMs and the bike
+    if (sh_roms.load(config.crossover.shangon_rompath))
+        bike.init();
+    else
+        std::cout << "Super Hang-On ROMs not loaded: " << sh_roms.error << std::endl;
+    bike.enabled = config.crossover.vehicle == 1 && bike.ready;
 
     // Initialize SDL Audio
     audio.init();

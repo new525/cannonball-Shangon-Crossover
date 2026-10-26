@@ -29,6 +29,7 @@
 #include "engine/otiles.hpp"
 #include "engine/otraffic.hpp"
 #include "engine/oinitengine.hpp"
+#include "crossover/bike.hpp"
 
 OInitEngine oinitengine;
 
@@ -262,15 +263,24 @@ void OInitEngine::update_engine()
     // Main Car Logic Block
     // ------------------------------------------------------------------------
 
-    oferrari.move();
-
-    if (oferrari.car_ctrl_active)
+    if (bike.enabled)
     {
-        oferrari.set_curve_adjust();
-        oferrari.set_ferrari_x();
-        oferrari.do_skid();
-        oferrari.check_wheels();
-        oferrari.set_ferrari_bounds();
+        // Crossover: the Super Hang-On bike's verified physics replace the Ferrari's
+        if (oferrari.car_ctrl_active)
+            bike.tick();
+    }
+    else
+    {
+        oferrari.move();
+
+        if (oferrari.car_ctrl_active)
+        {
+            oferrari.set_curve_adjust();
+            oferrari.set_ferrari_x();
+            oferrari.do_skid();
+            oferrari.check_wheels();
+            oferrari.set_ferrari_bounds();
+        }
     }
 
     oferrari.do_sound_score_slip();

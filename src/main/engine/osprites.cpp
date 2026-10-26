@@ -19,6 +19,8 @@
 #include "engine/oferrari.hpp"
 #include "engine/olevelobjs.hpp"
 #include "engine/osprites.hpp"
+#include "engine/oferrari.hpp"
+#include "crossover/bike.hpp"
 #include "engine/otraffic.hpp"
 #include "engine/data/ozoom_lookup.hpp"
 
@@ -38,7 +40,7 @@ void OSprites::init()
     no_sprites = config.engine.level_objects ? SPRITE_ENTRIES : 0x4F;
 
     // Also handled by clear_palette_data() now
-    for (uint16_t i = 0; i < PAL_LOOKUP_LENGTH; i++)
+    for (uint16_t i = 0; i < PAL_LOOKUP_LENGTH + PAL_EXTRA_MAX; i++)
         pal_lookup[i] = 0;
 
     for (uint16_t i = 0; i < 0x2000; i++)
@@ -276,7 +278,7 @@ void OSprites::sprite_control()
 void OSprites::clear_palette_data()
 {
     spr_col_pal = 0;
-    for (int16_t i = 0; i < PAL_LOOKUP_LENGTH; i++)
+    for (int16_t i = 0; i < PAL_LOOKUP_LENGTH + PAL_EXTRA_MAX; i++)
         pal_lookup[i] = 0;
 }
 
@@ -298,8 +300,13 @@ void OSprites::copy_palette_data()
         // Palette Data Source Offset (aligned to start of 32 byte boundry, * 32)
         uint32_t src_addr = pal_addresses[i++] << 3;
         uint32_t dst_addr = PAL_SPRITES + (pal_addresses[i++] << 5);
-        for (uint16_t j = 0; j < 8; j++)
-            video.write_pal32(&dst_addr, PALETTE_EXPANSION[src_addr++]);
+        for (uint16_t j = 0; j < 8; j++, src_addr++)
+        {
+            if (src_addr < (uint32_t) PAL_LOOKUP_LENGTH * 8)
+                video.write_pal32(&dst_addr, PALETTE_EXPANSION[src_addr]);
+            else
+                video.write_pal32(&dst_addr, pal_extra[src_addr - PAL_LOOKUP_LENGTH * 8]);   // crossover palettes
+        }
     }
     pal_copy_count = 0; // All entries copied
 }
@@ -584,6 +591,10 @@ void OSprites::do_sprite(oentry* input)
         hide_hwsprite(input, output);
         return;
     }
+
+    // Crossover: the player's vehicle may be another game's sprite
+    if (bike.enabled && input == oferrari.spr_ferrari && bike.draw(input, output))
+        return;
 
     // Sprite Width/Height Settings
     uint16_t width = 0;
@@ -898,4 +909,14 @@ void OSprites::move_sprite(oentry* sprite, uint8_t shift)
         value >>= 2;
 
     sprite->z += value;
+}
+// Crossover: palettes from the other games, appended after OutRun's table so that map_palette()
+// and copy_palette_data() allocate and load them like any OutRun sprite palette.
+uint16_t OSprites::add_palettes(const uint32_t* longs, int count)
+{
+    uint16_t first = (uint16_t)(PAL_LOOKUP_LENGTH + pal_extra_count);
+    for (int i = 0; i < count && pal_extra_count < PAL_EXTRA_MAX; i++, pal_extra_count++)
+        for (int j = 0; j < 8; j++)
+            pal_extra[pal_extra_count * 8 + j] = longs[i * 8 + j];
+    return first;
 }

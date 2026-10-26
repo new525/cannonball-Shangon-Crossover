@@ -39,6 +39,7 @@ private:
     bool snap_pending = false;
     std::string snap_name;
     FILE* wav = nullptr;
+    FILE* trace = nullptr;      // per-frame engine variables ("trace" command)
     uint32_t wav_samples = 0;
     int wav_rate = 0;
 

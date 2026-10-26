@@ -28,6 +28,7 @@
 #include "engine/ostats.hpp"
 #include "engine/outils.hpp"
 #include "engine/oferrari.hpp"
+#include "crossover/bike.hpp"
 
 OFerrari oferrari;
 
@@ -178,7 +179,7 @@ void OFerrari::tick()
                 else
                     draw_sprite(spr_ferrari);
             }
-            if (spr_pass1->control & OSprites::ENABLE) 
+            if (spr_pass1->control & OSprites::ENABLE && !bike.enabled)
             {
                 if (outrun.tick_frame)
                     set_passenger_sprite(spr_pass1);
@@ -186,7 +187,7 @@ void OFerrari::tick()
                     draw_sprite(spr_pass1);
             }
 
-            if (spr_pass2->control & OSprites::ENABLE)
+            if (spr_pass2->control & OSprites::ENABLE && !bike.enabled)
             {
                 if (outrun.tick_frame)
                     set_passenger_sprite(spr_pass2);
@@ -377,6 +378,14 @@ void OFerrari::setup_ferrari_sprite()
             olevelobjs.collision_sprite = 0;
             ocrash.crash_state = 0;
         }
+    }
+
+    // Crossover: draw the Super Hang-On bike instead
+    if (bike.enabled)
+    {
+        bike.setup_sprite(spr_ferrari);
+        draw_sprite(spr_ferrari);
+        return;
     }
 
     // Setup Default Ferrari Properties
@@ -847,6 +856,7 @@ void OFerrari::draw_shadow()
     if (spr_shadow->control & OSprites::ENABLE)
     {
         if (outrun.game_state == GS_MUSIC) return;
+        if (bike.enabled) return;   // crossover: the bike has no car shadow
 
         if (outrun.tick_frame)
         {

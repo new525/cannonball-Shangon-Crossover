@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 
 cmake_minimum_required (VERSION 3.3.2) # Might compile lower, but untested
-project (cannonball)
+project (cannonball C CXX)
 
 # -----------------------------------------------------------------------------
 # Directory Setup
@@ -199,6 +199,20 @@ set(src_engine_audio
 set(src_crossover
     "${main_cpp_base}/crossover/harness.hpp"
     "${main_cpp_base}/crossover/harness.cpp"
+    "${main_cpp_base}/crossover/romset.hpp"
+    "${main_cpp_base}/crossover/romset.cpp"
+    "${main_cpp_base}/crossover/fd1089.hpp"
+    "${main_cpp_base}/crossover/fd1089.cpp"
+    "${main_cpp_base}/crossover/bike.hpp"
+    "${main_cpp_base}/crossover/bike.cpp"
+    "${main_cpp_base}/crossover/bike_init.inc"
+    "${main_cpp_base}/crossover/shophys/shophys.h"
+    "${main_cpp_base}/crossover/shophys/sho_internal.h"
+    "${main_cpp_base}/crossover/shophys/shophys.c"
+    "${main_cpp_base}/crossover/shophys/shophys_lat.c"
+    "${main_cpp_base}/crossover/shophys/sho_inputs.c"
+    "${main_cpp_base}/crossover/shophys/sho_road.h"
+    "${main_cpp_base}/crossover/shophys/sho_road.c"
     )
 
 set(SRCS

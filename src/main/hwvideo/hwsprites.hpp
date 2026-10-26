@@ -16,6 +16,8 @@ public:
     uint8_t read(const uint16_t adr);
     void write(const uint16_t adr, const uint16_t data);
     void render(const uint8_t);
+    // Crossover: banks 4-7 hold converted graphics from the other games (OutRun's ROM fills 0-3)
+    uint32_t* bank_ptr(int bank) { return sprites + 0x10000 * (bank & 7); }
 
 private:
     // Clip values.
@@ -23,7 +25,8 @@ private:
 
     // 128 sprites, 16 bytes each (0x400)
     static const uint16_t SPRITE_RAM_SIZE = 128 * 8;
-    static const uint32_t SPRITES_LENGTH = 0x100000 >> 2;
+    static const uint32_t SPRITES_ROM_LENGTH = 0x100000 >> 2;  // OutRun sprite ROMs (4 banks)
+    static const uint32_t SPRITES_LENGTH = 0x200000 >> 2;      // 8 banks: 4 more for the crossover
     static const uint16_t COLOR_BASE = 0x800;
 
     uint32_t sprites[SPRITES_LENGTH]; // Converted sprites

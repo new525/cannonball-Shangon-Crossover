@@ -23,6 +23,7 @@
 
 class OFerrari
 {
+    friend class CrossoverBike;   // crossover: shares road_width_old for the road-width carry
 public:
     // Ferrari Sprite Object
     oentry *spr_ferrari;
