@@ -23,6 +23,9 @@ typedef struct {
      * task's sub_07F30 from the bike's X instead of Super Hang-On's fixed |X| > 300. Returns 0/1. */
     int  (*offroad_fn)(void *ctx, int16_t x);
     void  *offroad_ctx;
+    /* Sound commands the reconstructed code would send (bsr $28B0); NULL = discarded. */
+    void (*sound_fn)(void *ctx, uint8_t code);
+    void  *sound_ctx;
 } sho_mem;
 
 /* Task slot base addresses (a5) */

@@ -593,7 +593,7 @@ void OSprites::do_sprite(oentry* input)
     }
 
     // Crossover: the player's vehicle may be another game's sprite
-    if (bike.enabled && input == oferrari.spr_ferrari && bike.draw(input, output))
+    if (bike.enabled && bike.owns(input) && bike.draw(input, output))
         return;
 
     // Sprite Width/Height Settings

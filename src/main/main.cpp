@@ -66,6 +66,7 @@ static void quit_func(int code)
     input.close_joy();
     forcefeedback::close();
     delete menu;
+    video.disable();    // crossover: release the window/GL context while SDL is still up (was in ~Video, after SDL_Quit)
     SDL_Quit();
     exit(code);
 }

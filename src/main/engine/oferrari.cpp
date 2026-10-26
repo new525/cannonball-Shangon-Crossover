@@ -194,6 +194,9 @@ void OFerrari::tick()
                 else
                     draw_sprite(spr_pass2);
             }
+            // Crossover: Super Hang-On's crash objects (rider, shadows) use the passenger/shadow entries
+            if (bike.enabled)
+                bike.draw_crash_objects(spr_pass1, spr_pass2, spr_shadow);
             break;
 
         // Ferrari End Sequence Logic
@@ -370,6 +373,12 @@ void OFerrari::setup_ferrari_sprite()
     spr_ferrari->y = 221; // Set Default Ferrari Y
     
     // Test Collision With Other Sprite Object
+    // Crossover: the bike answers with Super Hang-On's crash (OutRun's detection, Super Hang-On's response)
+    if (bike.enabled && olevelobjs.collision_sprite)
+    {
+        bike.scenery_hit();
+        olevelobjs.collision_sprite = 0;
+    }
     if (olevelobjs.collision_sprite)
     {
         if (ocrash.coll_count1 == ocrash.coll_count2)

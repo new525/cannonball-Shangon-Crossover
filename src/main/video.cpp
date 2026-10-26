@@ -43,7 +43,7 @@ Video::~Video(void)
     delete sprite_layer;
     delete tile_layer;
     if (pixels) delete[] pixels;
-    renderer->disable();
+    if (enabled) renderer->disable();   // crossover: quit_func disables video before SDL_Quit
     delete renderer;
 }
 
@@ -89,7 +89,7 @@ int Video::init(Roms* roms, video_settings_t* settings)
 
 void Video::disable()
 {
-    renderer->disable();
+    if (enabled) renderer->disable();
     enabled = false;
 }
 

@@ -213,6 +213,8 @@ set(src_crossover
     "${main_cpp_base}/crossover/shophys/sho_inputs.c"
     "${main_cpp_base}/crossover/shophys/sho_road.h"
     "${main_cpp_base}/crossover/shophys/sho_road.c"
+    "${main_cpp_base}/crossover/shophys/sho_crash.h"
+    "${main_cpp_base}/crossover/shophys/sho_crash.c"
     )
 
 set(SRCS

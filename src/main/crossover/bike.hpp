@@ -16,11 +16,16 @@
     OutRun's road_ctrl/road_width, as OFerrari::check_wheels does), so Super Hang-On's clamp,
     centrifugal push and steering act on the bike's own road, and the bike is carried with
     its road as a split widens. Off-road follows OutRun's road edges.
+
+    Collisions keep OutRun's detection (its own scenery and traffic geometry) and answer with
+    Super Hang-On's responses: a scenery hit starts Super Hang-On's crash sequence (crash, shadow and
+    rider tasks, verified against MAME), a traffic hit Super Hang-On's knockback ($7510).
 ***************************************************************************/
 #pragma once
 
 #include <cstdint>
 #include <vector>
+#include <unordered_map>
 
 extern "C" {
 #include "crossover/shophys/shophys.h"
@@ -42,6 +47,17 @@ public:
     void setup_sprite(oentry* spr);                 // replaces the Ferrari frame setup
     bool draw(oentry* input, osprite* output);      // OSprites::do_sprite override; true if handled
 
+    // Collisions (called by OutRun's collision code when the bike is the vehicle)
+    void scenery_hit();                             // OFerrari::setup_ferrari_sprite
+    void traffic_hit(int16_t traffic_x);            // OTraffic: screen x of the car hit
+    bool crashing() const;                          // Super Hang-On's crash flag $260094
+    // Crash objects other than the bike itself: rider and the two shadows, drawn through
+    // the Ferrari's passenger and shadow entries. Called every frame from OFerrari.
+    void draw_crash_objects(oentry* rider, oentry* rider_shadow, oentry* bike_shadow);
+    bool owns(const oentry* e) const;               // drawn by this class (OSprites::do_sprite)
+    // Sound commands Super Hang-On's code issued since the last call (for the sound board)
+    std::vector<uint8_t> take_sounds() { std::vector<uint8_t> v; v.swap(sounds); return v; }
+
     // For the HUD / sound / tests
     int16_t  speed_kmh() const;
     int16_t  bike_x() const;
@@ -54,7 +70,7 @@ public:
 
 private:
     uint8_t work[0x8000];
-    uint8_t shared[0x1000];
+    uint8_t shared[0x2000];     // $260000-$261FFF (incl. the depth->height table at $261200)
     sho_mem mem;
 
     int16_t road_center = 0;    // centre of the bike's current road (OutRun car_x_pos units)
@@ -64,6 +80,23 @@ private:
     struct Frame { uint16_t offset[2]; uint8_t pitch; uint8_t rows; uint16_t width; };
     std::vector<uint32_t> def_ptrs;     // Super Hang-On sprite definition addresses
     std::vector<Frame>    frames;       // parallel to def_ptrs
+
+    // crash
+    int     knock_pending = 0;  // sign of a traffic hit reported this tick (applied per Super Hang-On frame)
+    uint8_t crash_entry[4][12]; // sprite entries of the crash objects (sub_02994), last frame
+    bool    crash_vis[4] = {};
+    oentry* crash_oentry[4] = {};
+    std::vector<uint8_t> sounds;
+    struct CrashImg { uint8_t bank; uint16_t offset; uint8_t pitch; };
+    std::unordered_map<uint64_t, CrashImg> crash_cache;
+    uint32_t crash_cache_pos = 0;
+    void crash_frame();
+    void fill_road_heights();
+    void setup_crash_entry(oentry* spr, int obj);
+    bool draw_crash(oentry* input, osprite* output, int obj);
+    bool crash_image(const uint8_t* e, CrashImg& img);
+    static uint16_t depth_to_index(uint16_t depth);
+    static void sound_cb(void* ctx, uint8_t code);
 
     void convert_graphics();
     void build_road_table();

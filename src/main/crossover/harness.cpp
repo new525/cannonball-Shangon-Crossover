@@ -15,6 +15,7 @@
 #include "crossover/harness.hpp"
 
 #include <cstring>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -164,6 +165,12 @@ void Harness::after_render(const uint16_t* pixels, int w, int h)
     if (trace)
         fprintf(trace, "    crash %d %d %d %d %d\n", ocrash.crash_counter, ocrash.crash_state, ocrash.coll_count1,
                 oinitengine.ingame_engine, ocrash.spin_control1);
+    if (trace && getenv("CB_TRACE_ROADY"))
+    {
+        fprintf(trace, "    road_y");
+        for (int k = 0; k < 0x200; k += 0x20) fprintf(trace, " %d", oroad.road_y[oroad.road_p0 + k] >> 4);
+        fprintf(trace, " | %d %d\n", oroad.road_y[oroad.road_p0 + 0x1F0] >> 4, oroad.road_y[oroad.road_p0 + 0x1FD] >> 4);
+    }
     if (!snap_pending) return;
     snap_pending = false;
     char name[64];

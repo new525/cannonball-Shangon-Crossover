@@ -3,6 +3,7 @@
 ***************************************************************************/
 #include "crossover/bike.hpp"
 #include "crossover/romset.hpp"
+#include "crossover/harness.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -27,6 +28,7 @@
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
+#include "crossover/shophys/sho_crash.h"
 }
 
 #include "crossover/bike_init.inc"
@@ -42,9 +44,15 @@ static const uint32_t W_SC_BUTTON = 0x060051, W_RNG = 0x060402, W_INGAME = 0x060
 static const uint32_t ROM_EVENT_END = 0x16308;   // a 32767 terminator (end of Africa stage 1 list at $162F0)
 static const uint32_t ROM_BIKE_PALS = 0xD54E;    // 6 x 16 colours, sprite palettes 0-5 of the bike
 static const uint32_t ROM_SPR_TABLES[3][2] = { {0xCA4E, 10}, {0xCA76, 8}, {0xCA96, 8} };  // lean, knockback, skid
+static const uint32_t ROM_KNOCK_STEP = 0x85B8, ROM_KNOCK_MAX = 0x85BA;   // traffic knockback: 14, limit 40
+static const uint32_t V_CLIP_SEL = 0x2607FC, V_CLIP = 0x260448;          // sprite renderer's hill clip
+static const uint32_t CRASH_SLOTS[4] = { SHO_A5_CRASH, SHO_A5_CRASH_SHADOW, SHO_A5_RIDER, SHO_A5_RIDER_SHADOW };
+static const uint32_t CRASH_TAG = 0xC0000000;    // oentry::addr of a crash object: tag | object number
 
-// Sprite banks used for the converted bike frames (OutRun's own data occupies banks 0-3)
+// Sprite banks used for the converted bike frames (OutRun's own data occupies banks 0-3), and for
+// the crash objects, which are rasterised on demand (banks 5-7, reused in a ring)
 static const int BIKE_BANK = 4;
+static const int CRASH_BANK0 = 5, CRASH_BANKS = 3;
 
 // OutRun's single-road asphalt half-width around a road centre, in car_x_pos units: OFerrari::check_wheels
 // puts one wheel off at |x| > 0xD4 and all wheels off at |x| > 0x104; with a symmetric track that gives
@@ -157,6 +165,8 @@ bool CrossoverBike::init()
     mem.shared_len = sizeof shared;
     mem.offroad_fn = offroad_cb;
     mem.offroad_ctx = this;
+    mem.sound_fn = sound_cb;
+    mem.sound_ctx = this;
 
     // Bike palettes from Super Hang-On's ROM, added to OutRun's sprite palette expansion table
     uint32_t pals[NUM_PALS * 8];
@@ -180,6 +190,11 @@ void CrossoverBike::reset()
     std::memcpy(loc(work, shared, SHO_A5_STEER), SLOT_STEER, 64);
     std::memcpy(loc(work, shared, SHO_A5_THROTTLE), SLOT_THROTTLE, 64);
     std::memcpy(loc(work, shared, SHO_A5_BRAKE), SLOT_BRAKE, 64);
+    std::memcpy(loc(work, shared, SHO_A5_CRASH), SLOT_CRASH, 256);
+    // The renderer's hill clip ($260448 indexed by $2607FC) is Super Hang-On's own road; OutRun's
+    // sprite/road priorities do that job here, so make its "beyond the crest" test never true.
+    WB(V_CLIP_SEL, 0);
+    WW(V_CLIP, 0x8000);
     WL(W_RNG, RNG_SEED);
     WW(V_MODE, 2);
     WL(V_EVENTS, ROM_EVENT_END);
@@ -188,7 +203,18 @@ void CrossoverBike::reset()
     WB(W_TIMER, 0x99);
     road_center = 0;
     prev_pal = 0;
+    knock_pending = 0;
+    for (bool& v : crash_vis) v = false;
+    sounds.clear();
 }
+
+void CrossoverBike::sound_cb(void* ctx, uint8_t code)
+{
+    CrossoverBike* b = (CrossoverBike*) ctx;
+    if (b->sounds.size() < 64) b->sounds.push_back(code);
+}
+
+bool CrossoverBike::crashing() const { return shared[0x94] || shared[0x95]; }
 
 int16_t CrossoverBike::speed_kmh() const { return (int16_t)((shared[0x78] << 8) | shared[0x79]); }
 int16_t CrossoverBike::bike_x() const    { return (int16_t)((shared[0x22] << 8) | shared[0x23]); }
@@ -264,7 +290,6 @@ void CrossoverBike::tick()
     WW(W_INGAME, (ingame && !autopilot) ? 1 : 0);   // 0 = Super Hang-On's demo driver steers
     WB(W_SC_BUTTON, sc ? 0x20 : 0x00);
     WB(W_TIMER, (ostats.time_counter & 0xFF) ? 0x99 : 0x00);             // time over cuts the throttle
-    WW(V_CRASH, (ocrash.crash_counter && ocrash.spin_control1 <= 0) ? 1 : 0);
     WW(V_STAGE_DONE, ostats.cur_stage ? 1 : 0);
     WW(V_CURVE,   oinitengine.road_type);
     WW(V_CURVE_R, oinitengine.road_curve);
@@ -302,6 +327,11 @@ void CrossoverBike::tick()
         compute_road_frame(car_x);
 
         sho_steering_task(&mem, SHO_A5_STEER, raw_steer);
+        // crash objects (slots 3-6) run next, relative to the bike's road like the bike task
+        WW(V_X, car_x - road_center);
+        fill_road_heights();
+        crash_frame();
+        car_x = (int16_t)(road_center + (int16_t) RW(V_X));
         if (countdown || !oinitengine.ingame_engine)
         {
             WL(V_SPEED, 0);
@@ -311,7 +341,7 @@ void CrossoverBike::tick()
         WW(V_X, car_x);
         build_road_table();
         uint32_t dbg_pos = RL(V_POS), dbg_spd = RL(V_SPEED);
-        static uint8_t dbg_work[0x8000], dbg_shared[0x1000];
+        static uint8_t dbg_work[sizeof work], dbg_shared[sizeof shared];
         std::memcpy(dbg_work, work, sizeof work); std::memcpy(dbg_shared, shared, sizeof shared);
         sho_speed_task(&mem, SHO_A5_SPEED);
         if (getenv("CB_BIKE_DEBUG") && ((int32_t)(RL(V_POS) - dbg_pos) > 0x20000 || (int32_t)RL(V_SPEED) < (int32_t)dbg_spd - 0x50000))
@@ -327,16 +357,29 @@ void CrossoverBike::tick()
         // centrifugal + bike: relative to the bike's own road
         compute_road_frame(car_x);
         WW(V_X, car_x - road_center);
-        sho_centrifugal_task(&mem, SHO_A5_CENTRIFUGAL);
+        if (RB(SHO_A5_CENTRIFUGAL) & 0x80)                   // the crash switches this task off
+            sho_centrifugal_task(&mem, SHO_A5_CENTRIFUGAL);
         sho_throttle_task(&mem, raw_thr);
         sho_brake_task(&mem, raw_brk);
+        // Traffic knockback ($7510): +/-14 per frame of contact, kept only within +/-40. OutRun's
+        // traffic check runs once per 30 Hz tick, i.e. for both Super Hang-On frames of the tick.
+        if (knock_pending)
+        {
+            const RomRegion& rom = sh_roms["maincpu_data"];
+            int16_t step = (int16_t) rom.r16(ROM_KNOCK_STEP), lim = (int16_t) rom.r16(ROM_KNOCK_MAX);
+            int16_t d0 = (int16_t)((knock_pending > 0 ? step : -step) + (int16_t) RW(V_KNOCK));
+            if (d0 <= lim && d0 >= -lim) WW(V_KNOCK, d0);
+        }
         // The bike task registers itself in a per-priority draw list (sub_07A72: $61C00 + (prio-$80)*32,
         // count word first). Super Hang-On's sprite system empties these lists every frame; here
         // nothing else consumes them, so clear the bike's list first (else it grows through RAM).
         WW(0x61C00 + (((RW(SHO_A5_BIKE + 0x14) - 0x80) << 5) & 0xFFFF), 0);
-        sho_bike_task(&mem, SHO_A5_BIKE);
+        if (RB(SHO_A5_BIKE) & 0x80)                          // the crash switches this task off
+            sho_bike_task(&mem, SHO_A5_BIKE);
         car_x = (int16_t)(road_center + (int16_t) RW(V_X));
     }
+
+    knock_pending = 0;
 
     // Results back into OutRun's state
     oinitengine.car_x_pos = car_x;
@@ -353,6 +396,12 @@ void CrossoverBike::tick()
 // ------------------------------------------------------------------------------------------------
 void CrossoverBike::setup_sprite(oentry* spr)
 {
+    crash_oentry[0] = spr;
+    if (crashing())                                     // the crashing bike replaces the riding one
+    {
+        setup_crash_entry(spr, 0);
+        return;
+    }
     // Bike slot: +0 bit0 = leaning left (mirror), +$A/+$C screen x/y (wobble), +$16 palette, +$1A definition
     uint32_t a5 = SHO_A5_BIKE;
     int16_t x = (int16_t) RW(a5 + 0xA) - 0x160;
@@ -371,6 +420,8 @@ void CrossoverBike::setup_sprite(oentry* spr)
 
 bool CrossoverBike::draw(oentry* input, osprite* output)
 {
+    if ((input->addr & CRASH_TAG) == CRASH_TAG)
+        return draw_crash(input, output, (int)(input->addr & 3));
     auto it = std::find(def_ptrs.begin(), def_ptrs.end(), input->addr);
     if (it == def_ptrs.end())
     {
@@ -401,5 +452,226 @@ bool CrossoverBike::draw(oentry* input, osprite* output)
                     input->addr, flip, fr.rows, fr.width, fr.pitch, fr.offset[flip], input->pal_dst,
                     output->data[0], output->data[1], output->data[2], output->data[3], output->data[4], output->data[5], output->data[6]);
     }
+    return true;
+}
+
+// ------------------------------------------------------------------------------------------------
+// Collisions and the crash
+// ------------------------------------------------------------------------------------------------
+
+// Super Hang-On's scenery test ($6EF8) adds 1 to the crash counter for every frame of contact while
+// not already crashing; the crash task starts when the counter differs from its own copy.
+void CrossoverBike::scenery_hit()
+{
+    if (!ready || crashing()) return;
+    WW(SHO_V_CRASH_COUNT, RW(SHO_V_CRASH_COUNT) + 1);
+}
+
+// Super Hang-On ($7510): the knock is +14 for a car at or right of the bike's centre ($A >= $160),
+// -14 for one to the left (+X = left, so the bike is pushed away from the car).
+void CrossoverBike::traffic_hit(int16_t traffic_x)
+{
+    if (!ready) return;
+    knock_pending = traffic_x >= 0 ? 1 : -1;
+    if (getenv("CB_CRASH_DEBUG")) fprintf(stderr, "f%d traffic hit x %d knock %d\n", harness.frame, traffic_x, (int16_t) RW(SHO_V_KNOCK));
+}
+
+// Depth (Super Hang-On's crash objects: $14 - $80, 0 = horizon, $BE = at the bike) -> OutRun's road
+// index (0 = horizon, $1FD = the player's vehicle, as OFerrari uses). Both are linear in the scale
+// of an object on a flat road; this maps the bike's own depth onto the Ferrari's index. The heights
+// then come from OutRun's road, so the objects follow its hills.
+uint16_t CrossoverBike::depth_to_index(uint16_t depth)
+{
+    return (uint16_t)(((uint32_t) depth * 0x1FD) / 0xBE);
+}
+
+// The depth -> road height table the crash tasks read at $261200 (Super Hang-On's sub CPU builds it
+// from its road; same format as OutRun's road_y: height above the bottom line, << 4).
+void CrossoverBike::fill_road_heights()
+{
+    const int16_t* ry = oroad.road_y + oroad.road_p0;
+    int16_t last = ry[0x1FF], slope = (int16_t)(ry[0x1EF] - ry[0x1FF]);    // per 16 entries
+    for (uint32_t i = 0; i < 256; i++)
+    {
+        uint32_t k = depth_to_index((uint16_t) i);
+        int32_t h = k <= 0x1FF ? ry[k] : last - (int32_t) slope * (int32_t)(k - 0x1FF) / 16;
+        shared[0x1200 + 2 * i]     = (uint8_t)((uint16_t) h >> 8);
+        shared[0x1200 + 2 * i + 1] = (uint8_t) h;
+    }
+}
+
+void CrossoverBike::crash_frame()
+{
+    uint8_t drawn[4];
+    sho_crash_frame(&mem, drawn);
+    for (int i = 0; i < 4; i++)
+        crash_vis[i] = drawn[i] && sho_sprite_entry(&mem, CRASH_SLOTS[i], crash_entry[i]);
+    if (getenv("CB_CRASH_DEBUG") && crashing())
+        for (int i = 0; i < 4; i++)
+        {
+            uint32_t a5 = CRASH_SLOTS[i];
+            fprintf(stderr, "f%d crash obj %d vis %d depth %02x x %03x y %03x z %02x h %04x tbl %d | e:", harness.frame, i, crash_vis[i],
+                    RW(a5 + 0x14) - 0x80, RW(a5 + 0xA), RW(a5 + 0xC), RW(a5 + 0xE), RW(a5 + 0x24),
+                    (int16_t) RW(0x261200 + 2 * ((RW(a5 + 0x14) - 0x80) & 0xFF)) >> 4);
+            for (int b = 0; b < 12; b++) fprintf(stderr, " %02x", crash_entry[i][b]);
+            fprintf(stderr, "\n");
+        }
+}
+
+void CrossoverBike::setup_crash_entry(oentry* spr, int obj)
+{
+    uint32_t a5 = CRASH_SLOTS[obj];
+    uint16_t k = depth_to_index((uint16_t)(RW(a5 + 0x14) - 0x80));
+    if (k > 0x1FF) k = 0x1FF;
+    spr->x = 0;
+    spr->y = 0;
+    spr->zoom = 0x7F;                                   // non-zero: drawn (size comes from the entry)
+    spr->draw_props = 0;
+    spr->priority = spr->road_priority = k;
+    spr->shadow = (uint8_t)(crash_entry[obj][9] >> 6);  // sprite/tilemap priority bits
+    spr->pal_src = (uint16_t)(pal_base + (crash_entry[obj][9] & 0x3F) % NUM_PALS);
+    spr->control = (uint8_t)((spr->control & ~(OSprites::HFLIP | OSprites::SHADOW)) | OSprites::ENABLE);
+    spr->addr = CRASH_TAG | (uint32_t) obj;
+}
+
+void CrossoverBike::draw_crash_objects(oentry* rider, oentry* rider_shadow, oentry* bike_shadow)
+{
+    crash_oentry[1] = bike_shadow;
+    crash_oentry[2] = rider;
+    crash_oentry[3] = rider_shadow;
+    if (!ready || !crashing()) return;
+    for (int obj = 1; obj < 4; obj++)
+    {
+        if (!crash_vis[obj]) continue;
+        oentry* e = crash_oentry[obj];
+        setup_crash_entry(e, obj);
+        if (oroad.get_view_mode() != ORoad::VIEW_INCAR)
+        {
+            osprites.map_palette(e);
+            osprites.do_spr_order_shadows(e);
+        }
+    }
+}
+
+bool CrossoverBike::owns(const oentry* e) const
+{
+    if (e == oferrari.spr_ferrari) return true;
+    return (e->addr & CRASH_TAG) == CRASH_TAG && (e == crash_oentry[1] || e == crash_oentry[2] || e == crash_oentry[3]);
+}
+
+// The entry is drawn as Super Hang-On's hardware (System 16B sprites, MAME sega_sys16b_sprite_device)
+// would draw it, into an image used at 1:1 by OutRun's hardware. Horizontal position: the same
+// mapping as the riding bike (Super Hang-On's x = OutRun's x, so $160 = OutRun's centre).
+bool CrossoverBike::draw_crash(oentry* input, osprite* output, int obj)
+{
+    CrashImg img;
+    const uint8_t* e = crash_entry[obj];
+    if (!crash_vis[obj] || !crash_image(e, img))
+    {
+        output->hide();
+        return true;
+    }
+    int rows = e[0] - e[1];
+    output->set_vzoom(0x200);
+    output->set_hzoom(0x200);
+    output->set_y((uint16_t)(e[1] + 256));
+    output->set_x((uint16_t)(((e[2] << 8) | e[3]) & 0xFFF));
+    output->set_pal(input->pal_dst);
+    output->set_offset(img.offset);
+    output->set_bank((uint8_t)(img.bank << 1));
+    output->set_height((uint8_t)(rows - 1));
+    output->set_render(0xE0);
+    output->set_pitch((uint8_t)(img.pitch << 1));
+    output->set_priority((uint8_t)(input->shadow << 4));
+    if (getenv("CB_CRASH_DEBUG"))
+        fprintf(stderr, "f%d crash draw %d rows %d bank %d off %04x pitch %d | hw %04x %04x %04x %04x %04x %04x %04x\n", harness.frame, obj, rows,
+                img.bank, img.offset, img.pitch, output->data[0], output->data[1], output->data[2], output->data[3],
+                output->data[4], output->data[5], output->data[6]);
+    return true;
+}
+
+bool CrossoverBike::crash_image(const uint8_t* e, CrashImg& img)
+{
+    int bottom = e[0], top = e[1];
+    if (top >= bottom) return false;
+    int rows = bottom - top;
+    uint16_t addr  = (uint16_t)(e[6] << 8 | e[7]);
+    int      pitch = (int8_t) e[5];
+    bool     flip  = e[4] & 1;
+    uint16_t zw    = (uint16_t)(e[10] << 8 | e[11]);
+    int vzoom = (zw >> 5) & 0x1F, hzoom = zw & 0x1F;
+    const RomRegion& spr = sh_roms["sprites"];
+    uint32_t numbanks = (uint32_t)(spr.size() / 0x20000);
+    uint32_t bank = e[8] & 0xF;
+    if (numbanks) bank %= numbanks;
+
+    uint64_t key = (uint64_t) bank << 43 | (uint64_t) flip << 42 | (uint64_t)(uint8_t) pitch << 34 |
+                   (uint64_t) addr << 18 | (uint64_t) rows << 10 | (zw & 0x3FF);
+    auto it = crash_cache.find(key);
+    if (it != crash_cache.end()) { img = it->second; return true; }
+
+    // MAME sega_sys16b_sprite_device::draw for one entry, into a local bitmap
+    static const int MAXW = 520;
+    std::vector<uint8_t> px((size_t) rows * MAXW, 0);
+    auto word = [&](uint16_t a) { return spr.r16((bank * 0x10000 + a) * 2); };
+    uint16_t acc = zw & 0x03FF;
+    int width = 0;
+    for (int r = 0; r < rows; r++)
+    {
+        addr = (uint16_t)(addr + pitch);
+        acc = (uint16_t)(acc + (vzoom << 10));
+        if (acc & 0x8000) { addr = (uint16_t)(addr + pitch); acc &= ~0x8000; }
+        int xacc = 4 * hzoom, x = 0;
+        uint16_t w = (uint16_t)(flip ? addr + 1 : addr - 1);
+        while (x < 512)
+        {
+            w = (uint16_t)(flip ? w - 1 : w + 1);
+            uint16_t pixels = word(w);
+            int pix = 0;
+            for (int n = 0; n < 4; n++)
+            {
+                pix = (pixels >> (flip ? 4 * n : 12 - 4 * n)) & 0xF;
+                xacc = (xacc & 0x3F) + hzoom;
+                if (xacc < 0x40)
+                {
+                    if (pix != 0 && pix != 15 && x < MAXW) px[(size_t) r * MAXW + x] = (uint8_t) pix;
+                    x++;
+                }
+            }
+            if (pix == 15) break;
+        }
+        width = std::max(width, std::min(x, MAXW));
+    }
+
+    // OutRun format (as convert_graphics): 8 pixels per word, end-of-line word 0x000000F0
+    uint16_t out_words = (uint16_t)((width + 7) / 8 + 1);
+    uint32_t size = (uint32_t) rows * out_words;
+    if (out_words > 127 || size > 0x10000) return false;
+    uint32_t off = crash_cache_pos & 0xFFFF;
+    if (off + size > 0x10000) crash_cache_pos = (crash_cache_pos | 0xFFFF) + 1;
+    if (crash_cache_pos + size > (uint32_t) CRASH_BANKS * 0x10000)
+    {
+        crash_cache_pos = 0;
+        crash_cache.clear();
+    }
+    img.bank   = (uint8_t)(CRASH_BANK0 + (crash_cache_pos >> 16));
+    img.offset = (uint16_t)(crash_cache_pos & 0xFFFF);
+    img.pitch  = (uint8_t) out_words;
+    uint32_t* dst = video.sprite_layer->bank_ptr(img.bank) + img.offset;
+    for (int r = 0; r < rows; r++)
+        for (uint16_t wi = 0; wi < out_words; wi++)
+        {
+            uint32_t v = 0;
+            if (wi + 1 == out_words) v = 0x000000F0;
+            else
+                for (int n = 0; n < 8; n++)
+                {
+                    int x = wi * 8 + n;
+                    v |= (uint32_t)(x < width ? px[(size_t) r * MAXW + x] : 0) << (28 - 4 * n);
+                }
+            *dst++ = v;
+        }
+    crash_cache_pos += size;
+    crash_cache[key] = img;
     return true;
 }

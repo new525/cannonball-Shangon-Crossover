@@ -18,6 +18,7 @@
 #include "engine/outils.hpp"
 #include "engine/ostats.hpp"
 #include "engine/otraffic.hpp"
+#include "crossover/bike.hpp"
 
 OTraffic otraffic;
 
@@ -751,6 +752,20 @@ void OTraffic::check_collision(oentry* sprite)
         {
             // Set collision settings from property table
             collision_mask = roms.rom0p->read8(outrun.adr.traffic_props + sprite->type + 5);
+
+            // Crossover: the bike gets Super Hang-On's knockback instead of OutRun's skid and speed loss
+            if (bike.enabled)
+            {
+                if (outrun.game_state == GS_ATTRACT || outrun.game_state == GS_INGAME)
+                {
+                    bike.traffic_hit(sprite->x);
+                    d0 = sound::REBOUND;
+                    collision_traffic++;
+                    outrun.ttrial.vehicle_cols++;
+                }
+            }
+            else
+            {
             d0 = (sprite->x < 0) ? -OCrash::SKID_RESET : OCrash::SKID_RESET;
 
             // Enhancement: Bumper enabled, reduce skid distance
@@ -773,6 +788,7 @@ void OTraffic::check_collision(oentry* sprite)
                 collision_traffic++; // denote collision with traffic
                 outrun.ttrial.vehicle_cols++;
             }
+            } // crossover: end of the Ferrari branch
         }
     }
 
