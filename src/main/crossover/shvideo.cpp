@@ -6,6 +6,7 @@
 #include "crossover/romset.hpp"
 
 #include <cstring>
+#include <cstdlib>
 #include <cmath>
 #include <algorithm>
 
@@ -185,13 +186,19 @@ void SHVideo::draw_road(SHBoard& b, bool foreground)
 void SHVideo::draw_virtual(SHBoard& b, int x0, int x1, int y0, int y1, uint16_t pages,
                            uint16_t xscroll, uint16_t yscroll, int category, uint8_t mark)
 {
+    auto page_at = [&](int vx, int vy) { return (pages >> (4 * ((vy >= 256 ? 2 : 0) + (vx >= 512 ? 1 : 0)))) & 0xf; };
     for (int y = y0; y <= y1; y++)
     {
         int vy = (y + yscroll) & 0x1ff;
+        // Widescreen: the columns beside the game's screen show only the page its edge column
+        // shows. Super Hang-On draws its scenery pages once per stage and only scrolls them; a
+        // different page there holds other pictures (e.g. the start gate's), never meant to be seen.
+        int page_l = page_at((0 + xscroll) & 0x3ff, vy), page_r = page_at((W - 1 + xscroll) & 0x3ff, vy);
         for (int x = x0; x <= x1; x++)
         {
             int vx = (x - xoff + xscroll) & 0x3ff;
-            int page = (pages >> (4 * ((vy >= 256 ? 2 : 0) + (vx >= 512 ? 1 : 0)))) & 0xf;
+            int page = page_at(vx, vy);
+            if ((x < xoff && page != page_l) || (x >= xoff + W && page != page_r)) continue;
             int tx = (vx & 0x1ff) >> 3, ty = (vy & 0xff) >> 3;
             uint16_t data = be16(&b.tileram[(page * 64 * 32 + ty * 64 + tx) * 2]);
             if (((data >> 15) & 1) != category) continue;
@@ -364,11 +371,12 @@ void SHVideo::render(SHBoard& b)
     if (!ok) return;
     std::memset(pri, 0, sizeof pri);
     draw_sprites(b);                        // sprites draw into their own bitmap first
+    static const int dbg = getenv("SHV_LAYERS") ? (int) strtol(getenv("SHV_LAYERS"), nullptr, 0) : 0xff;
     draw_road(b, false);
-    draw_tile_layer(b, 1, 0, 0x01);         // background
-    draw_tile_layer(b, 1, 1, 0x02);
-    draw_tile_layer(b, 0, 0, 0x02);         // foreground
-    draw_tile_layer(b, 0, 1, 0x04);
+    if (dbg & 1) draw_tile_layer(b, 1, 0, 0x01);         // background
+    if (dbg & 1) draw_tile_layer(b, 1, 1, 0x02);
+    if (dbg & 2) draw_tile_layer(b, 0, 0, 0x02);         // foreground
+    if (dbg & 2) draw_tile_layer(b, 0, 1, 0x04);
     draw_road(b, true);
     draw_text(b, 0, 0x08);
     draw_text(b, 1, 0x08);

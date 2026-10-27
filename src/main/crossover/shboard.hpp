@@ -76,7 +76,8 @@ public:
     uint64_t frame_count = 0;
     uint32_t main_pc() const;
     uint32_t sub_pc() const;
-    FILE* trace = nullptr;                  // per-instruction PC trace ("m pc" / "s pc") when set
+    FILE* trace = nullptr;
+    FILE* wlog = nullptr;                   // tile RAM writes (debug): frame pc offset value                  // per-instruction PC trace ("m pc" / "s pc") when set
     double cycles_per_line() const { return LINE_CYCLES; }
 
     // Musashi glue (public for the C callbacks)

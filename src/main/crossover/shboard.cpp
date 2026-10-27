@@ -321,6 +321,8 @@ void SHBoard::main_write16(uint32_t a, uint16_t v, uint16_t mask)
         case K_RAM:
             if (mask & 0xff00) pg.wptr[o] = v >> 8;
             if (mask & 0x00ff) pg.wptr[o + 1] = (uint8_t) v;
+            if (wlog && pg.wptr >= tileram && pg.wptr < tileram + sizeof tileram)
+                fprintf(wlog, "%llu %06x %05x %04x\n", (unsigned long long) frame_count, main_pc(), (unsigned)(pg.wptr + o - tileram), v);
             break;
         case K_MISCIO:  miscio_write(a, v, mask); break;
         case K_ROADCTL: roadctl_write(v, mask); break;
