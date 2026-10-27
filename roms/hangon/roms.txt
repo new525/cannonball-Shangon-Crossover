@@ -1,0 +1,33 @@
+-------------------------------------------------------------------------------
+Place the Hang-On ROMs in this folder: the files of MAME set
+hangon, "Hang-On (Rev A)" (MAME 0.264).
+Files are found by CRC32 first, then by name.
+-------------------------------------------------------------------------------
+epr-6918a.ic22     CRC32 20b1c2b0  (maincpu)
+epr-6916a.ic8      CRC32 7d9db1bf  (maincpu)
+epr-6917a.ic20     CRC32 fea12367  (maincpu)
+epr-6915a.ic6      CRC32 ac883240  (maincpu)
+epr-6920.ic63      CRC32 1c95013e  (subcpu)
+epr-6919.ic51      CRC32 6ca30d69  (subcpu)
+epr-6841.ic38      CRC32 54d295dc  (gfx1)
+epr-6842.ic23      CRC32 f677b568  (gfx1)
+epr-6843.ic7       CRC32 a257f0da  (gfx1)
+epr-6819.ic27      CRC32 469dad07  (sprites)
+epr-6820.ic34      CRC32 87cbc6de  (sprites)
+epr-6821.ic28      CRC32 15792969  (sprites)
+epr-6822.ic35      CRC32 e9718de5  (sprites)
+epr-6823.ic29      CRC32 49422691  (sprites)
+epr-6824.ic36      CRC32 701deaa4  (sprites)
+epr-6825.ic30      CRC32 6e23c8b4  (sprites)
+epr-6826.ic37      CRC32 77d0de2c  (sprites)
+epr-6827.ic31      CRC32 7fa1bfb6  (sprites)
+epr-6828.ic38      CRC32 8e880c93  (sprites)
+epr-6829.ic32      CRC32 7ca0952d  (sprites)
+epr-6830.ic39      CRC32 b1a63aef  (sprites)
+epr-6845.ic18      CRC32 ba08c9b8  (sprites)
+epr-6846.ic25      CRC32 f21e57a3  (sprites)
+epr-6840.ic108     CRC32 581230e3  (segaic16road)
+epr-6833.ic73      CRC32 3b942f5f  (soundcpu)
+epr-6831.ic5       CRC32 cfef5481  (pcm)
+epr-6832.ic6       CRC32 4165aea5  (pcm)
+epr-6844.ic123     CRC32 e3ec7bd6  (sprites:zoom)
