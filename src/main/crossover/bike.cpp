@@ -631,10 +631,12 @@ void CrossoverBike::draw_crash_objects(oentry* rider, oentry* rider_shadow, oent
     }
 }
 
-// BIKE SIZE as an OutRun sprite zoom value (0x200 = full size), and the screen lines that show
+// BIKE SIZE as an OutRun sprite zoom value (0x200 = full size). The option is for OutRun's courses,
+// where the bike shares the screen with scenery and traffic sized for the Ferrari, and the screen lines that show
 // a sprite of 'rows' source rows at that zoom without reading past its last row
 uint16_t CrossoverBike::scaled_zoom() const
 {
+    if (sh_course) return 0x200;                       // Super Hang-On's own courses: always full size
     int pct = config.crossover.bike_scale;
     if (pct < 50 || pct > 100) pct = 100;
     return (uint16_t)((0x200 * 100 + pct / 2) / pct);

@@ -13,11 +13,13 @@ Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 Changes in 0.2.2
 ----------------
-- New race setup option BIKE SIZE: full size, or 90 down to 50 percent.
-  Super Hang-On's bike takes up much more of the screen than OutRun's
-  Ferrari, so a smaller bike shows more of the road ahead. The crashing
-  bike and rider are scaled to match. Only the drawing changes: the
-  riding and the collisions are the same at every size.
+- The bike is now drawn at 60 percent of Super Hang-On's size by default,
+  so it covers less of the road ahead. The new race setup option BIKE SIZE
+  goes from 50 percent up to FULL SIZE (the original) in steps of 10. The
+  crashing bike and rider are scaled to match. This applies on OutRun's
+  courses only; on Super Hang-On's own courses (once added) the bike will
+  always be full size. Only the drawing changes: the riding and the
+  collisions are the same at every size.
 
 Changes in 0.2.1
 ----------------
@@ -46,7 +48,7 @@ Race setup menu
 Main menu > PLAY GAME opens the race setup:
     START RACE
     VEHICLE   OutRun's Ferrari or Super Hang-On's bike
-    BIKE SIZE full size, or 90 down to 50 percent (see above)
+    BIKE SIZE 60 percent (default), 50 to 90 percent, or FULL SIZE
     TRACK     OutRun's full route (you choose at each fork), or any single
               OutRun stage (1, 2A-2B, 3A-3C, 4A-4D, 5A-5E; letters follow
               the order of Cannonball's time-trial course map). A single

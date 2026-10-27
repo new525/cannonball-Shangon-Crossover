@@ -44,7 +44,7 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 |---|---|
 | Super Hang-On's bike on OutRun's courses (physics, lean, crash, knockback, engine sound) | Done |
 | Super Hang-On and Hang-On race music on emulated sound boards | Done |
-| Race setup menu: vehicle, track, music | Done |
+| Race setup menu: vehicle, bike size, track, music | Done |
 | Super Hang-On's courses (with either vehicle) | In progress |
 | Hang-On's course (with either vehicle) | Planned |
 | Bike versions of OutRun's start and ending scenes | Planned |
@@ -117,9 +117,11 @@ roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
 1. Run `cannonball.exe`.
 2. Choose **PLAY GAME**. The race setup screen opens:
    - **VEHICLE**: OutRun's Ferrari or Super Hang-On's bike
-   - **BIKE SIZE**: full size (as in Super Hang-On) or 90 down to 50 percent. Super Hang-On's
-     bike takes up much more of the screen than OutRun's Ferrari; a smaller bike shows more of
-     the road ahead. It changes only how the bike and its crash are drawn, not the riding.
+   - **BIKE SIZE**: 60 percent by default; anything from 50 percent up to *FULL SIZE* (as in
+     Super Hang-On) in steps of 10. Super Hang-On's bike takes up much more of the screen than
+     OutRun's Ferrari, and a smaller bike shows more of the road ahead. It applies on OutRun's
+     courses only; on Super Hang-On's own courses (once added) the bike is always full size. It
+     changes only how the bike and its crash are drawn, not the riding or what you collide with.
    - **TRACK**: OutRun's full route (pick a road at each fork) or any single OutRun stage
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks (it previews as you
      choose), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen

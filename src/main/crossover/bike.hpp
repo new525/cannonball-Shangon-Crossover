@@ -75,6 +75,8 @@ private:
 
     int16_t road_center = 0;    // centre of the bike's current road (OutRun car_x_pos units)
     int16_t road_half = 0;      // asphalt half-width around that centre
+    bool    sh_course = false;  // racing a Super Hang-On course: drawn full size whatever BIKE SIZE says
+                                // (set by the course loader once Super Hang-On's courses are in)
     bool    mirrored = false;   // on OutRun's mirrored road at a fork (see build_road_table)
     uint16_t road_native[2][512];   // the builder's own tables, per buffer, before mirroring
     int     prev_pal = 0;       // palette shown this frame (Super Hang-On displays the previous frame's)
