@@ -188,6 +188,8 @@ void CrossoverBike::reset()
 {
     std::memset(work, 0, sizeof work);
     std::memset(shared, 0, sizeof shared);
+    std::memset(road_native, 0, sizeof road_native);
+    mirrored = false;
     std::memcpy(loc(work, shared, SHO_A5_SPEED), SLOT_SPEED, 64);
     std::memcpy(loc(work, shared, SHO_A5_CENTRIFUGAL), SLOT_CENTRIFUGAL, 64);
     std::memcpy(loc(work, shared, SHO_A5_BIKE), SLOT_BIKE, 64);
@@ -271,6 +273,12 @@ int CrossoverBike::offroad_cb(void* ctx, int16_t x)
 
 // Super Hang-On's road table for the centrifugal push, built from OutRun's path with the verified
 // Super Hang-On builder (sub_01236) into the buffer the next speed task will flip to.
+//
+// Forks: both OutRun roads share one path, and the road on the car_x < 0 side is drawn as its mirror
+// image ("invert road 1"). OutRun mirrors its own curve push to match (OFerrari::set_curve_adjust,
+// $BF6E: x_diff negated when rd_split_state != 0 and car_x < 0), so the bike's table is mirrored
+// under the same condition. The builder keeps its own unmirrored copy per buffer, because it only
+// rewrites the slices it reaches.
 static int16_t outrun_path_word(void*, uint32_t off) { return trackloader.readPath(off); }
 
 void CrossoverBike::build_road_table()
@@ -278,16 +286,30 @@ void CrossoverBike::build_road_table()
     const RomRegion& sub = sh_roms["subcpu"];
     int16_t depth[33];
     for (int k = 0; k < 33; k++) depth[k] = (int16_t) sub.r16(0x19A6 + 2 * k);
-    uint16_t buf = 0x800 + ((RW(V_ROADBUF) ^ 0x400) & 0x400);
-    uint16_t table[512];
-    for (int k = 0; k < 512; k++) table[k] = (uint16_t)(shared[buf + 2 * k] << 8 | shared[buf + 2 * k + 1]);
+    int b = ((RW(V_ROADBUF) ^ 0x400) & 0x400) ? 1 : 0;
+    uint16_t buf = 0x800 + (b << 10);
+    uint16_t* table = road_native[b];
     sho_path_reader pr = { outrun_path_word, nullptr };
     sho_road_build_sh(&pr, (oroad.road_pos >> 16) << 2, depth, table);
     for (int k = 0; k < 0x200 && buf + 2 * k + 1 < (int) sizeof shared; k++)
     {
-        shared[buf + 2 * k] = table[k] >> 8;
-        shared[buf + 2 * k + 1] = (uint8_t) table[k];
+        uint16_t v = mirrored ? (uint16_t)(-(int16_t) table[k]) : table[k];
+        shared[buf + 2 * k] = v >> 8;
+        shared[buf + 2 * k + 1] = (uint8_t) v;
     }
+}
+
+// Curve type and radius from OutRun's curve list. On the mirrored road of a fork (see
+// build_road_table) the curve type describes the other road, so OutRun's ROAD_RIGHT (2) and
+// ROAD_LEFT (3) swap there.
+void CrossoverBike::set_curve_inputs(int16_t car_x)
+{
+    mirrored = oinitengine.rd_split_state != 0 && car_x < 0;
+    auto dir = [&](int16_t t) -> uint16_t { return mirrored && t >= 2 ? (uint16_t)(5 - t) : (uint16_t) t; };
+    WW(V_CURVE,   dir(oinitengine.road_type));
+    WW(V_CURVE_R, oinitengine.road_curve);
+    WW(V_CURVE_NEXT,   dir(oinitengine.road_type_next));
+    WW(V_CURVE_NEXT_R, oinitengine.road_curve_next);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -297,6 +319,7 @@ void CrossoverBike::build_road_table()
 void CrossoverBike::tick()
 {
     if (!ready) return;
+    static FILE* lat_trace = getenv("CB_LAT_TRACE") ? fopen(getenv("CB_LAT_TRACE"), "w") : nullptr;
 
     // Inputs: OutRun raw-domain values -> Super Hang-On ADC bytes (same physical travel)
     int st = oinputs.input_steering;                                     // 0x48 (left) .. 0xB8 (right)
@@ -314,10 +337,6 @@ void CrossoverBike::tick()
     WB(W_SC_BUTTON, sc ? 0x20 : 0x00);
     WB(W_TIMER, (ostats.time_counter & 0xFF) ? 0x99 : 0x00);             // time over cuts the throttle
     WW(V_STAGE_DONE, ostats.cur_stage ? 1 : 0);
-    WW(V_CURVE,   oinitengine.road_type);
-    WW(V_CURVE_R, oinitengine.road_curve);
-    WW(V_CURVE_NEXT,   oinitengine.road_type_next);
-    WW(V_CURVE_NEXT_R, oinitengine.road_curve_next);
 
     // OutRun hands control to the engine in OFerrari::tick_engine_disabled (inside move(), which the
     // bike replaces): immediately when in game or attract, or after a crash's ingame_counter runs out.
@@ -359,6 +378,7 @@ void CrossoverBike::tick()
     {
         WL(V_POS, oroad.road_pos);
         compute_road_frame(car_x);
+        set_curve_inputs(car_x);
 
         // slot 1: the sound task reads the previous frame's state (speed, X, knock, off-road)
         WW(V_X, car_x - road_center);
@@ -396,8 +416,10 @@ void CrossoverBike::tick()
         // centrifugal + bike: relative to the bike's own road
         compute_road_frame(car_x);
         WW(V_X, car_x - road_center);
+        int16_t lat_x0 = (int16_t) RW(V_X);
         if (RB(SHO_A5_CENTRIFUGAL) & 0x80)                   // the crash switches this task off
             sho_centrifugal_task(&mem, SHO_A5_CENTRIFUGAL);
+        int16_t lat_x1 = (int16_t) RW(V_X);
         sho_throttle_task(&mem, raw_thr);
         sho_brake_task(&mem, raw_brk);
         // Traffic knockback ($7510): +/-14 per frame of contact, kept only within +/-40. OutRun's
@@ -415,6 +437,19 @@ void CrossoverBike::tick()
         WW(0x61C00 + (((RW(SHO_A5_BIKE + 0x14) - 0x80) << 5) & 0xFFFF), 0);
         if (RB(SHO_A5_BIKE) & 0x80)                          // the crash switches this task off
             sho_bike_task(&mem, SHO_A5_BIKE);
+        int or_push = 0;
+        if (lat_trace)
+        {   // OutRun's own curve push for comparison (OFerrari::set_curve_adjust, per 30 Hz tick)
+            int16_t xd = oroad.road_x[170] - oroad.road_x[511];
+            if (oinitengine.rd_split_state && car_x < 0) xd = -xd;
+            xd >>= 6;
+            if (xd) or_push = ((xd * (int16_t)(RW(V_SPEED))) / 0xDC) << 1;
+        }
+        if (lat_trace)
+            fprintf(lat_trace, "%d %d %u %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", harness.frame, step, RL(V_POS) >> 16,
+                    oroad.road_ctrl, oinitengine.rd_split_state, (int16_t)(oroad.road_width >> 16), road_center,
+                    lat_x0, lat_x1 - lat_x0, (int16_t) RW(V_X), (int16_t)(RW(V_SPEED)), RB(0x060412), offroad(),
+                    (int16_t) RW(SHO_A5_BIKE + 0x34), or_push, oinitengine.road_type, oinitengine.road_curve);
         car_x = (int16_t)(road_center + (int16_t) RW(V_X));
     }
 

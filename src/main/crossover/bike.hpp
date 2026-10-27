@@ -75,6 +75,8 @@ private:
 
     int16_t road_center = 0;    // centre of the bike's current road (OutRun car_x_pos units)
     int16_t road_half = 0;      // asphalt half-width around that centre
+    bool    mirrored = false;   // on OutRun's mirrored road at a fork (see build_road_table)
+    uint16_t road_native[2][512];   // the builder's own tables, per buffer, before mirroring
     int     prev_pal = 0;       // palette shown this frame (Super Hang-On displays the previous frame's)
 
     struct Frame { uint16_t offset[2]; uint8_t pitch; uint8_t rows; uint16_t width; };
@@ -102,6 +104,7 @@ private:
 
     void convert_graphics();
     void build_road_table();
+    void set_curve_inputs(int16_t car_x);
     void compute_road_frame(int16_t car_x);
     static int offroad_cb(void* ctx, int16_t x);
 };

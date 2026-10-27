@@ -13,6 +13,9 @@
 ***************************************************************************/
 
 #include <iostream>
+#include <string>
+#include <cstdio>
+#include <cstdlib>
 #include "trackloader.hpp"
 #include "roms.hpp"
 #include "engine/outrun.hpp"
@@ -155,6 +158,18 @@ void TrackLoader::init_original_tracks(bool jap)
         const uint32_t STAGE_ADR = roms.rom0p->read32(outrun.adr.road_seg_end + (i << 2));
         setup_section(&levels_end[i], roms.rom0p, STAGE_ADR);
         levels_end[i].path  = &roms.rom1p->rom[ROAD_DATA_BONUS];
+    }
+
+    if (const char* d = getenv("CB_DUMP_PATHS"))        // crossover analysis: sub ROM + path offsets
+    {
+        std::string dir(d);
+        if (FILE* f = fopen((dir + "/outrun_sub.bin").c_str(), "wb")) { fwrite(roms.rom1p->rom, 1, 0x40000, f); fclose(f); }
+        if (FILE* f = fopen((dir + "/outrun_paths.txt").c_str(), "w"))
+        {
+            for (int i = 0; i < STAGES; i++) fprintf(f, "stage%d %u\n", i, (unsigned)(levels[i].path - roms.rom1p->rom));
+            fprintf(f, "split %u\n", (unsigned) ROAD_DATA_SPLIT);
+            fclose(f);
+        }
     }
 }
 
