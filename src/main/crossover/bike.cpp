@@ -631,14 +631,66 @@ void CrossoverBike::draw_crash_objects(oentry* rider, oentry* rider_shadow, oent
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+// Collision widths: Super Hang-On's rules applied to OutRun's objects
+//
+// Both games treat the player's vehicle as its centre line (screen x = 0 here; Super Hang-On's
+// $160) and give each object a hit span; what differs is how wide those spans are.
+//
+// Super Hang-On (read from code, widths from ROM):
+//   scenery  ($6EFA)  hit while |x| <= [$11930 + type * 2], checked at depths $89-$BF. Of the 23
+//                     object types whose sprite ($117C8) could be compared, the width equals the
+//                     object's drawn half-width at depth $BF (beside the bike) for 8, is 2-6
+//                     pixels more for 5 and is smaller for 10 (wide objects trimmed): the bike
+//                     itself adds next to nothing.
+//   vehicles ($74D4)  hit while |x| <= [$CA06 + lean * 8 + view * 2] + 10, at depths >= $A0. The
+//                     table holds rival-bike half-widths (16-32; the rivals use the player's own
+//                     sprites, drawn 18-34 half-width there), so a rival is hit up to 10 pixels
+//                     beyond its own outline.
+// OutRun (measured over one autopilot run of the full route): scenery spans are fixed numbers per
+// object type that reach 6-18 pixels past the drawn outline of narrow objects (poles, signs) and
+// stay well inside the outline of several wide ones; cars count as hit within 0.6875 x their width
+// either side of centre (0.1875 x their width past their outline).
+//
+// So for the bike: a scenery object's span is OutRun's own (which keeps OutRun's trimming of
+// trees and the like) but never past the object's drawn outline, and a car is hit within its
+// half-width + 10. The 10 is the only part that comes from the bike, so it alone follows BIKE SIZE
+// (8 at 80 percent); the scenery rule has no bike part to scale.
+// ------------------------------------------------------------------------------------------------
+int CrossoverBike::size_percent() const
+{
+    if (sh_course) return 100;
+    int pct = config.crossover.bike_scale;
+    return (pct < 50 || pct > 100) ? 100 : pct;
+}
+
+bool CrossoverBike::scenery_overlap(const oentry* obj, int16_t x1, int16_t x2) const
+{
+    int w = obj->width;                                 // as drawn last frame
+    if (w <= 0) return false;                           // not drawn: nothing to hit
+    int left;
+    switch (obj->draw_props & 3)                        // OSprites::set_sprite_xy's anchoring
+    {
+        case 1:  left = 0;      break;
+        case 2:  left = -w;     break;
+        default: left = -(w >> 1); break;
+    }
+    int lo = std::max<int>(x1, left), hi = std::min<int>(x2, left + w);
+    if (lo > hi) return false;
+    return obj->x + lo <= 0 && obj->x + hi >= 0;
+}
+
+int16_t CrossoverBike::traffic_half_width(uint16_t car_width) const
+{
+    return (int16_t)((car_width >> 1) + (10 * size_percent() + 50) / 100);
+}
+
 // BIKE SIZE as an OutRun sprite zoom value (0x200 = full size). The option is for OutRun's courses,
 // where the bike shares the screen with scenery and traffic sized for the Ferrari, and the screen lines that show
 // a sprite of 'rows' source rows at that zoom without reading past its last row
 uint16_t CrossoverBike::scaled_zoom() const
 {
-    if (sh_course) return 0x200;                       // Super Hang-On's own courses: always full size
-    int pct = config.crossover.bike_scale;
-    if (pct < 50 || pct > 100) pct = 100;
+    int pct = size_percent();                           // Super Hang-On's own courses: always 100
     return (uint16_t)((0x200 * 100 + pct / 2) / pct);
 }
 

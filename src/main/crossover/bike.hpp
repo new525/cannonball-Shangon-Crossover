@@ -55,6 +55,9 @@ public:
     // the Ferrari's passenger and shadow entries. Called every frame from OFerrari.
     void draw_crash_objects(oentry* rider, oentry* rider_shadow, oentry* bike_shadow);
     bool owns(const oentry* e) const;               // drawn by this class (OSprites::do_sprite)
+    // Collision widths, Super Hang-On's rules on OutRun's objects (see bike.cpp)
+    bool    scenery_overlap(const oentry* obj, int16_t x1, int16_t x2) const;
+    int16_t traffic_half_width(uint16_t car_width) const;
     // A Super Hang-On sound command (effects); goes to Super Hang-On's sound board in a game
     void sh_sound(uint8_t code);
 
@@ -107,6 +110,7 @@ private:
     void convert_graphics();
     void build_road_table();
     uint16_t scaled_zoom() const;
+    int size_percent() const;
     static int scaled_lines(int rows, uint16_t zoom);
     void set_curve_inputs(int16_t car_x);
     void compute_road_frame(int16_t car_x);

@@ -60,8 +60,12 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
 - **The bike** (`crossover/bike.*`, `crossover/shophys/`): Super Hang-On's speed, steering,
   lean, centrifugal push, off-road, knockback, crash sequence and engine-sound tasks, rebuilt in C
   from the game's 68000 code. Each one was compared with MAME 0.264 frame by frame with no
-  differences. OutRun's collision detection decides when the bike hits something; Super Hang-On's
-  code decides what happens next.
+  differences.
+- **Collisions**: OutRun decides when a car or roadside object is level with the bike. Super
+  Hang-On's rules decide how close counts as a hit: the bike's centre line has to reach a
+  roadside object's outline (OutRun's own hit area for that object, but never wider than the
+  object as drawn), or come within 10 pixels of a car's outline. Those 10 pixels shrink with
+  BIKE SIZE. Super Hang-On's code then decides what happens next.
 - **Sound boards** (`crossover/soundboard.*`, `crossover/xaudio.*`): Super Hang-On's board
   (Z80, YM2151, Sega PCM) and Hang-On's board (Z80, YM2203, Sega PCM), running each game's own Z80
   sound program. Given the same commands as MAME, they make the same sound-chip register writes.
@@ -117,11 +121,12 @@ roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
 1. Run `cannonball.exe`.
 2. Choose **PLAY GAME**. The race setup screen opens:
    - **VEHICLE**: OutRun's Ferrari or Super Hang-On's bike
-   - **BIKE SIZE**: 60 percent by default; anything from 50 percent up to *FULL SIZE* (as in
+   - **BIKE SIZE**: 80 percent by default; anything from 50 percent up to *FULL SIZE* (as in
      Super Hang-On) in steps of 10. Super Hang-On's bike takes up much more of the screen than
      OutRun's Ferrari, and a smaller bike shows more of the road ahead. It applies on OutRun's
-     courses only; on Super Hang-On's own courses (once added) the bike is always full size. It
-     changes only how the bike and its crash are drawn, not the riding or what you collide with.
+     courses only; on Super Hang-On's own courses (once added) the bike is always full size. The
+     riding is the same at every size; the bike's reach in collisions with cars shrinks with it
+     (see *Collisions* above).
    - **TRACK**: OutRun's full route (pick a road at each fork) or any single OutRun stage
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks (it previews as you
      choose), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen

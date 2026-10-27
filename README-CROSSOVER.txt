@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.2.2 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.2.3 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -11,6 +11,18 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
+Changes in 0.2.3
+----------------
+- BIKE SIZE now defaults to 80 percent. All sizes are still selectable.
+- Collisions use Super Hang-On's rules for the bike. OutRun still decides
+  when a car or roadside object is level with the bike; Super Hang-On's
+  rules decide how close counts as a hit. A roadside object hits when the
+  bike's centre line reaches its outline (OutRun's own hit area for the
+  object, but never wider than the object as drawn: OutRun's areas reach
+  up to 18 pixels past poles and signs). A car hits when the bike's centre
+  comes within 10 pixels of its outline (OutRun allowed 0.19 x the car's
+  width). The 10 pixels shrink with BIKE SIZE, e.g. 8 at 80 percent.
+
 Changes in 0.2.2
 ----------------
 - The bike is now drawn at 60 percent of Super Hang-On's size by default,
@@ -18,8 +30,8 @@ Changes in 0.2.2
   goes from 50 percent up to FULL SIZE (the original) in steps of 10. The
   crashing bike and rider are scaled to match. This applies on OutRun's
   courses only; on Super Hang-On's own courses (once added) the bike will
-  always be full size. Only the drawing changes: the riding and the
-  collisions are the same at every size.
+  always be full size. Only the drawing changes: the riding is the same at
+  every size.
 
 Changes in 0.2.1
 ----------------
@@ -48,7 +60,7 @@ Race setup menu
 Main menu > PLAY GAME opens the race setup:
     START RACE
     VEHICLE   OutRun's Ferrari or Super Hang-On's bike
-    BIKE SIZE 60 percent (default), 50 to 90 percent, or FULL SIZE
+    BIKE SIZE 80 percent (default), 50 to 90 percent, or FULL SIZE
     TRACK     OutRun's full route (you choose at each fork), or any single
               OutRun stage (1, 2A-2B, 3A-3C, 4A-4D, 5A-5E; letters follow
               the order of Cannonball's time-trial course map). A single
@@ -93,8 +105,8 @@ What is reconstructed, and how it was checked
   were matched from both games' code.
 
 Design choices (not original behaviour of either game):
-- OutRun's collision detection decides when the bike hits something;
-  Super Hang-On's code decides what happens.
+- OutRun decides when an object is level with the bike; Super Hang-On's
+  rules decide how close counts as a hit, and its code what happens next.
 - The crashed bike and rider are placed on OutRun's road at the depth
   matching Super Hang-On's, so they follow OutRun's hills.
 - Scoring is OutRun's.
@@ -115,7 +127,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.2.2-src.zip     this program (git tag v0.2.2,
+  superscaler-crossover-0.2.3-src.zip     this program (git tag v0.2.3,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in

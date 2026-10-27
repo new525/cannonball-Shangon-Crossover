@@ -744,6 +744,7 @@ void OTraffic::check_collision(oentry* sprite)
     if (sprite->z >> 16 >= 0x1D8)
     {
         int16_t w  = (sprite->width >> 1) + (sprite->width >> 3) + (sprite->width >> 4);
+        if (bike.enabled) w = bike.traffic_half_width(sprite->width);   // crossover: Super Hang-On's rule
         int16_t x1 = sprite->x - w; // d2
         int16_t x2 = sprite->x + w; // d1
 

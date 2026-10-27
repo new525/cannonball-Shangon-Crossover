@@ -18,6 +18,15 @@
 #include "engine/outils.hpp"
 #include "engine/olevelobjs.hpp"
 #include "engine/ostats.hpp"
+#include "crossover/bike.hpp"
+
+// The player's vehicle against a scenery object's collision span (x1..x2, relative to the object's
+// x; the vehicle is at x = 0). OutRun's test for the Ferrari; Super Hang-On's rule for the bike.
+static bool scenery_overlap(oentry* sprite, int16_t x1, int16_t x2)
+{
+    if (bike.enabled) return bike.scenery_overlap(sprite, x1, x2);
+    return !(sprite->x + x1 > 0 || sprite->x + x2 < 0);
+}
 
 OLevelObjs olevelobjs;
 
@@ -412,7 +421,7 @@ void OLevelObjs::sprite_normal(oentry *sprite, uint8_t zoom)
     }
 
     // If off left hand side or off right hand side of screen
-    if (sprite->x + x1 > 0 || sprite->x + x2 < 0)
+    if (!scenery_overlap(sprite, x1, x2))
     {
         set_spr_zoom_priority(sprite, zoom);
         return;
@@ -456,7 +465,7 @@ void OLevelObjs::sprite_lights(oentry *sprite)
     }
 
     // If off left hand side or off right hand side of screen
-    if (sprite->x + x1 > 0 || sprite->x + x2 < 0)
+    if (!scenery_overlap(sprite, x1, x2))
     {
         sprite_lights_countdown(sprite);
         return;
@@ -582,7 +591,7 @@ void OLevelObjs::sprite_collision_z1c(oentry* sprite)
     x2 -= centre;
 
     // If off left hand side or off right hand side of screen
-    if (sprite->x + x1 > 0 || sprite->x + x2 < 0)
+    if (!scenery_overlap(sprite, x1, x2))
     {
         set_spr_zoom_priority2(sprite, 1);
         return;
@@ -792,7 +801,7 @@ void OLevelObjs::sprite_debris(oentry* sprite)
     }
 
     // If off left hand side or off right hand side of screen
-    if (sprite->x + x1 > 0 || sprite->x + x2 < 0)
+    if (!scenery_overlap(sprite, x1, x2))
     {
         set_spr_zoom_priority(sprite, zoom);
         return;
@@ -988,7 +997,7 @@ void OLevelObjs::sprite_rocks(oentry *sprite)
     }
 
     // If off left hand side or off right hand side of screen
-    if (sprite->x + x1 > 0 || sprite->x + x2 < 0)
+    if (!scenery_overlap(sprite, x1, x2))
     {
         set_spr_zoom_priority_rocks(sprite, zoom);
         return;
