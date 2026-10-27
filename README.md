@@ -49,7 +49,7 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 | Super Hang-On and Hang-On race music on emulated sound boards | Done |
 | Race setup menu: vehicle, bike size, track, music | Done |
 | Super Hang-On's four courses with the bike, on an emulated Super Hang-On board | Done |
-| OutRun's Ferrari on Super Hang-On's courses | In progress |
+| OutRun's Ferrari on Super Hang-On's courses (handling, crash, skids, smoke, engine sound) | Done |
 | Hang-On's course (with either vehicle) | Planned |
 | Bike versions of OutRun's start and ending scenes | Planned |
 
@@ -88,6 +88,35 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   OutRun) the road, scenery and riders fill the wider screen and the text stays in the middle.
   Super Hang-On resets its rankings at every power-on; the program keeps them between sessions
   in `hiscores_superhangon.bin`, as Cannonball keeps OutRun's in `hiscores.xml`.
+- **The Ferrari on Super Hang-On's courses** (`crossover/shferrari.*`): the bike's mirror image.
+  Super Hang-On's program runs the world (road, scenery, rivals, timer, checkpoints, score,
+  rankings), and Cannonball's own OutRun code drives the car: speed and gears, steering, curve
+  push, off-road, skids, the crash with its flips and thrown passengers, smoke, shadow, and the
+  engine and tyre sounds from OutRun's sound program. Where Super Hang-On's main CPU reaches its
+  own bike's code, the program runs the Ferrari's instead and hands the results back (position on
+  the road, speed, distance). The car and everything that belongs to it are drawn with OutRun's
+  sprite code and colours at the bike's place in Super Hang-On's depth-sorted sprite list, so
+  objects nearer to the camera still pass in front of it. The joins, as design decisions:
+  - Road edges: OutRun's wheel rules are applied to Super Hang-On's road edge (300 units from
+    the centre), so one wheel leaves the road 24 units before it and both 24 units after it,
+    and the car can wander as far past the edge as OutRun allows (564 units from the centre).
+  - Curve push: OutRun's own push, from OutRun's road builder run over Super Hang-On's road path
+    (as the bike uses Super Hang-On's builder on OutRun's path).
+  - Distance: OutRun's (303 per km/h per 30 Hz tick, with its correction for the line taken
+    through a curve); Super Hang-On's own course logic then takes it from there.
+  - Rivals: they count as OutRun traffic. A rival is hit within 0.6875 of its width either side
+    of the car's centre (OutRun's rule for cars; the allowance Super Hang-On uses is measured to
+    be half the rival's drawn width). The response is OutRun's: a skid away from the rival, speed
+    cut to the rival's speed less 80, and a chance of a spin, using OutRun's value for cars
+    rather than lorries.
+  - Roadside objects: Super Hang-On's own test decides (the car's centre line against the
+    object's drawn outline). OutRun's hit areas are per-object data that Super Hang-On's objects
+    don't have. A hit starts OutRun's crash.
+  - Speedometer: Super Hang-On's shows its speed value multiplied by 279/240 (its 240 reads
+    280 km/h), so the Ferrari's top speed of 293 shows as 340 km/h there. The motion matches
+    OutRun's (distance per speed unit is the same in both games, within 0.4%).
+  - Off-road dust and wheel smoke use OutRun's first-stage colours. There is no start-line rev
+    effect, because in OutRun that comes with its own start signal.
 - **Menu**: *PLAY GAME* opens a race setup screen (vehicle, bike size, track, music).
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
@@ -143,7 +172,7 @@ roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
      (see *Collisions* above).
    - **TRACK**: OutRun's full route (pick a road at each fork), any single OutRun stage, or one
      of Super Hang-On's courses: *AFRICA* (Beginner, 6 stages), *ASIA* (Junior, 10), *AMERICA*
-     (Senior, 14) or *EUROPE* (Expert, 18). Super Hang-On's courses need the bike for now.
+     (Senior, 14) or *EUROPE* (Expert, 18), with either vehicle.
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks (it previews as you
      choose), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen. On Super Hang-On's
      courses, *CHOOSE ON THE RADIO* takes you to Super Hang-On's own music screen instead
@@ -161,7 +190,7 @@ it ends you're back in the menu. The menu key leaves at any time.
 | Arrow keys | Steer (and menus) | Steer (and menus) |
 | Z | Accelerate | Accelerate |
 | X | Brake | Brake |
-| Space | Gear shift | Supercharger (hold it at top speed, as in Super Hang-On) |
+| Space | Gear shift (on any course) | Supercharger (hold it at top speed, as in Super Hang-On) |
 | 5 | Insert coin | Insert coin |
 | 1 | Start | Start |
 
@@ -210,10 +239,12 @@ has only been built and tested on Windows (MinGW-w64) and Linux.
 
 ## Known issues
 
-- OutRun's Ferrari can't drive Super Hang-On's courses yet.
 - OutRun's ending shows the Ferrari even when you ride the bike.
 - In widescreen mode, crash objects near the screen edges vanish early, because Super Hang-On's
   sprite code clips to its own 320-pixel screen.
+- On Super Hang-On's courses, the Ferrari's flying wreck and passengers are drawn at one depth in
+  Super Hang-On's sprite order (the wreck's), so a roadside object between them and the camera
+  can be drawn behind a passenger. They are also not hidden behind hill crests.
 
 Bug reports are welcome in [Issues](../../issues).
 

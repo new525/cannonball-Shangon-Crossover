@@ -1,16 +1,40 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.3.1 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.4.0 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
-Super Hang-On's bike ride OutRun's courses, runs Super Hang-On's own courses
-on an emulated Super Hang-On board, and adds Super Hang-On's and Hang-On's
-race music. Non-commercial; see "Licences" below.
+Super Hang-On's bike ride OutRun's courses and OutRun's Ferrari drive Super
+Hang-On's own courses (on an emulated Super Hang-On board), and adds Super
+Hang-On's and Hang-On's race music. Non-commercial; see "Licences" below.
 
 No game ROMs are included. You need your own copies.
 
 Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
+
+Changes in 0.4.0
+----------------
+- OutRun's Ferrari drives Super Hang-On's four courses (VEHICLE: OUTRUN FERRARI,
+  TRACK: AFRICA, ASIA, AMERICA or EUROPE). Super Hang-On's program runs the
+  world: road, scenery, rival riders, timer, checkpoints, score, rankings.
+  Cannonball's own OutRun code drives the car: speed and gears, steering,
+  curve push, off-road, skids and spins, the crash with its flips and
+  thrown passengers, smoke and shadow, and the engine and tyre sounds from
+  OutRun's sound program (Super Hang-On's bike engine is silenced). The car
+  is drawn with OutRun's sprites and colours at the bike's place in Super
+  Hang-On's depth-sorted sprite list.
+- How the two games are joined (design choices, see "What is reconstructed"):
+  OutRun's wheel rules on Super Hang-On's road edge; OutRun's curve push
+  from OutRun's road builder run over Super Hang-On's road; OutRun's
+  distance per speed unit; rivals count as OutRun traffic (hit within 0.6875
+  of a rival's width, OutRun's skid, speed cut and spin chance for cars);
+  roadside objects use Super Hang-On's own test and start OutRun's crash.
+- Super Hang-On's speedometer shows its speed value times 279/240, so the
+  Ferrari's top speed of 293 reads 340 km/h there. The car moves exactly as
+  fast as in OutRun.
+- On Super Hang-On's courses OutRun's pedal handling now runs at OutRun's
+  30 Hz rate at every frame-rate setting, as it does on OutRun's courses
+  (at 60 fps it ran twice as often before).
 
 Changes in 0.3.1
 ----------------
@@ -42,7 +66,7 @@ Changes in 0.3.0
   music screen; another game's track replaces Super Hang-On's race music;
   CHOOSE ON THE RADIO shows Super Hang-On's own music screen (brake to
   choose, START to confirm).
-- These courses need the bike for now.
+- These courses need the bike for now (the Ferrari arrived in 0.4.0).
 
 Changes in 0.2.3
 ----------------
@@ -99,7 +123,7 @@ Main menu > PLAY GAME opens the race setup:
               the order of Cannonball's time-trial course map). A single
               stage is raced with the time-trial rules; laps and traffic are
               set under GAME MODES > TIME TRIAL. Or one of Super Hang-On's
-              courses: AFRICA, ASIA, AMERICA, EUROPE (bike only for now).
+              courses: AFRICA, ASIA, AMERICA, EUROPE (either vehicle).
     MUSIC     any of the eight tracks, previewed as you choose, or
               "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
 Up/down moves, left/right (or select) changes a setting. Your choices are
@@ -144,15 +168,30 @@ Design choices (not original behaviour of either game):
 - The crashed bike and rider are placed on OutRun's road at the depth
   matching Super Hang-On's, so they follow OutRun's hills.
 - Scoring is OutRun's.
+- The Ferrari on Super Hang-On's courses: Super Hang-On's road edge (300
+  units from the centre) takes the place of OutRun's, with OutRun's wheel
+  rules around it (one wheel off 24 units before it, both 24 units after;
+  the car can go as far past it as OutRun allows, 564 units from the
+  centre). The curve push is OutRun's, from OutRun's road builder run over
+  Super Hang-On's road path. Rivals are OutRun traffic: the allowance Super
+  Hang-On uses for them was measured to be half the rival's drawn width, and
+  the Ferrari hits within 11/8 of it (OutRun's 0.6875 of a car's width);
+  OutRun's response follows, with the spin chance OutRun gives cars (1)
+  rather than lorries (3). Roadside objects use Super Hang-On's own test
+  (OutRun's hit areas are per-object data its objects don't have). The
+  car's flying wreck and passengers are drawn at the wreck's depth in Super
+  Hang-On's sprite order. Smoke colours are OutRun's first stage's.
 
 
 Not done yet
 ------------
-- OutRun's Ferrari on Super Hang-On's courses, and the Hang-On course.
+- The Hang-On course.
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
 - In widescreen mode, crash objects near the screen edges are hidden early.
   Super Hang-On's sprite code clips to its own 320-pixel screen.
+- On Super Hang-On's courses the Ferrari's wreck and passengers are not
+  hidden behind hill crests, and share one depth in the sprite order.
 
 
 Licences
@@ -160,7 +199,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.3.1-src.zip     this program (git tag v0.3.1,
+  superscaler-crossover-0.4.0-src.zip     this program (git tag v0.4.0,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in

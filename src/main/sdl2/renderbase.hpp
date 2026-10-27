@@ -29,7 +29,7 @@ protected:
 	SDL_Surface *surface;
 
     // Palette Lookup
-    uint32_t rgb[S16_PALETTE_ENTRIES * 2 + 1];    // Extended to hold shadow colours (+1: crossover border black)
+    uint32_t rgb[EXT_COLOURS + 1];    // Extended to hold shadow colours; crossover: another board's colours + border black
 
     uint32_t *screen_pixels;
 

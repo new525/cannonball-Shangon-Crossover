@@ -201,7 +201,7 @@ static void tick()
                 shmode.stop();
                 state = STATE_INIT_MENU;
             }
-            input.frame_done();
+            if (tick_frame) input.frame_done();     // with the 30 Hz input reads (gear presses), as in a game
             osoundint.tick();
             break;
 

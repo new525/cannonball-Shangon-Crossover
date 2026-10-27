@@ -72,6 +72,15 @@ public:
     // limits move out by xoff pixels (0 restores the original program).
     bool set_widescreen(int xoff);
 
+    // Main-CPU instruction hooks (the crossover's vehicle swap, crossover/shferrari): fn runs just
+    // before the main CPU executes the instruction at one of the given addresses. It may read and
+    // change the main CPU's registers (main_reg / set_main_reg, Musashi's M68K_REG_* numbers), e.g.
+    // set the PC to skip code. n = 0 removes them.
+    using PcHook = void (*)(void* ctx, uint32_t pc);
+    void     set_pc_hooks(const uint32_t* pcs, int n, PcHook fn, void* ctx);
+    uint32_t main_reg(int r) const;
+    void     set_main_reg(int r, uint32_t v);
+
     // ---- debugging / verification ----
     uint64_t frame_count = 0;
     uint32_t main_pc() const;
@@ -94,6 +103,12 @@ private:
     static constexpr double LINE_CYCLES = CPU_HZ * 400.0 / PIX_HZ;
     static constexpr double QUANTUM  = CPU_HZ / 6000.0;
     static constexpr double PERFECT  = CPU_HZ * 100e-6;
+
+    static const int MAX_HOOKS = 16;
+    uint32_t hook_pc[MAX_HOOKS] = {};
+    int      n_hooks = 0;
+    PcHook   hook_fn = nullptr;
+    void*    hook_ctx = nullptr;
 
     std::vector<uint8_t> ctx[2];            // Musashi contexts
     double  cpu_time[2] = { 0, 0 };         // cycles run, relative to the frame start

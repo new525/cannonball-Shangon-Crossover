@@ -193,6 +193,20 @@ void hwsprites::swap()
 
 void hwsprites::render(const uint8_t priority)
 {
+    render_impl(priority, video.pixels, config.s16_width, config.s16_height, config.s16_x_off,
+                config.video.hires != 0, x1, x2);
+}
+
+// Crossover: the same sprites into another frame buffer (no hi-res doubling), e.g. the Ferrari
+// drawn into Super Hang-On's screen
+void hwsprites::render_to(uint16_t* target, int width, int height, int x_off, const uint8_t priority)
+{
+    render_impl(priority, target, width, height, x_off, false, 0, (uint16_t) width);
+}
+
+void hwsprites::render_impl(const uint8_t priority, uint16_t* target, const int s16_width, const int s16_height,
+                            const int s16_x_off, const bool hires, const uint16_t x1, const uint16_t x2)
+{
     const uint32_t numbanks = SPRITES_LENGTH / 0x10000;
 
     for (uint16_t data = 0; data < SPRITE_RAM_SIZE; data += 8) 
@@ -246,10 +260,10 @@ void hwsprites::render(const uint8_t priority)
         ytarget = top + ydelta * height;
 
         // Adjust for widescreen mode
-        xpos += config.s16_x_off;
+        xpos += s16_x_off;
 
         // Adjust for hi-res mode
-        if (config.video.hires)
+        if (hires)
         {
             xpos <<= 1;
             top <<= 1;
@@ -261,9 +275,9 @@ void hwsprites::render(const uint8_t priority)
         for (y = top; y != ytarget; y += ydelta)
         {
             // skip drawing if not within the cliprect
-            if (y >= 0 && y < config.s16_height)
+            if (y >= 0 && y < s16_height)
             {
-                uint16_t* pPixel = &video.pixels[y * config.s16_width];
+                uint16_t* pPixel = &target[y * s16_width];
                 int32_t xacc = 0;
 
                 // non-flipped case
@@ -272,7 +286,7 @@ void hwsprites::render(const uint8_t priority)
                     // start at the word before because we preincrement below
                     ramBuff[data+7] = (addr - 1);
 
-                    for (x = xpos; (xdelta > 0 && x < config.s16_width) || (xdelta < 0 && x >= 0); )
+                    for (x = xpos; (xdelta > 0 && x < s16_width) || (xdelta < 0 && x >= 0); )
                     {
                         uint32_t pixels = spritedata[++ramBuff[data+7]]; // Add to base sprite data the vzoom value
 
@@ -297,7 +311,7 @@ void hwsprites::render(const uint8_t priority)
                     // start at the word after because we predecrement below
                     ramBuff[data+7] = (addr + 1);
 
-                    for (x = xpos; (xdelta > 0 && x < config.s16_width) || (xdelta < 0 && x >= 0); )
+                    for (x = xpos; (xdelta > 0 && x < s16_width) || (xdelta < 0 && x >= 0); )
                     {
                         uint32_t pixels = spritedata[--ramBuff[data+7]];
 

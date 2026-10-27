@@ -227,6 +227,8 @@ set(src_crossover
     "${main_cpp_base}/crossover/shvideo.cpp"
     "${main_cpp_base}/crossover/shmode.hpp"
     "${main_cpp_base}/crossover/shmode.cpp"
+    "${main_cpp_base}/crossover/shferrari.hpp"
+    "${main_cpp_base}/crossover/shferrari.cpp"
     "${main_cpp_base}/crossover/m68k/m68k.h"
     "${main_cpp_base}/crossover/m68k/m68kconf.h"
     "${main_cpp_base}/crossover/m68k/m68kcpu.h"

@@ -34,6 +34,9 @@ const uint32_t S16_PALETTE_BASE    = 0x120000;
 
 // Number of Palette Entries
 const uint16_t S16_PALETTE_ENTRIES = 0x1000;
+// Crossover: colours of a frame from another board (Video::set_external): the board's own
+// 0x2000, then 0x1000 for OutRun's sprites drawn into it; the border colour follows them
+const uint32_t EXT_COLOURS = 0x3000;
 
 // Number of stages
 const uint16_t STAGES = 15;

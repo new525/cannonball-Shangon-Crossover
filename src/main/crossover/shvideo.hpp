@@ -30,9 +30,18 @@ public:
     void set_width(int w);
     int width = W, xoff = 0;
 
+    // Another game's sprites drawn into the frame (crossover/shferrari): a width x H buffer from
+    // OutRun's sprite renderer (0 = nothing, OutRun colour $800-$FFF, +$1000 = shadowed,
+    // $1000 alone = shadow), put into the sprite bitmap in place of the one sprite entry the
+    // game's list marks with the tag (hide bit + address TAG_ADDR), with that entry's priority.
+    // Its pixels come out as $2000 + OutRun colour ($2800-$2FFF), shadows as this board's.
+    static const uint16_t TAG_ADDR = 0xFE7A;
+    const uint16_t* overlay = nullptr;
+    bool overlay_placed = false;            // the tagged entry was in the last frame's list
+
     bool init(const RomSet& roms);
     void render(SHBoard& b);                // into pixels[]
-    uint16_t pixels[MAXW * H];                 // palette index (+$1000 = shadow/highlight entry)
+    uint16_t pixels[MAXW * H];                 // palette index (+$1000 = shadow/highlight entry, $2000+ = overlay)
 
     // RGB of a palette index (MAME's resistor weights), from the board's palette RAM
     uint32_t rgb(const SHBoard& b, uint16_t index) const;

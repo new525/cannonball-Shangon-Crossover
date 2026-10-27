@@ -411,6 +411,34 @@ void SHBoard::reset_out()
 void SHBoard::instr_hook(uint32_t pc)
 {
     if (trace) fprintf(trace, "%c %06x\n", cur ? 's' : 'm', pc);
+    if (cur == 0)
+        for (int i = 0; i < n_hooks; i++)
+            if (pc == hook_pc[i]) { hook_fn(hook_ctx, pc); break; }
+}
+
+void SHBoard::set_pc_hooks(const uint32_t* pcs, int n, PcHook fn, void* c)
+{
+    n_hooks = 0;
+    if (!fn || n <= 0) return;
+    for (int i = 0; i < n && i < MAX_HOOKS; i++) hook_pc[i] = pcs[i] & 0xffffff;
+    hook_fn = fn; hook_ctx = c;
+    n_hooks = std::min(n, MAX_HOOKS);
+}
+
+uint32_t SHBoard::main_reg(int r) const
+{
+    if (loaded == 0) return m68k_get_reg(nullptr, (m68k_register_t) r);
+    return m68k_get_reg((void*) ctx[0].data(), (m68k_register_t) r);
+}
+
+void SHBoard::set_main_reg(int r, uint32_t v)
+{
+    if (loaded == 0) { m68k_set_reg((m68k_register_t) r, v); return; }
+    // not in the core: swap it in for the change (only used from hooks, where it is in the core)
+    int was = loaded;
+    select(0);
+    m68k_set_reg((m68k_register_t) r, v);
+    if (was >= 0) select(was);
 }
 
 static int level_main(bool irq2, bool vblank, int mapper_irq)

@@ -47,6 +47,12 @@ sho_path sho_speed_task(sho_mem *m, uint32_t a5);        /* $00610A */
 void     sho_centrifugal_task(sho_mem *m, uint32_t a5);  /* $0063CE */
 sho_path sho_bike_task(sho_mem *m, uint32_t a5);         /* $007AE6 */
 
+/* The speed task's tail ($62F4-$63A0) for a distance given by the caller: track position and
+ * events, course distance, road buffer toggle, rumble-strip pattern for the road (sub_01456;
+ * skipped when shared_len does not reach $261A00) and odometer. For a vehicle with physics of its
+ * own (crossover: the Ferrari on Super Hang-On's courses). */
+void     sho_track_advance(sho_mem *m, uint32_t a5, uint32_t distance);
+
 /* Input tasks; raw = the byte read from the ADC at $143021 (verified 1,403-1,404 frames each) */
 #define SHO_A5_STEER       0x063880u   /* slot 2,  entry $005F4C */
 #define SHO_A5_THROTTLE    0x063A80u   /* slot 10, entry $006014 */

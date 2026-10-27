@@ -28,6 +28,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/shmode.hpp"
+#include "crossover/shferrari.hpp"
 
 // Logo Y Position
 const static int16_t LOGO_Y = -60;
@@ -1249,11 +1250,7 @@ void Menu::xover_start()
     if (config.crossover.track >= XOVER_OR_TRACKS)
     {
         if (config.crossover.track >= xover_tracks()) { config.crossover.track = 0; return; }
-        if (!bike.enabled)
-        {
-            display_message("FERRARI NOT READY FOR THIS COURSE YET");
-            return;
-        }
+        shferrari.enabled = !bike.enabled;     // OutRun's Ferrari on Super Hang-On's course
         shmode.start(config.crossover.track - XOVER_OR_TRACKS, config.crossover.music);
         cannonball::state = cannonball::STATE_SHANGON;
     }

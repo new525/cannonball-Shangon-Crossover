@@ -288,6 +288,7 @@ void SHVideo::draw_sprites(SHBoard& b)
     const int xmask = xoff ? 0x3ff : 0x1ff;                    // widescreen: see SHBoard::set_widescreen
     const int numbanks = (int)(sprites.size() * 2 / 0x20000);
     for (int i = 0; i < width * H; i++) spr[i] = 0xffff;
+    overlay_placed = false;
     for (int e = 0; e < 0x1000; e += 16)
     {
         uint8_t* d = &b.sprram[e];
@@ -299,9 +300,25 @@ void SHVideo::draw_sprites(SHBoard& b)
         int pitch = (int8_t)(D(2) & 0xff);
         uint16_t addr = D(3);
         int bank = (D(4) >> 8) & 0xf;
-        int colpri = ((D(4) & 0xff) << 4) | (((D(1) >> 9) & 0xf) << 12);
+        // MAME also puts data[1] bits 9-12 in bits 12-15; Super Hang-On's mixing never reads them, and
+        // bit 15 marks overlay pixels here
+        int colpri = (D(4) & 0xff) << 4;
         int vzoom = (D(5) >> 5) & 0x1f, hzoom = D(5) & 0x1f;
         put16(&d[14], addr);                                  // data[7] = addr
+        if (hide && addr == TAG_ADDR && overlay)
+        {
+            // the overlay at this point of the list, with this entry's priority (colour byte bits 6-7)
+            int pri2 = (D(4) >> 6) & 3;
+            for (int i = 0; i < width * H; i++)
+            {
+                uint16_t o = overlay[i];
+                if (!o) continue;
+                if (o == 0x1000) spr[i] = (uint16_t)((pri2 << 10) | 0x3f0 | 0xa);       // shadow
+                else             spr[i] = (uint16_t)(0x8000 | (pri2 << 11) | (o & 0x7ff));
+            }
+            overlay_placed = true;
+            continue;
+        }
         if (hide || top >= bottom) continue;
         if (numbanks) bank %= numbanks;
         const uint16_t* sd = &sprites[(size_t) 0x10000 * bank];
@@ -384,6 +401,11 @@ void SHVideo::render(SHBoard& b)
     {
         uint16_t p = spr[i];
         if (p == 0xffff) continue;
+        if (p & 0x8000)                                    // overlay pixel
+        {
+            if ((1 << ((p >> 11) & 3)) > pri[i]) pixels[i] = (uint16_t)(0x2800 + (p & 0x7ff));
+            continue;
+        }
         int priority = (p >> 10) & 3;
         if ((1 << priority) > pri[i])
         {

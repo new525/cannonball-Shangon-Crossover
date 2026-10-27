@@ -16,6 +16,7 @@
 
 class OTraffic
 {
+    friend class SHFerrari;      // crossover: the Ferrari on Super Hang-On's courses
 public:
     // AI: Set to denote enemy traffic is close to car.
     uint8_t ai_traffic;

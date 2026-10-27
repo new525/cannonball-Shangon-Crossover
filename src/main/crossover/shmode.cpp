@@ -6,6 +6,8 @@
 #include "crossover/shvideo.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/xaudio.hpp"
+#include "crossover/shferrari.hpp"
+#include "main.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -34,7 +36,8 @@ bool SHMode::init()
 // OutRun's input ranges mapped onto the same physical travel of Super Hang-On's controls)
 void SHMode::set_inputs()
 {
-    oinputs.adjust_inputs();                // pedal scaling (OutRun runs this in its game loop)
+    if (cannonball::tick_frame)
+        oinputs.adjust_inputs();            // pedal scaling, at OutRun's 30 Hz like its game loop
     int st = oinputs.input_steering;
     st = std::max(0x48, std::min(st, 0xB8));
     shboard.adc[0] = (uint8_t)(0x80 - ((st - 0x80) * 0x48) / 0x38);    // 0xC8 (left) .. 0x38 (right)
@@ -134,6 +137,7 @@ void SHMode::start(int course, int music_index)
         packet.clear();
     }
 
+    shferrari.begin();                      // when the Ferrari is the vehicle
     xaudio.sh_raw_begin();
     feeding = true;
     acc = 0;
@@ -147,6 +151,7 @@ void SHMode::stop()
 {
     if (!active) return;
     active = false;
+    shferrari.end();
     save_scores();
     xaudio.sh_raw_end();
     xaudio.stop_music();
@@ -156,9 +161,11 @@ void SHMode::stop()
 
 void SHMode::show_frame()
 {
+    shferrari.after_frame();                // OutRun's sprites, drawn into the frame by shvideo
     shvideo.render(shboard);
-    static uint32_t rgb[0x2000];
+    static uint32_t rgb[EXT_COLOURS];
     shvideo.palette_rgb(shboard, rgb);
+    if (shferrari.enabled) shferrari.colours(rgb);
     video.set_external(shvideo.pixels, shvideo.width, SHVideo::H, rgb);
 }
 

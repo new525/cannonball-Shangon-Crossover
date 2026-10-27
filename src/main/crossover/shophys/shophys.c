@@ -123,7 +123,7 @@ sho_path sho_speed_task(sho_mem *m, uint32_t a5)
 
 static sho_path distance_and_track(sho_mem *m, uint32_t a5, sho_path path)
 {
-    uint32_t d0 = rl(m, ROM_DIST), d1, a0, cap;                   /* 62B2 */
+    uint32_t d0 = rl(m, ROM_DIST), d1;                            /* 62B2 */
 
     if (s16(rw(m, V_CURVE_DIR)) > 1) {                            /* 62B8: on a curve */
         d1 = (uint32_t)(int32_t)s16(rw(m, V_PLAYER_X));
@@ -134,6 +134,22 @@ static sho_path distance_and_track(sho_mem *m, uint32_t a5, sho_path path)
         d0 = divs_w(d0, rw(m, V_CURVE_RAD));                      /* * (R +/- x/40) / R */
     }
     d0 = (d0 & 0xFFFFu) * (uint32_t)rw(m, V_SPEED);               /* 62E8: mulu.w */
+    sho_track_advance(m, a5, d0);
+    return path;
+}
+
+/* sub_01456: the rumble-strip pattern for the road chip ($261A00, 191 words) from the odometer */
+static void road_stripes(sho_mem *m)
+{
+    uint32_t a0 = 0xE7C8u + (uint32_t)(rw(m, V_ODOMETER) & 0x1F) * 0x180u, a1 = 0x261A00u;
+    if (m->shared_len < 0x1A00u + 0xBFu * 2u) return;            /* not in this memory image */
+    for (int k = 0; k <= 0xBE; k++, a0 += 2, a1 += 2)
+        ww(m, a1, rw(m, 0x1492u + (rw(m, a0) & 2u)));
+}
+
+void sho_track_advance(sho_mem *m, uint32_t a5, uint32_t d0)
+{
+    uint32_t a0, cap;
     wl(m, V_DIST_FRAME, d0);
     wl(m, V_TRACK_POS, rl(m, V_TRACK_POS) + d0);                  /* 62F4 */
     wb(m, V_TRK_BLOCK2, s16(rw(m, V_TRACK_POS)) < 0x7D0 ? 0 : 0xFF);   /* 62FA-630C */
@@ -144,7 +160,7 @@ static sho_path distance_and_track(sho_mem *m, uint32_t a5, sho_path path)
     wl(m, W_COURSE_DIST, d0);
 
     ww(m, V_FRAME_TGL, rw(m, V_FRAME_TGL) ^ 0x400);               /* 6338 */
-    /* 6340: bsr sub_01456 - copies a rumble-strip pattern into road RAM ($261A00); visual only */
+    road_stripes(m);                                              /* 6340: bsr sub_01456 */
 
     if (rb(m, V_TRK_BLOCK2) == 0 && rb(m, V_TRK_BLOCK1) == 0) {   /* 6344: track events */
         a0 = (rl(m, V_TRK_LIST) + (uint32_t)(int32_t)s16(rw(m, V_TRK_IDX))) & (uint32_t)0xFFFFFF;
@@ -163,5 +179,4 @@ static sho_path distance_and_track(sho_mem *m, uint32_t a5, sho_path path)
         ww(m, V_ODO_STEP, quo);
         ww(m, V_ODOMETER, (uint16_t)(rw(m, V_ODOMETER) + quo));
     }
-    return path;
 }

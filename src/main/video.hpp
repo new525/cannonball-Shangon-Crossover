@@ -45,10 +45,11 @@ public:
     int set_video_mode(video_settings_t* settings);
     void set_shadow_intensity(float);
     uint32_t rgb_of(uint16_t pixel);    // 0x00RRGGBB of a frame-buffer pixel (crossover harness)
+    uint32_t own_rgb(uint16_t pixel);   // the same from OutRun's own palette RAM, also while another board's frame is shown
     void prepare_frame();
     // Crossover: show another board's frame (w x h palette indices 0-0x1FFF with their own colours,
     // 0x00RRGGBB) instead of OutRun's layers; nullptr returns to OutRun's video and palette.
-    void set_external(const uint16_t* px, int w = 0, int h = 0, const uint32_t* rgb = nullptr);
+    void set_external(const uint16_t* px, int w = 0, int h = 0, const uint32_t* rgb = nullptr);   // rgb: EXT_COLOURS entries
     void render_frame();
     bool supports_window();
     bool supports_vsync();
@@ -89,7 +90,7 @@ private:
     void refresh_palette(uint32_t);
     const uint16_t* ext_px = nullptr;
     int ext_w = 0, ext_h = 0;
-    uint32_t ext_rgb[S16_PALETTE_ENTRIES * 2 + 1] = {};
+    uint32_t ext_rgb[EXT_COLOURS + 1] = {};
 };
 
 extern Video video;
