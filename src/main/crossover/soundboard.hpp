@@ -1,5 +1,14 @@
 /***************************************************************************
-    Virtual Sega sound board: Z80 + YM2151 + Sega PCM (315-5218).
+    Virtual Sega sound boards: Z80 + Yamaha FM + Sega PCM (315-5218).
+
+    Two variants, as MAME 0.264 describes them:
+    OUTRUN  - OutRun and Super Hang-On (segaorun.cpp); described below.
+    HANGON  - Hang-On's board (segahang.cpp sound_board_2203): Z80 and YM2203 at 4 MHz, PCM at
+              8 MHz (62500 Hz) in BANK_512 mode; Z80 map ROM $0000-$7FFF, RAM $C000-$C7FF
+              (mirrored to $CFFF), YM2203 $D000-$D001 (mirrored to $DFFF), PCM $E000-$E0FF
+              (mirrored to $EFFF); port $40 (mirror $3F) the sound latch. The main CPU writes the
+              latch through an 8255 in mode 1 whose /OBF line is the Z80's NMI. Mix: YM2203 FM x 0.37,
+              each SSG channel x 0.13, mono to both sides; PCM x 1.0.
 
     The sound hardware of OutRun and Super Hang-On, as MAME 0.264 describes it (segaorun.cpp):
     Z80, YM2151 and PCM all at 4 MHz; PCM in BANK_512 mode; Z80 map ROM $0000-$EFFF, PCM
@@ -29,7 +38,7 @@ extern "C" {
 #include "crossover/z80/z80.h"
 }
 
-namespace ymfm { class ym2151; }
+namespace ymfm { class ym2151; class ym2203; }
 
 class SegaSoundBoard
 {
@@ -37,8 +46,10 @@ public:
     SegaSoundBoard();
     ~SegaSoundBoard();
 
-    // z80rom: program (up to $F000 bytes); pcm: the sample ROM region as MAME's "pcm" region
-    bool init(const std::vector<uint8_t>& z80rom, const std::vector<uint8_t>& pcm, int out_rate, int fps);
+    enum class Kind { OUTRUN, HANGON };
+
+    // z80rom: program; pcm: the sample ROM region as MAME's "pcm" region
+    bool init(Kind kind, const std::vector<uint8_t>& z80rom, const std::vector<uint8_t>& pcm, int out_rate, int fps);
     void reset();
     void cpu_reset();       // the Z80 alone (the main CPU's sound reset line); chips keep running
     bool cpu_held = false;  // reset line asserted: the Z80 does not run
@@ -74,7 +85,14 @@ public:
 private:
     struct Iface;
     std::unique_ptr<Iface> iface;
-    std::unique_ptr<ymfm::ym2151> ym;
+    std::unique_ptr<ymfm::ym2151> opm;     // OUTRUN
+    std::unique_ptr<ymfm::ym2203> opn;     // HANGON
+    Kind kind = Kind::OUTRUN;
+    double  ym_period = 64;                // Z80 cycles per FM sample
+    int64_t pcm_div = 128;                 // Z80 cycles per PCM sample
+    int64_t cmd_spacing = 192;             // Z80 cycles between the main CPU's packet bytes
+    uint8_t ym_read(uint32_t offset);
+    void    ym_write(uint32_t offset, uint8_t v);
 
     z80 cpu;
     uint8_t rom[0x10000];
@@ -87,7 +105,8 @@ private:
     int out_rate = 44100, fps = 60;
     int64_t now = 0;                // Z80 / chip clock cycles since reset
     double  frame_frac = 0;
-    int64_t ym_clock = 0, pcm_clock = 0;
+    double  ym_clock = 0;
+    int64_t pcm_clock = 0;
     int64_t timer_end[2] = { -1, -1 };
     int64_t busy_end = 0;
     bool    irq = false;
@@ -97,7 +116,7 @@ private:
     uint8_t ym_addr = 0;
 
     // native-rate output not yet converted: stereo pairs
-    std::vector<int32_t> ym_buf, pcm_buf;
+    std::vector<float> ym_buf, pcm_buf;   // final-gain stereo pairs
     double ym_pos = 0, pcm_pos = 0;     // read position (in native samples) into the buffers
 
     FILE* ym_log = nullptr;
@@ -107,7 +126,7 @@ private:
     void ym_catch_up();
     void pcm_catch_up();
     void pcm_sample(int32_t& l, int32_t& r);
-    void resample(std::vector<int32_t>& buf, double& pos, double step, int32_t* mix, int samples, double gain);
+    void resample(std::vector<float>& buf, double& pos, double step, int32_t* mix, int samples);
 
     static uint8_t mem_r(void* ud, uint16_t a);
     static void    mem_w(void* ud, uint16_t a, uint8_t v);

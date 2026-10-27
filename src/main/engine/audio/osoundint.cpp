@@ -12,6 +12,7 @@
 #include "engine/outrun.hpp"
 #include "engine/audio/osound.hpp"
 #include "engine/audio/osoundint.hpp"
+#include "crossover/xaudio.hpp"
 
 OSoundInt osoundint;
 OSound osound;
@@ -156,6 +157,9 @@ void OSoundInt::queue_sound(uint8_t snd)
 
 void OSoundInt::add_to_queue(uint8_t snd)
 {
+    // Crossover: music on the other games' boards stops with OutRun's
+    if (snd == sound::FM_RESET) xaudio.stop_music();
+
     // Add sound to the tail end of the queue
     queue[sound_tail] = snd;
     sound_tail = (sound_tail + 1) & QUEUE_LENGTH;

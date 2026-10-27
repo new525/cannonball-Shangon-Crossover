@@ -214,7 +214,7 @@ void CrossoverBike::reset()
 // attract mode unless the demo-sound switch is on); OutRun's game state stands in for $60408.
 void CrossoverBike::sh_sound(uint8_t code)
 {
-    if (outrun.game_state == GS_INGAME) xaudio.sh_command(code);
+    if (outrun.game_state == GS_INGAME) xaudio.command(CrossoverAudio::SHANGON, code);
 }
 
 void CrossoverBike::sound_cb(void* ctx, uint8_t code)
@@ -231,7 +231,7 @@ void CrossoverBike::send_sound_packet()
     uint8_t s[7] = {0, 0, 0, 0, 0, 0, 0};
     if (outrun.game_state == GS_INGAME)
         for (int i = 0; i < 3; i++) s[i] = RB(SHO_PKT + 1 + i);
-    xaudio.sh_frame(s);
+    xaudio.frame_slots(CrossoverAudio::SHANGON, s);
 }
 
 int16_t CrossoverBike::speed_kmh() const { return (int16_t)((shared[0x78] << 8) | shared[0x79]); }

@@ -37,6 +37,8 @@ struct music_t
     const static int IS_YM_INT = 0; // Intenal YM Track (from OutRun ROMs)
     const static int IS_YM_EXT = 1; // External YM Track (from Binary)
     const static int IS_WAV = 2;    // External WAV Track
+    const static int IS_SHANGON = 3; // Crossover: Super Hang-On's board, command cmd
+    const static int IS_HANGON  = 4; // Crossover: Hang-On's board, command cmd
     int type;
 
     int cmd;                        // Z80 Command

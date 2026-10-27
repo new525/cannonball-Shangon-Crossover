@@ -10,7 +10,7 @@ static std::vector<uint8_t> slurp(const char* f){ FILE* h=fopen(f,"rb"); if(!h){
 int main(int argc, char** argv){
   if(argc<7){fprintf(stderr,"usage\n");return 2;}
   int rate = argc>7 ? atoi(argv[7]) : 48000, rst = argc>8 ? atoi(argv[8]) : -1, fps=60, frames=atoi(argv[6]);
-  SegaSoundBoard b; if(!b.init(slurp(argv[1]), slurp(argv[2]), rate, fps)) return 1;
+  SegaSoundBoard b; if(!b.init(getenv("SBT_HANGON") ? SegaSoundBoard::Kind::HANGON : SegaSoundBoard::Kind::OUTRUN, slurp(argv[1]), slurp(argv[2]), rate, fps)) return 1;
   std::multimap<int,int> cmds; FILE* c=fopen(argv[3],"r"); int fr; unsigned v; while(fscanf(c,"%d %x",&fr,&v)==2) cmds.insert({fr,(int)v}); fclose(c);
   FILE* yl=fopen(argv[4],"w"); b.set_ym_log(yl);
   FILE* w=fopen(argv[5],"wb"); std::vector<int16_t> out;

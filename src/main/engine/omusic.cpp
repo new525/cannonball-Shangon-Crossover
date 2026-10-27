@@ -13,6 +13,7 @@
 #include "engine/oinputs.hpp"
 #include "engine/ologo.hpp"
 #include "engine/omusic.hpp"
+#include "crossover/xaudio.hpp"
 #include "engine/otiles.hpp"
 #include "engine/otraffic.hpp"
 #include "engine/ostats.hpp"
@@ -279,6 +280,15 @@ void OMusic::play_music(int index)
         case music_t::IS_WAV:
             cannonball::audio.load_wav((config.data.res_path + next_track->filename).c_str());
             break;
+
+        // Crossover: the other games' music, on their own sound boards
+        case music_t::IS_SHANGON:
+        case music_t::IS_HANGON:
+            cannonball::audio.clear_wav();
+            osoundint.queue_sound(sound::FM_RESET);
+            xaudio.play_music(next_track->type == music_t::IS_SHANGON ? CrossoverAudio::SHANGON : CrossoverAudio::HANGON,
+                              (uint8_t) next_track->cmd);
+            break;
     }
 
     last_music_selected = index;
@@ -287,7 +297,7 @@ void OMusic::play_music(int index)
 // Cycle music in continuous mode
 void OMusic::cycle_music()
 {
-    if (++music_selected > 2) music_selected = 0;
+    if (++music_selected >= (int) config.sound.music.size()) music_selected = 0;   // crossover: all tracks
     play_music();
 }
 

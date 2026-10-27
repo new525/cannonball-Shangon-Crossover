@@ -8,40 +8,97 @@
 
 CrossoverAudio xaudio;
 
+// After a Z80 reset the sound program sets up its NMI handler chain (HL') in its first
+// instructions; a command byte arriving before that would leave the 8-byte packet framing
+// misaligned. The games' main CPUs wait before sending (Super Hang-On's second reset at frame
+// 11 is followed by its first command at frame 13), so: no packets for this many frames.
+static const int BOOT_FRAMES = 10;
+
 bool CrossoverAudio::init(int rate, int fps_)
 {
     fps = fps_;
-    if (!sh_roms.loaded()) return false;
-    const RomRegion& z = sh_roms["soundcpu"];
-    const RomRegion& p = sh_roms["pcm"];
-    return shangon.init(z.data, p.data, rate, 60);
+    bool any = false;
+    if (sh_roms.loaded())
+        any |= ch[SHANGON].board.init(SegaSoundBoard::Kind::OUTRUN, sh_roms["soundcpu"].data, sh_roms["pcm"].data, rate, 60);
+    if (ho_roms.loaded())
+        any |= ch[HANGON].board.init(SegaSoundBoard::Kind::HANGON, ho_roms["soundcpu"].data, ho_roms["pcm"].data, rate, 60);
+    return any;
 }
 
-void CrossoverAudio::sh_frame(const uint8_t slots17[7])
+void CrossoverAudio::reset_packets()
 {
-    std::array<uint8_t, 8> pkt;
-    pkt[0] = 0x80;
-    if (!sh_cmds.empty()) { pkt[0] = sh_cmds.front(); sh_cmds.pop_front(); }
-    for (int i = 0; i < 7; i++) pkt[1 + i] = slots17[i];
-    if (sh_packets.size() < 8) sh_packets.push_back(pkt);
+    for (Channel& c : ch) { c.slots.clear(); c.cmds.clear(); }
+}
+
+void CrossoverAudio::frame_slots(Board b, const uint8_t s[7])
+{
+    std::array<uint8_t, 7> a;
+    for (int i = 0; i < 7; i++) a[i] = s[i];
+    if (ch[b].slots.size() < 8) ch[b].slots.push_back(a);
+}
+
+void CrossoverAudio::stop(Board b)
+{
+    Channel& c = ch[b];
+    if (!c.board.ready) return;
+    c.board.cpu_reset();          // as the game's main CPU does through the sound reset line
+    c.quiet = BOOT_FRAMES;
+    c.cmds.clear();
+    c.music = false;
+}
+
+void CrossoverAudio::stop_music()
+{
+    if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "xaudio: stop music\n");
+    for (int b = 0; b < BOARDS; b++)
+        if (ch[b].music) stop((Board) b);
+}
+
+void CrossoverAudio::play_music(Board b, uint8_t cmd)
+{
+    if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "xaudio: play %02x on board %d (ready %d)\n", cmd, b, ch[b].board.ready);
+    stop_music();
+    if (!ch[b].board.ready) return;
+    ch[b].music = true;
+    ch[b].cmds.push_back(cmd);
 }
 
 void CrossoverAudio::mix(int32_t* out, int samples)
 {
-    if (!sh_active || !shangon.ready) return;
-    // the board runs in 60 Hz frames; at 30 fps two of them make one audio tick
+    ch[SHANGON].active = sh_vehicle || ch[SHANGON].music;
+    ch[HANGON].active  = ch[HANGON].music;
+    // the boards run in 60 Hz frames; at 30 fps two of them make one audio tick
     int sub = fps >= 60 ? 1 : 60 / fps;
     int per = samples / sub;
-    for (int s = 0; s < sub; s++)
+    for (int b = 0; b < BOARDS; b++)
     {
-        if (!sh_packets.empty())
+        Channel& c = ch[b];
+        if (!c.board.ready || !c.active) { c.slots.clear(); c.was_active = false; continue; }
+        if (!c.was_active)                      // (re)starting: from a fresh Z80 reset
         {
-            for (uint8_t b : sh_packets.front()) shangon.command(b);
-            sh_packets.pop_front();
+            c.board.cpu_reset();
+            c.quiet = BOOT_FRAMES;
+            c.was_active = true;
         }
-        shangon.frame(out + 2 * per * s, per);
+        for (int s = 0; s < sub; s++)
+        {
+            if (c.quiet > 0)
+            {
+                c.quiet--;
+                if (!c.slots.empty()) c.slots.pop_front();
+                c.board.frame(out + 2 * per * s, per);
+                continue;
+            }
+            std::array<uint8_t, 7> slots = {};
+            if (!c.slots.empty()) { slots = c.slots.front(); c.slots.pop_front(); }
+            uint8_t cmd = 0x80;
+            if (!c.cmds.empty()) { cmd = c.cmds.front(); c.cmds.pop_front(); }
+            c.board.command(cmd);
+            for (uint8_t v : slots) c.board.command(v);
+            c.board.frame(out + 2 * per * s, per);
+        }
     }
-    // Debug: the board's own output (env CB_XAUDIO_RAW=<file>: raw stereo int32)
+    // Debug: the boards' own output (env CB_XAUDIO_RAW=<file>: raw stereo int32)
     static FILE* raw = nullptr;
     static const char* rawname = getenv("CB_XAUDIO_RAW");
     if (rawname && !raw) raw = fopen(rawname, "wb");

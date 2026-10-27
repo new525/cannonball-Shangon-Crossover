@@ -345,9 +345,26 @@ int main(int argc, char* argv[])
     else
         std::cout << "Super Hang-On ROMs not loaded: " << sh_roms.error << std::endl;
     bike.enabled = config.crossover.vehicle == 1 && bike.ready;
-    if (bike.ready && !xaudio.init(config.sound.rate, config.fps))
-        std::cout << "Super Hang-On sound board not started" << std::endl;
-    xaudio.sh_active = bike.enabled && xaudio.shangon.ready;
+    if (!ho_roms.load(config.crossover.hangon_rompath))
+        std::cout << "Hang-On ROMs not loaded: " << ho_roms.error << std::endl;
+    if (!xaudio.init(config.sound.rate, config.fps))
+        std::cout << "No crossover sound boards started" << std::endl;
+    xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
+
+    // The other games' race music joins the music selection (titles from the games' own data;
+    // see FINDINGS_physics_track_sound.md: Super Hang-On's sound test list, Hang-On's race music $9D)
+    auto add_track = [](int type, int cmd, const char* title) {
+        music_t m; m.type = type; m.cmd = cmd; m.title = title; config.sound.music.push_back(m);
+    };
+    if (xaudio.ready(CrossoverAudio::SHANGON))
+    {
+        add_track(music_t::IS_SHANGON, 0x9D, "OUTRIDE A CRISIS");
+        add_track(music_t::IS_SHANGON, 0x82, "SPRINTER");
+        add_track(music_t::IS_SHANGON, 0x96, "WINNING RUN");
+        add_track(music_t::IS_SHANGON, 0x81, "HARD ROAD");
+    }
+    if (xaudio.ready(CrossoverAudio::HANGON))
+        add_track(music_t::IS_HANGON, 0x9D, "HANG ON");
 
     // Initialize SDL Audio
     audio.init();

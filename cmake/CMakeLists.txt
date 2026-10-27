@@ -227,6 +227,12 @@ set(src_crossover
     "${main_cpp_base}/crossover/ymfm/ymfm_fm.h"
     "${main_cpp_base}/crossover/ymfm/ymfm_opm.h"
     "${main_cpp_base}/crossover/ymfm/ymfm_opm.cpp"
+    "${main_cpp_base}/crossover/ymfm/ymfm_opn.h"
+    "${main_cpp_base}/crossover/ymfm/ymfm_opn.cpp"
+    "${main_cpp_base}/crossover/ymfm/ymfm_ssg.h"
+    "${main_cpp_base}/crossover/ymfm/ymfm_ssg.cpp"
+    "${main_cpp_base}/crossover/ymfm/ymfm_adpcm.h"
+    "${main_cpp_base}/crossover/ymfm/ymfm_adpcm.cpp"
     )
 
 set(SRCS

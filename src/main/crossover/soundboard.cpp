@@ -4,17 +4,17 @@
 #include "crossover/soundboard.hpp"
 
 #include <cstring>
+#include <cstdlib>
 #include <algorithm>
 #include "crossover/ymfm/ymfm_opm.h"
+#include "crossover/ymfm/ymfm_opn.h"
 
-static const int64_t CLOCK       = 4000000;    // Z80, YM2151 and PCM (MAME segaorun.cpp: SOUND_CLOCK / 4)
-static const int64_t YM_DIV      = 64;         // ymfm ym2151::sample_rate = clock / 64
-static const int64_t PCM_DIV     = 128;        // MAME segapcm: clock / 128
-static const int64_t CMD_SPACING = 192;       // Z80 cycles between the main CPU's 8 writes: 48 us apart
-                                               // in MAME's log of Super Hang-On (sub_018E0's busy-wait)
+static const int64_t CLOCK       = 4000000;    // Z80 clock (both boards); time is counted in Z80 cycles
 static const int     PCM_BANKSHIFT = 12;       // BANK_512 (MAME segapcm.h set_bank)
 static const int     PCM_BANKMASK  = 0x70;
-static const double  YM_GAIN = 0.43, PCM_GAIN = 1.0;   // MAME segaorun.cpp routes
+// Mix (MAME routes): OutRun board YM2151 x 0.43 per side; Hang-On board YM2203 FM x 0.37 and each
+// SSG channel x 0.13, both mono to both sides; PCM x 1.0 on both boards.
+static const double  OPM_GAIN = 0.43, OPN_FM_GAIN = 0.37, OPN_SSG_GAIN = 0.13, PCM_GAIN = 1.0;
 
 struct SegaSoundBoard::Iface : public ymfm::ymfm_interface
 {
@@ -30,20 +30,36 @@ struct SegaSoundBoard::Iface : public ymfm::ymfm_interface
 SegaSoundBoard::SegaSoundBoard() {}
 SegaSoundBoard::~SegaSoundBoard() {}
 
-bool SegaSoundBoard::init(const std::vector<uint8_t>& z80rom, const std::vector<uint8_t>& pcm, int out_rate_, int fps_)
+bool SegaSoundBoard::init(Kind kind_, const std::vector<uint8_t>& z80rom, const std::vector<uint8_t>& pcm, int out_rate_, int fps_)
 {
     ready = false;
     if (z80rom.empty() || pcm.empty()) return false;
+    kind = kind_;
     out_rate = out_rate_; fps = fps_;
+    size_t rom_end = kind == Kind::OUTRUN ? 0xF000 : 0x8000;
     std::memset(rom, 0, sizeof rom);
-    std::memcpy(rom, z80rom.data(), std::min(z80rom.size(), (size_t) 0xF000));
+    std::memcpy(rom, z80rom.data(), std::min(z80rom.size(), rom_end));
     pcm_rom = pcm;
     uint32_t sz = 1;
     while (sz < pcm_rom.size()) sz <<= 1;
     pcm_rom.resize(sz, 0);
     pcm_mask = sz - 1;                         // device_rom_interface: a smaller region is mirrored
     iface.reset(new Iface(this));
-    ym.reset(new ymfm::ym2151(*iface));
+    opm.reset(); opn.reset();
+    if (kind == Kind::OUTRUN)
+    {
+        opm.reset(new ymfm::ym2151(*iface));
+        ym_period = (double) CLOCK / opm->sample_rate(CLOCK);   // clock / 64
+        pcm_div = 128;                                           // PCM at 4 MHz: clock / 128
+        cmd_spacing = 192;     // 48 us between the 8 writes in MAME's log of Super Hang-On (sub_018E0)
+    }
+    else
+    {
+        opn.reset(new ymfm::ym2203(*iface));
+        ym_period = (double) CLOCK / opn->sample_rate(CLOCK);
+        pcm_div = 64;                                            // PCM at 8 MHz: 62500 Hz
+        cmd_spacing = 230;     // 57.5 us between the 8 latch writes in MAME's log of Hang-On
+    }
     reset();
     ready = true;
     return true;
@@ -69,7 +85,8 @@ void SegaSoundBoard::reset()
     ym_buf.clear(); pcm_buf.clear();
     ym_pos = pcm_pos = 0;
     frames_run = 0;
-    ym->reset();
+    if (opm) opm->reset();
+    if (opn) opn->reset();
 }
 
 void SegaSoundBoard::cpu_reset()
@@ -84,6 +101,7 @@ void SegaSoundBoard::cpu_reset()
 
 void SegaSoundBoard::ym_set_timer(uint32_t tnum, int32_t clocks)
 {
+    if (getenv("SB_TIMER_DEBUG")) fprintf(stderr, "t%u set %d at %lld (%.6f s)\n", tnum, clocks, (long long) now, now / 4e6);
     if (tnum < 2) timer_end[tnum] = clocks >= 0 ? now + clocks : -1;
 }
 
@@ -92,14 +110,39 @@ void SegaSoundBoard::ym_set_timer(uint32_t tnum, int32_t clocks)
 // ------------------------------------------------------------------------------------------------
 void SegaSoundBoard::ym_catch_up()
 {
-    ymfm::ym2151::output_data out;
-    while (ym_clock + YM_DIV <= now)
+    while (ym_clock + ym_period <= (double) now)
     {
-        ym->generate(&out, 1);
-        ym_buf.push_back(out.data[0]);
-        ym_buf.push_back(out.data[1]);
-        ym_clock += YM_DIV;
+        if (opm)
+        {
+            ymfm::ym2151::output_data out;
+            opm->generate(&out, 1);
+            ym_buf.push_back((float)(out.data[0] * OPM_GAIN));
+            ym_buf.push_back((float)(out.data[1] * OPM_GAIN));
+        }
+        else
+        {
+            ymfm::ym2203::output_data out;                      // [0] FM, [1..3] SSG A-C
+            opn->generate(&out, 1);
+            float v = (float)(out.data[0] * OPN_FM_GAIN + (out.data[1] + out.data[2] + out.data[3]) * OPN_SSG_GAIN);
+            ym_buf.push_back(v);
+            ym_buf.push_back(v);
+        }
+        ym_clock += ym_period;
     }
+}
+
+uint8_t SegaSoundBoard::ym_read(uint32_t offset)
+{
+    ym_catch_up();
+    return opm ? opm->read(offset & 1) : opn->read(offset & 1);
+}
+
+void SegaSoundBoard::ym_write(uint32_t offset, uint8_t v)
+{
+    ym_catch_up();
+    if ((offset & 1) == 0) ym_addr = v;
+    else if (ym_log) fprintf(ym_log, "%u %02x %02x %lld\n", frames_run, ym_addr, v, (long long) now);
+    if (opm) opm->write(offset & 1, v); else opn->write(offset & 1, v);
 }
 
 // MAME 0.264 segapcm_device::sound_stream_update, one sample
@@ -135,61 +178,75 @@ void SegaSoundBoard::pcm_sample(int32_t& l, int32_t& r)
 
 void SegaSoundBoard::pcm_catch_up()
 {
-    while (pcm_clock + PCM_DIV <= now)
+    while (pcm_clock + pcm_div <= now)
     {
         int32_t l, r;
         pcm_sample(l, r);
-        pcm_buf.push_back(l);
-        pcm_buf.push_back(r);
-        pcm_clock += PCM_DIV;
+        pcm_buf.push_back((float)(l * PCM_GAIN));
+        pcm_buf.push_back((float)(r * PCM_GAIN));
+        pcm_clock += pcm_div;
     }
 }
 
 // ------------------------------------------------------------------------------------------------
 // Bus
 // ------------------------------------------------------------------------------------------------
+// Which chip a Z80 address selects (MAME map; unmapped reads return $FF)
+enum { M_ROM, M_RAM, M_PCM, M_YM, M_NONE };
+static inline int decode(SegaSoundBoard::Kind k, uint16_t a)
+{
+    if (k == SegaSoundBoard::Kind::OUTRUN)
+        return a < 0xF000 ? M_ROM : a < 0xF800 ? M_PCM : M_RAM;
+    if (a < 0x8000) return M_ROM;
+    if (a >= 0xC000 && a < 0xD000) return M_RAM;
+    if (a >= 0xD000 && a < 0xE000) return M_YM;
+    if (a >= 0xE000 && a < 0xF000) return M_PCM;
+    return M_NONE;
+}
+
 uint8_t SegaSoundBoard::mem_r(void* ud, uint16_t a)
 {
     SegaSoundBoard* b = (SegaSoundBoard*) ud;
-    if (a < 0xF000) return b->rom[a];
-    if (a < 0xF800)
+    switch (decode(b->kind, a))
     {
-        b->pcm_catch_up();
-        if (b->pcm_log) fprintf(b->pcm_log, "r%02x %02x %lld\n", a & 0xFF, b->pcm_ram[a & 0xFF], (long long) b->now);
-        return b->pcm_ram[a & 0xFF];
+        case M_ROM: return b->rom[a];
+        case M_RAM: return b->ram[a & 0x7FF];
+        case M_YM:  return b->ym_read(a);
+        case M_PCM:
+            b->pcm_catch_up();
+            if (b->pcm_log) fprintf(b->pcm_log, "r%02x %02x %lld\n", a & 0xFF, b->pcm_ram[a & 0xFF], (long long) b->now);
+            return b->pcm_ram[a & 0xFF];
     }
-    return b->ram[a & 0x7FF];
+    return 0xFF;
 }
 
 void SegaSoundBoard::mem_w(void* ud, uint16_t a, uint8_t v)
 {
     SegaSoundBoard* b = (SegaSoundBoard*) ud;
-    if (a < 0xF000) return;
-    if (a < 0xF800)
+    switch (decode(b->kind, a))
     {
-        b->pcm_catch_up();
-        b->pcm_ram[a & 0xFF] = v;
-        if (b->pcm_log) fprintf(b->pcm_log, "%02x %02x %lld\n", a & 0xFF, v, (long long) b->now);
+        case M_RAM: b->ram[a & 0x7FF] = v; break;
+        case M_YM:  b->ym_write(a, v); break;
+        case M_PCM:
+            b->pcm_catch_up();
+            b->pcm_ram[a & 0xFF] = v;
+            if (b->pcm_log) fprintf(b->pcm_log, "%02x %02x %lld\n", a & 0xFF, v, (long long) b->now);
+            break;
     }
-    else b->ram[a & 0x7FF] = v;
 }
 
 uint8_t SegaSoundBoard::io_r(z80* z, uint8_t port)
 {
     SegaSoundBoard* b = (SegaSoundBoard*) z->userdata;
-    if ((port & 0xC0) == 0x00) { b->ym_catch_up(); return b->ym->read(port & 1); }
-    if ((port & 0xC0) == 0x40) return b->latch;            // 315-5195 pread (NMI line cleared)
+    if ((port & 0xC0) == 0x00 && b->kind == Kind::OUTRUN) return b->ym_read(port);
+    if ((port & 0xC0) == 0x40) return b->latch;            // OutRun: 315-5195 pread; Hang-On: 8255 latch
     return 0xFF;                                           // map.unmap_value_high()
 }
 
 void SegaSoundBoard::io_w(z80* z, uint8_t port, uint8_t v)
 {
     SegaSoundBoard* b = (SegaSoundBoard*) z->userdata;
-    if ((port & 0xC0) != 0x00) return;
-    b->ym_catch_up();
-    if ((port & 1) == 0) b->ym_addr = v;
-    else if (b->ym_log) fprintf(b->ym_log, "%u %02x %02x %lld\n", b->frames_run, b->ym_addr, v, (long long) b->now);
-    b->ym->write(port & 1, v);
+    if ((port & 0xC0) == 0x00 && b->kind == Kind::OUTRUN) b->ym_write(port, v);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -223,7 +280,7 @@ void SegaSoundBoard::run(int64_t cycles)
     }
 }
 
-void SegaSoundBoard::resample(std::vector<int32_t>& buf, double& pos, double step, int32_t* mix, int samples, double gain)
+void SegaSoundBoard::resample(std::vector<float>& buf, double& pos, double step, int32_t* mix, int samples)
 {
     size_t n = buf.size() / 2;
     for (int i = 0; i < samples; i++)
@@ -234,7 +291,7 @@ void SegaSoundBoard::resample(std::vector<int32_t>& buf, double& pos, double ste
         {
             double a = k < n ? buf[2 * k + c] : (n ? buf[2 * (n - 1) + c] : 0);
             double b = k + 1 < n ? buf[2 * (k + 1) + c] : a;
-            mix[2 * i + c] += (int32_t)((a + (b - a) * f) * gain);
+            mix[2 * i + c] += (int32_t)(a + (b - a) * f);
         }
         pos += step;
     }
@@ -256,7 +313,7 @@ void SegaSoundBoard::frame(int32_t* mix, int samples)
         latch = pending.front();
         pending.pop_front();
         z80_gen_nmi(&cpu);
-        run(std::min(CMD_SPACING, end - now));
+        run(std::min(cmd_spacing, end - now));
     }
     if (reset_after_commands) { reset_after_commands = false; cpu_held = false; cpu_reset(); }
     if (now < end) run(end - now);
@@ -269,6 +326,6 @@ void SegaSoundBoard::drain(int32_t* mix, int samples)
     ym_catch_up();
     pcm_catch_up();
     // native -> output rate; ymfm and MAME's PCM both produce 16-bit-scale values
-    resample(ym_buf,  ym_pos,  (double)(CLOCK / YM_DIV)  / out_rate, mix, samples, YM_GAIN);
-    resample(pcm_buf, pcm_pos, (double)(CLOCK / PCM_DIV) / out_rate, mix, samples, PCM_GAIN);
+    resample(ym_buf,  ym_pos,  (double) CLOCK / ym_period / out_rate, mix, samples);
+    resample(pcm_buf, pcm_pos, (double) CLOCK / pcm_div / out_rate, mix, samples);
 }
