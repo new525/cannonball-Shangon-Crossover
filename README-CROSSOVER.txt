@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.2.0 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.2.1 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -6,6 +6,16 @@ Super Hang-On's bike ride OutRun's courses, and adds Super Hang-On's and
 Hang-On's race music. Non-commercial; see "Licences" below.
 
 No game ROMs are included. You need your own copies.
+
+Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
+Based on Cannonball by Chris White: https://github.com/djyt/cannonball
+
+
+Changes in 0.2.1
+----------------
+- Forks: on the right-hand road, which OutRun draws as a mirror image of
+  the left-hand one, the bike was pushed toward the inside of each curve.
+  Its curve push is now mirrored there, as OutRun does for the Ferrari.
 
 
 Setting up
@@ -94,7 +104,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.2.0-src.zip     this program (git tag v0.2.0,
+  superscaler-crossover-0.2.1-src.zip     this program (git tag v0.2.1,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in

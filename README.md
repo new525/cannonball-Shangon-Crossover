@@ -67,8 +67,9 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   sound program. Given the same commands as MAME, they make the same sound-chip register writes.
 - **Graphics**: Super Hang-On's bike, rider and crash sprites are drawn through OutRun's sprite
   hardware emulation, decoded from Super Hang-On's ROMs at start-up.
-- **Forks**: the bike can take either road. On the road OutRun draws mirrored, the bike's
-  curve push is mirrored too, as OutRun does for the Ferrari.
+- **Forks**: the bike can take either road. OutRun draws the right-hand road as a mirror image
+  of the left-hand one, so the bike's curve push is mirrored there, as OutRun does for the
+  Ferrari.
 - **Menu**: *PLAY GAME* opens a race setup screen (vehicle, track, music).
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
