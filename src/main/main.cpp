@@ -37,6 +37,7 @@
 #include "crossover/harness.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/bike.hpp"
+#include "crossover/xaudio.hpp"
 
 // ------------------------------------------------------------------------------------------------
 // Initialize Shared Variables
@@ -344,6 +345,9 @@ int main(int argc, char* argv[])
     else
         std::cout << "Super Hang-On ROMs not loaded: " << sh_roms.error << std::endl;
     bike.enabled = config.crossover.vehicle == 1 && bike.ready;
+    if (bike.ready && !xaudio.init(config.sound.rate, config.fps))
+        std::cout << "Super Hang-On sound board not started" << std::endl;
+    xaudio.sh_active = bike.enabled && xaudio.shangon.ready;
 
     // Initialize SDL Audio
     audio.init();

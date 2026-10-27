@@ -22,6 +22,8 @@
 
 #include "sdl2/audio.hpp"
 #include "crossover/harness.hpp"
+#include "crossover/xaudio.hpp"
+#include <vector>
 #include "frontend/config.hpp" // fps
 #include "engine/audio/osoundint.hpp"
 
@@ -223,10 +225,15 @@ void Audio::tick()
 
     int samples_written = osoundint.pcm->buffer_size;
 
+    // Crossover: the other games' sound boards (Super Hang-On's when the bike is the vehicle)
+    static std::vector<int32_t> xmix;
+    xmix.assign(samples_written, 0);
+    xaudio.mix(xmix.data(), samples_written / 2);
+
     // And mix them into the mix_buffer
     for (int i = 0; i < samples_written; i++)
     {
-        int32_t mix_data = wav_buffer[wavfile.pos] + pcm_buffer[i] + ym_buffer[i];
+        int32_t mix_data = wav_buffer[wavfile.pos] + pcm_buffer[i] + ym_buffer[i] + xmix[i];
 
         // Clip mix data
         if (mix_data > INT16_MAX) mix_data = INT16_MAX;

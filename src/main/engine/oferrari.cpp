@@ -1588,8 +1588,8 @@ void OFerrari::do_sound_score_slip()
     // ------------------------------------------------------------------------
     uint16_t engine_pitch = 0;
 
-    // Do Engine Rev
-    if (outrun.game_state >= GS_START1 && outrun.game_state <= GS_INGAME)
+    // Do Engine Rev (crossover: the bike's engine is on Super Hang-On's sound board)
+    if (outrun.game_state >= GS_START1 && outrun.game_state <= GS_INGAME && !bike.enabled)
     {
         engine_pitch = rev_pitch2 + (rev_pitch2 >> 1);
     }
@@ -1597,8 +1597,8 @@ void OFerrari::do_sound_score_slip()
     osoundint.engine_data[sound::ENGINE_PITCH_H] = engine_pitch >> 8;
     osoundint.engine_data[sound::ENGINE_PITCH_L] = engine_pitch & 0xFF;
 
-    // Curved Road
-    if (oinitengine.road_type != OInitEngine::ROAD_STRAIGHT)
+    // Curved Road (crossover: the bike's tyre squeal comes from Super Hang-On's sound task)
+    if (oinitengine.road_type != OInitEngine::ROAD_STRAIGHT && !bike.enabled)
     {
         int16_t steering = oinputs.steering_adjust;
         if (steering < 0) steering = -steering;
@@ -1682,6 +1682,8 @@ void OFerrari::do_sound_score_slip()
     }
     // check_wheels:
     cornering_old = cornering;
+
+    if (bike.enabled) { sprite_wheel_state = wheel_state; return; }   // crossover: off-road rumble from the bike's board
 
     if (sprite_wheel_state)
     {

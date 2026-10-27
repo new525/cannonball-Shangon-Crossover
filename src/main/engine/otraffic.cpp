@@ -799,7 +799,11 @@ void OTraffic::check_collision(oentry* sprite)
     // New sound effect triggered
     if (!traffic_fx_old && sprite->traffic_fx)
     {
-        osoundint.queue_sound(sprite->traffic_fx);
+        // Crossover: Super Hang-On's contact sound ($7540: $89 when a contact starts)
+        if (bike.enabled && sprite->traffic_fx == sound::REBOUND)
+            bike.sh_sound(0x89);
+        else
+            osoundint.queue_sound(sprite->traffic_fx);
         // Set all proximity bits on
         if (outils::random() & 1)
             sprite->traffic_proximity = 0xFF;

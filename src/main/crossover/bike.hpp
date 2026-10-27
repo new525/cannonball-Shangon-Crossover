@@ -55,8 +55,8 @@ public:
     // the Ferrari's passenger and shadow entries. Called every frame from OFerrari.
     void draw_crash_objects(oentry* rider, oentry* rider_shadow, oentry* bike_shadow);
     bool owns(const oentry* e) const;               // drawn by this class (OSprites::do_sprite)
-    // Sound commands Super Hang-On's code issued since the last call (for the sound board)
-    std::vector<uint8_t> take_sounds() { std::vector<uint8_t> v; v.swap(sounds); return v; }
+    // A Super Hang-On sound command (effects); goes to Super Hang-On's sound board in a game
+    void sh_sound(uint8_t code);
 
     // For the HUD / sound / tests
     int16_t  speed_kmh() const;
@@ -86,11 +86,11 @@ private:
     uint8_t crash_entry[4][12]; // sprite entries of the crash objects (sub_02994), last frame
     bool    crash_vis[4] = {};
     oentry* crash_oentry[4] = {};
-    std::vector<uint8_t> sounds;
     struct CrashImg { uint8_t bank; uint16_t offset; uint8_t pitch; };
     std::unordered_map<uint64_t, CrashImg> crash_cache;
     uint32_t crash_cache_pos = 0;
     void crash_frame();
+    void send_sound_packet();
     void fill_road_heights();
     void setup_crash_entry(oentry* spr, int obj);
     bool draw_crash(oentry* input, osprite* output, int obj);

@@ -4,6 +4,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/harness.hpp"
+#include "crossover/xaudio.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -29,6 +30,7 @@
 extern "C" {
 #include "crossover/shophys/sho_road.h"
 #include "crossover/shophys/sho_crash.h"
+#include "crossover/shophys/sho_sound.h"
 }
 
 #include "crossover/bike_init.inc"
@@ -205,16 +207,32 @@ void CrossoverBike::reset()
     prev_pal = 0;
     knock_pending = 0;
     for (bool& v : crash_vis) v = false;
-    sounds.clear();
+    xaudio.reset_packets();
+}
+
+// Super Hang-On passes effect commands to the sound board in a game only (sub_01924 mutes them in
+// attract mode unless the demo-sound switch is on); OutRun's game state stands in for $60408.
+void CrossoverBike::sh_sound(uint8_t code)
+{
+    if (outrun.game_state == GS_INGAME) xaudio.sh_command(code);
 }
 
 void CrossoverBike::sound_cb(void* ctx, uint8_t code)
 {
-    CrossoverBike* b = (CrossoverBike*) ctx;
-    if (b->sounds.size() < 64) b->sounds.push_back(code);
+    ((CrossoverBike*) ctx)->sh_sound(code);
 }
 
 bool CrossoverBike::crashing() const { return shared[0x94] || shared[0x95]; }
+
+// One Super Hang-On frame's packet: slots 1-3 from the sound task; 4-7 are rival bikes (none here).
+// sub_0196C zeroes slots 1-7 outside a game.
+void CrossoverBike::send_sound_packet()
+{
+    uint8_t s[7] = {0, 0, 0, 0, 0, 0, 0};
+    if (outrun.game_state == GS_INGAME)
+        for (int i = 0; i < 3; i++) s[i] = RB(SHO_PKT + 1 + i);
+    xaudio.sh_frame(s);
+}
 
 int16_t CrossoverBike::speed_kmh() const { return (int16_t)((shared[0x78] << 8) | shared[0x79]); }
 int16_t CrossoverBike::bike_x() const    { return (int16_t)((shared[0x22] << 8) | shared[0x23]); }
@@ -325,6 +343,11 @@ void CrossoverBike::tick()
     {
         WL(V_POS, oroad.road_pos);
         compute_road_frame(car_x);
+
+        // slot 1: the sound task reads the previous frame's state (speed, X, knock, off-road)
+        WW(V_X, car_x - road_center);
+        sho_sound_task(&mem, SHO_A5_SOUND);
+        send_sound_packet();
 
         sho_steering_task(&mem, SHO_A5_STEER, raw_steer);
         // crash objects (slots 3-6) run next, relative to the bike's road like the bike task

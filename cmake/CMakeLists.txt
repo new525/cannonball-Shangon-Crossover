@@ -215,6 +215,18 @@ set(src_crossover
     "${main_cpp_base}/crossover/shophys/sho_road.c"
     "${main_cpp_base}/crossover/shophys/sho_crash.h"
     "${main_cpp_base}/crossover/shophys/sho_crash.c"
+    "${main_cpp_base}/crossover/shophys/sho_sound.h"
+    "${main_cpp_base}/crossover/shophys/sho_sound.c"
+    "${main_cpp_base}/crossover/soundboard.hpp"
+    "${main_cpp_base}/crossover/soundboard.cpp"
+    "${main_cpp_base}/crossover/xaudio.hpp"
+    "${main_cpp_base}/crossover/xaudio.cpp"
+    "${main_cpp_base}/crossover/z80/z80.h"
+    "${main_cpp_base}/crossover/z80/z80.c"
+    "${main_cpp_base}/crossover/ymfm/ymfm.h"
+    "${main_cpp_base}/crossover/ymfm/ymfm_fm.h"
+    "${main_cpp_base}/crossover/ymfm/ymfm_opm.h"
+    "${main_cpp_base}/crossover/ymfm/ymfm_opm.cpp"
     )
 
 set(SRCS
