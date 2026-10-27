@@ -19,6 +19,9 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
   [Reassembler blog](http://reassembler.blogspot.com/). His original README is kept in
   [`docs/README-cannonball.md`](docs/README-cannonball.md).
 - **Nicolas Allemand**: the Z80 core in `src/main/crossover/z80` (MIT).
+- **Karl Stenerud**: Musashi, the 68000 core in `src/main/crossover/m68k` (MIT), which runs the
+  emulated Super Hang-On board. It bundles John R. Hauser's SoftFloat (its licence notice is in
+  `m68k/softfloat/softfloat.c`).
 - **Aaron Giles**: ymfm, the YM2151/YM2203 cores in `src/main/crossover/ymfm` (BSD-3-Clause,
   the copy shipped with MAME 0.264).
 - **The MAME team**: the FD1089 decryption and the Sega PCM sample generation are derived from
@@ -45,7 +48,8 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 | Super Hang-On's bike on OutRun's courses (physics, lean, crash, knockback, engine sound) | Done |
 | Super Hang-On and Hang-On race music on emulated sound boards | Done |
 | Race setup menu: vehicle, bike size, track, music | Done |
-| Super Hang-On's courses (with either vehicle) | In progress |
+| Super Hang-On's four courses with the bike, on an emulated Super Hang-On board | Done |
+| OutRun's Ferrari on Super Hang-On's courses | In progress |
 | Hang-On's course (with either vehicle) | Planned |
 | Bike versions of OutRun's start and ending scenes | Planned |
 
@@ -74,7 +78,14 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
 - **Forks**: the bike can take either road. OutRun draws the right-hand road as a mirror image
   of the left-hand one, so the bike's curve push is mirrored there, as OutRun does for the
   Ferrari.
-- **Menu**: *PLAY GAME* opens a race setup screen (vehicle, track, music).
+- **Super Hang-On's courses** (`crossover/shboard.*`, `crossover/shvideo.*`, `crossover/shmode.*`):
+  Super Hang-On runs on an emulated copy of its own board: both 68000 CPUs (Musashi), the
+  315-5195 memory mapper, the I/O, the road chip, tilemaps and System 16B sprites, and its sound
+  board. Compared with MAME 0.264 over a scripted game, the game's RAM matched in 1,208 of 1,210
+  frames (the other two differed for one frame each, then matched again) and screenshots taken
+  during play were pixel-identical. The program goes through the game's own class and music
+  screens for you, then hands over at the start line.
+- **Menu**: *PLAY GAME* opens a race setup screen (vehicle, bike size, track, music).
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
 
@@ -124,16 +135,21 @@ roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
    - **BIKE SIZE**: 80 percent by default; anything from 50 percent up to *FULL SIZE* (as in
      Super Hang-On) in steps of 10. Super Hang-On's bike takes up much more of the screen than
      OutRun's Ferrari, and a smaller bike shows more of the road ahead. It applies on OutRun's
-     courses only; on Super Hang-On's own courses (once added) the bike is always full size. The
+     courses only; on Super Hang-On's own courses the bike is always full size. The
      riding is the same at every size; the bike's reach in collisions with cars shrinks with it
      (see *Collisions* above).
-   - **TRACK**: OutRun's full route (pick a road at each fork) or any single OutRun stage
+   - **TRACK**: OutRun's full route (pick a road at each fork), any single OutRun stage, or one
+     of Super Hang-On's courses: *AFRICA* (Beginner, 6 stages), *ASIA* (Junior, 10), *AMERICA*
+     (Senior, 14) or *EUROPE* (Expert, 18). Super Hang-On's courses need the bike for now.
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks (it previews as you
-     choose), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen
+     choose), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen. On Super Hang-On's
+     courses, *CHOOSE ON THE RADIO* takes you to Super Hang-On's own music screen instead
+     (choose with the brake, confirm with START).
 3. Choose **START RACE**.
 
 Up/down moves through the menu and left/right changes a setting. Your choices are saved in
-`config.xml`.
+`config.xml`. On Super Hang-On's courses the game is Super Hang-On's own, rankings included; when
+it ends you're back in the menu. The menu key leaves at any time.
 
 ### Controls (default keyboard)
 
@@ -191,7 +207,8 @@ has only been built and tested on Windows (MinGW-w64) and Linux.
 
 ## Known issues
 
-- The TRACK option lists OutRun's courses only, for now.
+- OutRun's Ferrari can't drive Super Hang-On's courses yet.
+- Super Hang-On's high scores aren't kept between sessions.
 - OutRun's ending shows the Ferrari even when you ride the bike.
 - In widescreen mode, crash objects near the screen edges vanish early, because Super Hang-On's
   sprite code clips to its own 320-pixel screen.
@@ -207,7 +224,8 @@ non-commercial, redistributions may not be sold, and modified versions must be d
 their full source code. Each release zip therefore includes this program's source and the source
 of the libraries it ships with (SDL2, the Boost headers used, winpthreads).
 
-The Z80 core is MIT-licensed, ymfm is BSD-3-Clause, and the MAME-derived parts are BSD-3-Clause.
+The Z80 core and Musashi are MIT-licensed, ymfm is BSD-3-Clause, and the MAME-derived parts are
+BSD-3-Clause; SoftFloat (bundled with Musashi) has its own permissive notice.
 The licence texts are in the release zip's `licenses` folder and next to the code.
 
 OutRun, Super Hang-On and Hang-On are trademarks of SEGA. This project is not affiliated with

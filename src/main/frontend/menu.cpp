@@ -27,6 +27,7 @@
 
 #include "crossover/bike.hpp"
 #include "crossover/xaudio.hpp"
+#include "crossover/shmode.hpp"
 
 // Logo Y Position
 const static int16_t LOGO_Y = -60;
@@ -1180,11 +1181,17 @@ void Menu::start_game(int mode, int settings)
 // OutRun's 15 stages in the order of Cannonball's time-trial course map (TTrial::STAGE_LOOKUP):
 // stage 1, then the two stage-2 courses, the three stage-3 courses, and so on. The letters follow
 // that order.
-static const int XOVER_TRACKS = 16;
+// Then Super Hang-On's four courses (on its emulated board, crossover/shmode), in the order of its
+// class screen.
+static const int XOVER_OR_TRACKS = 16;
+static const char* SH_COURSES[4] = { "AFRICA", "ASIA", "AMERICA", "EUROPE" };
+static int xover_tracks() { return XOVER_OR_TRACKS + (shmode.available() ? 4 : 0); }
 
 std::string Menu::xover_track_label(int track)
 {
-    if (track <= 0 || track >= XOVER_TRACKS) return "OUTRUN FULL ROUTE";
+    if (track >= XOVER_OR_TRACKS && track < xover_tracks())
+        return std::string("SUPER HANG ON ") + SH_COURSES[track - XOVER_OR_TRACKS];
+    if (track <= 0 || track >= XOVER_OR_TRACKS) return "OUTRUN FULL ROUTE";
     int n = track - 1, stage = 1;
     while (n >= stage) { n -= stage; stage++; }
     std::string label = "OUTRUN STAGE " + Utils::to_string(stage);
@@ -1213,7 +1220,8 @@ void Menu::xover_cycle(int dir)
     }
     else if (SELECTED(ENTRY_X_TRACK))
     {
-        config.crossover.track = (config.crossover.track + dir + XOVER_TRACKS) % XOVER_TRACKS;
+        int n = xover_tracks();
+        config.crossover.track = ((config.crossover.track + dir) % n + n) % n;
     }
     else if (SELECTED(ENTRY_X_MUSIC))
     {
@@ -1238,7 +1246,18 @@ void Menu::xover_start()
     osoundint.queue_sound(sound::FM_RESET);             // stop a music preview
     config.save();
 
-    if (config.crossover.track <= 0)
+    if (config.crossover.track >= XOVER_OR_TRACKS)
+    {
+        if (config.crossover.track >= xover_tracks()) { config.crossover.track = 0; return; }
+        if (!bike.enabled)
+        {
+            display_message("FERRARI NOT READY FOR THIS COURSE YET");
+            return;
+        }
+        shmode.start(config.crossover.track - XOVER_OR_TRACKS, config.crossover.music);
+        cannonball::state = cannonball::STATE_SHANGON;
+    }
+    else if (config.crossover.track <= 0)
     {
         start_game(Outrun::MODE_ORIGINAL);
     }

@@ -52,6 +52,12 @@ void RenderBase::convert_palette(uint32_t adr, uint32_t r1, uint32_t g1, uint32_
     // Highlight colour code would be added here, but unused.
 }
 
+void RenderBase::set_rgb(uint32_t index, uint32_t c)
+{
+    uint32_t r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
+    rgb[index] = CURRENT_RGB();
+}
+
 void RenderBase::set_shadow_intensity(float f)
 {
     shadow_multi = (int) std::round(255.0f * f);

@@ -39,6 +39,7 @@ int main(int argc, char** argv){
       else if(k=="untrace"){ if(shboard.trace) fclose(shboard.trace); shboard.trace=nullptr; }
     }
     cur_frame=fr; shboard.run_frame();
+    if(getenv("SHT_WATCH")){ unsigned a=strtoul(getenv("SHT_WATCH"),0,16)&0x7fff; static int last=-1; int v=shboard.workram[a]<<8|shboard.workram[a+1]; if(v!=last){ printf("f%d %04x=%04x\n",fr,a,v); last=v; } }
     shvideo.render(shboard);
     if(snaps.count(fr)){ FILE* p=fopen(snaps[fr].c_str(),"wb"); fprintf(p,"P6\n320 224\n255\n");
       for(int i=0;i<320*224;i++){ uint32_t c=shvideo.rgb(shboard, shvideo.pixels[i]); uint8_t px[3]={uint8_t(c>>16),uint8_t(c>>8),uint8_t(c)}; fwrite(px,1,3,p);} fclose(p); }

@@ -1,15 +1,35 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.2.3 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.3.0 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
-Super Hang-On's bike ride OutRun's courses, and adds Super Hang-On's and
-Hang-On's race music. Non-commercial; see "Licences" below.
+Super Hang-On's bike ride OutRun's courses, runs Super Hang-On's own courses
+on an emulated Super Hang-On board, and adds Super Hang-On's and Hang-On's
+race music. Non-commercial; see "Licences" below.
 
 No game ROMs are included. You need your own copies.
 
 Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
+
+Changes in 0.3.0
+----------------
+- Super Hang-On's four courses are in the TRACK option: AFRICA (Beginner,
+  6 stages), ASIA (Junior, 10), AMERICA (Senior, 14) and EUROPE (Expert,
+  18). They run on an emulated copy of Super Hang-On's own board (both
+  68000 CPUs, memory mapper, I/O, road, tilemaps, sprites and sound board),
+  so the course, scenery, rival riders, timing and rankings are Super
+  Hang-On's own. The program goes through the game's class and music
+  screens for you and hands over at the start line; when the game ends you
+  are back in the menu. The menu key leaves at any time.
+- Checked against MAME 0.264 over a scripted game: the game's RAM matched
+  in 1,208 of 1,210 frames (the other two differed for one frame each, then
+  matched again), and screenshots taken during play were pixel-identical.
+- MUSIC on these courses: Super Hang-On's tracks are chosen on its own
+  music screen; another game's track replaces Super Hang-On's race music;
+  CHOOSE ON THE RADIO shows Super Hang-On's own music screen (brake to
+  choose, START to confirm).
+- These courses need the bike for now.
 
 Changes in 0.2.3
 ----------------
@@ -65,7 +85,8 @@ Main menu > PLAY GAME opens the race setup:
               OutRun stage (1, 2A-2B, 3A-3C, 4A-4D, 5A-5E; letters follow
               the order of Cannonball's time-trial course map). A single
               stage is raced with the time-trial rules; laps and traffic are
-              set under GAME MODES > TIME TRIAL.
+              set under GAME MODES > TIME TRIAL. Or one of Super Hang-On's
+              courses: AFRICA, ASIA, AMERICA, EUROPE (bike only for now).
     MUSIC     any of the eight tracks, previewed as you choose, or
               "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
 Up/down moves, left/right (or select) changes a setting. Your choices are
@@ -114,8 +135,8 @@ Design choices (not original behaviour of either game):
 
 Not done yet
 ------------
-- Super Hang-On's courses and the Hang-On course (the TRACK option lists
-  OutRun's courses only).
+- OutRun's Ferrari on Super Hang-On's courses, and the Hang-On course.
+- Super Hang-On's high scores are not kept between sessions.
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
 - In widescreen mode, crash objects near the screen edges are hidden early.
@@ -127,14 +148,15 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.2.3-src.zip     this program (git tag v0.2.3,
+  superscaler-crossover-0.3.0-src.zip     this program (git tag v0.3.0,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in
                                           (Boost Software License 1.0)
   mingw-w64-v11.0.1-winpthreads.tar.gz    libwinpthread-1.dll's source
                                           (upstream v11.0.1)
-Other components: Z80 core by Nicolas Allemand (MIT), ymfm by Aaron Giles
+Other components: Z80 core by Nicolas Allemand (MIT), 68000 core Musashi by
+Karl Stenerud (MIT; it bundles John R. Hauser's SoftFloat), ymfm by Aaron Giles
 (BSD-3-Clause, as shipped in MAME 0.264), and two parts derived from MAME
 (BSD-3-Clause): the FD1089 decryption and the Sega PCM sample generation.
 Licence texts are in the licenses folder.

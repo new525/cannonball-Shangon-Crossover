@@ -38,6 +38,7 @@
 #include "crossover/romset.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/xaudio.hpp"
+#include "crossover/shmode.hpp"
 
 // ------------------------------------------------------------------------------------------------
 // Initialize Shared Variables
@@ -191,6 +192,17 @@ static void tick()
                 outrun.init();
                 state = STATE_GAME;
             }
+            break;
+
+        case STATE_SHANGON:
+            shmode.tick();
+            if (input.has_pressed(Input::MENU) || shmode.finished || !shmode.active)
+            {
+                shmode.stop();
+                state = STATE_INIT_MENU;
+            }
+            input.frame_done();
+            osoundint.tick();
             break;
 
         case STATE_MENU:
@@ -349,6 +361,8 @@ int main(int argc, char* argv[])
         std::cout << "Hang-On ROMs not loaded: " << ho_roms.error << std::endl;
     if (!xaudio.init(config.sound.rate, config.fps))
         std::cout << "No crossover sound boards started" << std::endl;
+    if (sh_roms.loaded() && !shmode.init())
+        std::cout << "Super Hang-On board not started" << std::endl;
     xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
 
     // The other games' race music joins the music selection (titles from the games' own data;

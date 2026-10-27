@@ -159,6 +159,7 @@ void Video::set_shadow_intensity(float f)
 // RenderBase::convert_palette() do (shadow pixels are offset by S16_PALETTE_ENTRIES).
 uint32_t Video::rgb_of(uint16_t pixel)
 {
+    if (ext_px) return pixel <= S16_PALETTE_ENTRIES * 2 ? ext_rgb[pixel] : 0;
     bool shadow = pixel >= S16_PALETTE_ENTRIES;
     uint32_t adr = (pixel & (S16_PALETTE_ENTRIES - 1)) << 1;
     uint32_t a = (palette[adr] << 8) | palette[adr + 1];
@@ -174,11 +175,41 @@ uint32_t Video::rgb_of(uint16_t pixel)
     return (r << 16) | (g << 8) | b;
 }
 
+void Video::set_external(const uint16_t* px, int w, int h, const uint32_t* rgb)
+{
+    if (px == nullptr)
+    {
+        if (ext_px != nullptr)                              // back to OutRun's palette
+            for (uint32_t a = 0; a < S16_PALETTE_ENTRIES * 2; a += 2) refresh_palette(a);
+        ext_px = nullptr;
+        return;
+    }
+    ext_px = px; ext_w = w; ext_h = h;
+    if (rgb)
+        for (uint32_t i = 0; i < S16_PALETTE_ENTRIES * 2; i++) { ext_rgb[i] = rgb[i]; renderer->set_rgb(i, rgb[i]); }
+    renderer->set_rgb(S16_PALETTE_ENTRIES * 2, 0);          // border
+}
+
 void Video::prepare_frame()
 {
     // Renderer Specific Frame Setup
     if (!renderer->start_frame())
         return;
+
+    if (ext_px)
+    {
+        // Crossover: another board's frame, centred (widescreen) and doubled (hi-res)
+        const int scale = config.s16_height / ext_h > 1 ? 2 : 1;
+        const int xo = (config.s16_width - ext_w * scale) / 2, yo = (config.s16_height - ext_h * scale) / 2;
+        for (int y = 0; y < config.s16_height; y++)
+            for (int x = 0; x < config.s16_width; x++)
+            {
+                int sx = (x - xo) / scale, sy = (y - yo) / scale;
+                pixels[y * config.s16_width + x] = (x < xo || sx >= ext_w || y < yo || sy >= ext_h)
+                    ? (uint16_t)(S16_PALETTE_ENTRIES * 2) : ext_px[sy * ext_w + sx];
+            }
+        return;
+    }
 
     if (!enabled)
     {

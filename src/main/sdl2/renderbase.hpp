@@ -21,6 +21,7 @@ public:
     virtual void draw_frame(uint16_t* pixels) = 0;
     void convert_palette(uint32_t adr, uint32_t r1, uint32_t g1, uint32_t b1);
     void set_shadow_intensity(float f);
+    void set_rgb(uint32_t index, uint32_t rgb888);   // crossover: a colour given directly (0x00RRGGBB)
     virtual bool supports_window() { return true; }
     virtual bool supports_vsync() { return false; }
 
@@ -28,7 +29,7 @@ protected:
 	SDL_Surface *surface;
 
     // Palette Lookup
-    uint32_t rgb[S16_PALETTE_ENTRIES * 2];    // Extended to hold shadow colours
+    uint32_t rgb[S16_PALETTE_ENTRIES * 2 + 1];    // Extended to hold shadow colours (+1: crossover border black)
 
     uint32_t *screen_pixels;
 

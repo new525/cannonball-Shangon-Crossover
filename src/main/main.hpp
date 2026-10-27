@@ -29,6 +29,7 @@ namespace cannonball
         STATE_MENU,
         STATE_INIT_GAME,
         STATE_GAME,
+        STATE_SHANGON,      // crossover: Super Hang-On's courses on its emulated board
         STATE_QUIT
     };
 }

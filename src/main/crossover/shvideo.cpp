@@ -368,7 +368,7 @@ void SHVideo::render(SHBoard& b)
         int priority = (p >> 10) & 3;
         if ((1 << priority) > pri[i])
         {
-            if ((p & 0x03f0) == 0x03f0) pixels[i] = (uint16_t)(pixels[i] + 0x1000);
+            if ((p & 0x03f0) == 0x03f0) { if (pixels[i] < 0x1000) pixels[i] = (uint16_t)(pixels[i] + 0x1000); }
             else                        pixels[i] = (uint16_t)(0x400 | (p & 0x3ff));
         }
     }

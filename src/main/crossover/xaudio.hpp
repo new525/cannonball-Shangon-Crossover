@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <deque>
 #include <array>
+#include <vector>
 #include "crossover/soundboard.hpp"
 
 class CrossoverAudio
@@ -36,6 +37,12 @@ public:
 
     bool sh_vehicle = false;                   // the bike feeds the Super Hang-On board
 
+    // The emulated Super Hang-On board (shmode) feeds its sound board directly: each 60 Hz
+    // frame, the bytes its main CPU wrote to the sound latch
+    void sh_raw_begin();
+    void sh_raw_frame(const std::vector<uint8_t>& bytes);
+    void sh_raw_end();
+
     // Called once per audio tick: adds the boards' output to mix (interleaved stereo)
     void mix(int32_t* mix, int samples);
 
@@ -51,6 +58,8 @@ private:
         int  quiet = 0;                        // frames without packets after a Z80 reset
     };
     Channel ch[BOARDS];
+    bool sh_raw = false;
+    std::deque<std::vector<uint8_t>> raw;
     int fps = 60;
     void stop(Board b);
 };

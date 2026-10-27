@@ -46,6 +46,9 @@ public:
     void set_shadow_intensity(float);
     uint32_t rgb_of(uint16_t pixel);    // 0x00RRGGBB of a frame-buffer pixel (crossover harness)
     void prepare_frame();
+    // Crossover: show another board's frame (w x h palette indices 0-0x1FFF with their own colours,
+    // 0x00RRGGBB) instead of OutRun's layers; nullptr returns to OutRun's video and palette.
+    void set_external(const uint16_t* px, int w = 0, int h = 0, const uint32_t* rgb = nullptr);
     void render_frame();
     bool supports_window();
     bool supports_vsync();
@@ -84,6 +87,9 @@ private:
 	uint8_t palette[S16_PALETTE_ENTRIES * 2]; // 2 Bytes Per Palette Entry
     float shadow_f = 0.63f;                   // set_shadow_intensity() value, for rgb_of()
     void refresh_palette(uint32_t);
+    const uint16_t* ext_px = nullptr;
+    int ext_w = 0, ext_h = 0;
+    uint32_t ext_rgb[S16_PALETTE_ENTRIES * 2 + 1] = {};
 };
 
 extern Video video;
