@@ -78,6 +78,7 @@ void Menu::populate()
 
     menu_xover.push_back(ENTRY_X_START);
     menu_xover.push_back(ENTRY_X_VEHICLE);
+    menu_xover.push_back(ENTRY_X_BIKESIZE);
     menu_xover.push_back(ENTRY_X_TRACK);
     menu_xover.push_back(ENTRY_X_MUSIC);
     menu_xover.push_back(ENTRY_BACK);
@@ -970,6 +971,7 @@ void Menu::refresh_menu()
         else if (menu_selected == &menu_xover)
         {
             if (SELECTED(ENTRY_X_VEHICLE))          set_menu_text(ENTRY_X_VEHICLE, config.crossover.vehicle == 1 ? "SUPER HANG ON BIKE" : "OUTRUN FERRARI");
+            else if (SELECTED(ENTRY_X_BIKESIZE))    set_menu_text(ENTRY_X_BIKESIZE, config.crossover.bike_scale >= 100 ? "FULL SIZE" : Utils::to_string(config.crossover.bike_scale) + " PERCENT");
             else if (SELECTED(ENTRY_X_TRACK))       set_menu_text(ENTRY_X_TRACK, xover_track_label(config.crossover.track));
             else if (SELECTED(ENTRY_X_MUSIC))
             {
@@ -1202,6 +1204,12 @@ void Menu::xover_cycle(int dir)
             return;
         }
         config.crossover.vehicle = config.crossover.vehicle == 1 ? 0 : 1;
+    }
+    else if (SELECTED(ENTRY_X_BIKESIZE))
+    {
+        // 100 (arcade size) down to 50 percent in steps of 10
+        int s = config.crossover.bike_scale + dir * 10;
+        config.crossover.bike_scale = s > 100 ? 50 : (s < 50 ? 100 : s);
     }
     else if (SELECTED(ENTRY_X_TRACK))
     {

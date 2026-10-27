@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.2.1 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.2.2 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -10,6 +10,14 @@ No game ROMs are included. You need your own copies.
 Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
+
+Changes in 0.2.2
+----------------
+- New race setup option BIKE SIZE: full size, or 90 down to 50 percent.
+  Super Hang-On's bike takes up much more of the screen than OutRun's
+  Ferrari, so a smaller bike shows more of the road ahead. The crashing
+  bike and rider are scaled to match. Only the drawing changes: the
+  riding and the collisions are the same at every size.
 
 Changes in 0.2.1
 ----------------
@@ -38,6 +46,7 @@ Race setup menu
 Main menu > PLAY GAME opens the race setup:
     START RACE
     VEHICLE   OutRun's Ferrari or Super Hang-On's bike
+    BIKE SIZE full size, or 90 down to 50 percent (see above)
     TRACK     OutRun's full route (you choose at each fork), or any single
               OutRun stage (1, 2A-2B, 3A-3C, 4A-4D, 5A-5E; letters follow
               the order of Cannonball's time-trial course map). A single
@@ -104,7 +113,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.2.1-src.zip     this program (git tag v0.2.1,
+  superscaler-crossover-0.2.2-src.zip     this program (git tag v0.2.2,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in

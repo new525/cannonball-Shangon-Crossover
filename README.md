@@ -117,6 +117,9 @@ roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
 1. Run `cannonball.exe`.
 2. Choose **PLAY GAME**. The race setup screen opens:
    - **VEHICLE**: OutRun's Ferrari or Super Hang-On's bike
+   - **BIKE SIZE**: full size (as in Super Hang-On) or 90 down to 50 percent. Super Hang-On's
+     bike takes up much more of the screen than OutRun's Ferrari; a smaller bike shows more of
+     the road ahead. It changes only how the bike and its crash are drawn, not the riding.
    - **TRACK**: OutRun's full route (pick a road at each fork) or any single OutRun stage
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks (it previews as you
      choose), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen

@@ -505,15 +505,19 @@ bool CrossoverBike::draw(oentry* input, osprite* output)
     const Frame& fr = frames[it - def_ptrs.begin()];
     int flip = (input->control & OSprites::HFLIP) ? 1 : 0;
 
-    output->set_vzoom(0x200);                           // full size
-    output->set_hzoom(0x200);
-    input->width = fr.width;
-    osprites.set_sprite_xy(input, output, fr.width, fr.rows);
-    int16_t y2 = (int16_t)(output->get_y() + fr.rows);  // before set_bank, which ORs into the same word
+    // Size (the race setup's BIKE SIZE, a crossover option): OutRun's sprite hardware advances
+    // zoom/0x200 source pixels per screen pixel, so zoom 0x200 is full size and 0x400 half.
+    uint16_t zoom = scaled_zoom();
+    int rows = scaled_lines(fr.rows, zoom), width = fr.width * 0x200 / zoom;
+    output->set_vzoom(zoom);
+    output->set_hzoom(zoom);
+    input->width = width;
+    osprites.set_sprite_xy(input, output, width, rows);  // anchored at the bottom centre
+    int16_t y2 = (int16_t)(output->get_y() + rows);     // before set_bank, which ORs into the same word
     output->set_pal(input->pal_dst);
     output->set_offset(fr.offset[flip]);
     output->set_bank(BIKE_BANK << 1);
-    output->set_height((uint8_t)(fr.rows - 1));
+    output->set_height((uint8_t)(rows - 1));
     if (y2 > 0x1DF) output->sub_height((uint8_t)(y2 - 0x1DF));
     output->set_render(0xE0);                           // forwards, left to right, top to bottom
     output->set_pitch((uint8_t)(fr.pitch << 1));
@@ -627,6 +631,21 @@ void CrossoverBike::draw_crash_objects(oentry* rider, oentry* rider_shadow, oent
     }
 }
 
+// BIKE SIZE as an OutRun sprite zoom value (0x200 = full size), and the screen lines that show
+// a sprite of 'rows' source rows at that zoom without reading past its last row
+uint16_t CrossoverBike::scaled_zoom() const
+{
+    int pct = config.crossover.bike_scale;
+    if (pct < 50 || pct > 100) pct = 100;
+    return (uint16_t)((0x200 * 100 + pct / 2) / pct);
+}
+
+int CrossoverBike::scaled_lines(int rows, uint16_t zoom)
+{
+    int n = rows * 0x200 / zoom;
+    return n < 1 ? 1 : n;
+}
+
 bool CrossoverBike::owns(const oentry* e) const
 {
     if (e == oferrari.spr_ferrari) return true;
@@ -645,11 +664,24 @@ bool CrossoverBike::draw_crash(oentry* input, osprite* output, int obj)
         output->hide();
         return true;
     }
-    int rows = e[0] - e[1];
-    output->set_vzoom(0x200);
-    output->set_hzoom(0x200);
-    output->set_y((uint16_t)(e[1] + 256));
-    output->set_x((uint16_t)(((e[2] << 8) | e[3]) & 0xFFF));
+    // Scaled like the riding bike (BIKE SIZE) about each object's own horizontal centre. Shadows
+    // keep their bottom edge on the road; the bike and rider (objects 0 and 2) keep their place
+    // over their shadows (1 and 3), with the height above the shadow scaled too.
+    uint16_t zoom = scaled_zoom();
+    int src_rows = e[0] - e[1];
+    int rows = scaled_lines(src_rows, zoom);
+    int x = ((e[2] << 8) | e[3]) & 0xFFF;
+    x += (img.width - img.width * 0x200 / zoom) / 2;
+    int bottom = e[0];
+    if ((obj == 0 || obj == 2) && crash_vis[obj + 1])
+    {
+        int ground = crash_entry[obj + 1][0];
+        if (ground > bottom) bottom = ground - (ground - bottom) * 0x200 / zoom;
+    }
+    output->set_vzoom(zoom);
+    output->set_hzoom(zoom);
+    output->set_y((uint16_t)(bottom - rows + 256));
+    output->set_x((uint16_t)(x & 0xFFF));
     output->set_pal(input->pal_dst);
     output->set_offset(img.offset);
     output->set_bank((uint8_t)(img.bank << 1));
@@ -731,6 +763,7 @@ bool CrossoverBike::crash_image(const uint8_t* e, CrashImg& img)
     img.bank   = (uint8_t)(CRASH_BANK0 + (crash_cache_pos >> 16));
     img.offset = (uint16_t)(crash_cache_pos & 0xFFFF);
     img.pitch  = (uint8_t) out_words;
+    img.width  = (uint16_t) width;
     uint32_t* dst = video.sprite_layer->bank_ptr(img.bank) + img.offset;
     for (int r = 0; r < rows; r++)
         for (uint16_t wi = 0; wi < out_words; wi++)

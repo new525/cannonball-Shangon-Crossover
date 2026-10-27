@@ -90,7 +90,7 @@ private:
     uint8_t crash_entry[4][12]; // sprite entries of the crash objects (sub_02994), last frame
     bool    crash_vis[4] = {};
     oentry* crash_oentry[4] = {};
-    struct CrashImg { uint8_t bank; uint16_t offset; uint8_t pitch; };
+    struct CrashImg { uint8_t bank; uint16_t offset; uint8_t pitch; uint16_t width; };
     std::unordered_map<uint64_t, CrashImg> crash_cache;
     uint32_t crash_cache_pos = 0;
     void crash_frame();
@@ -104,6 +104,8 @@ private:
 
     void convert_graphics();
     void build_road_table();
+    uint16_t scaled_zoom() const;
+    static int scaled_lines(int rows, uint16_t zoom);
     void set_curve_inputs(int16_t car_x);
     void compute_road_frame(int16_t car_x);
     static int offroad_cb(void* ctx, int16_t x);
