@@ -43,7 +43,9 @@ void SHMode::set_inputs()
     shboard.adc[0] = (uint8_t)(0x80 - ((st - 0x80) * 0x48) / 0x38);    // 0xC8 (left) .. 0x38 (right)
     int a = std::max(0, std::min((int) oinputs.acc_adjust, 0x100));
     int b = std::max(0, std::min((int) oinputs.brake_adjust, 0x100));
-    shboard.adc[1] = (uint8_t)(8 + (a * 0x8B) / 0x100);
+    // 8..$93 is the throttle task's travel ($6014: 8 and below = closed); released, the pedal reads 0,
+    // which the name entry needs: it steps the letter right while (accelerator & $FC) != 0 ($8D24)
+    shboard.adc[1] = a ? (uint8_t)(8 + (a * 0x8B) / 0x100) : 0;
     shboard.adc[2] = (uint8_t)((b * 0x9D) / 0x100);
     uint8_t buttons = 0xFF;                                              // active low
     if (input.is_pressed(Input::COIN))  buttons &= ~0x01;
