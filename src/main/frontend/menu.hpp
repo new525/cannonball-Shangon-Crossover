@@ -90,6 +90,7 @@ private:
     std::vector<std::string> menu_enhancements;
     std::vector<std::string> menu_handling;
     std::vector<std::string> menu_musictest;
+    std::vector<std::string> menu_xover;            // crossover race setup: vehicle / track / music
     std::vector<std::string> menu_s_exsettings;     // smartypi specific
     std::vector<std::string> menu_s_tests;          // smartypi specific
     std::vector<std::string> menu_s_dips;           // smartypi specific
@@ -115,4 +116,9 @@ private:
     bool check_jap_roms();
     void restart_video();
     void start_game(int mode, int settings = 0);
+
+    // Crossover race setup
+    void xover_cycle(int dir);
+    void xover_start();
+    static std::string xover_track_label(int track);
 };

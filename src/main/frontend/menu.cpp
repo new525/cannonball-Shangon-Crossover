@@ -25,6 +25,9 @@
 #include "frontend/cabdiag.hpp"
 #include "frontend/ttrial.hpp"
 
+#include "crossover/bike.hpp"
+#include "crossover/xaudio.hpp"
+
 // Logo Y Position
 const static int16_t LOGO_Y = -60;
 
@@ -72,6 +75,12 @@ void Menu::populate()
     menu_timetrial.push_back(ENTRY_LAPS);
     menu_timetrial.push_back(ENTRY_TRAFFIC);
     menu_timetrial.push_back(ENTRY_BACK);
+
+    menu_xover.push_back(ENTRY_X_START);
+    menu_xover.push_back(ENTRY_X_VEHICLE);
+    menu_xover.push_back(ENTRY_X_TRACK);
+    menu_xover.push_back(ENTRY_X_MUSIC);
+    menu_xover.push_back(ENTRY_BACK);
 
     menu_musictest.push_back(ENTRY_MUSIC1);
     menu_musictest.push_back(ENTRY_MUSIC2);
@@ -450,6 +459,12 @@ void Menu::tick_menu()
         if (--cursor < 0)
             cursor = (int)menu_selected->size() - 1;
     }
+    else if (menu_selected == &menu_xover && (input.has_pressed(Input::LEFT) || input.has_pressed(Input::RIGHT)))
+    {
+        xover_cycle(input.has_pressed(Input::LEFT) ? -1 : +1);
+        osoundint.queue_sound(sound::BEEP1);
+        refresh_menu();
+    }
     else if (select_pressed())
     {
         // Get option that was selected
@@ -477,13 +492,7 @@ void Menu::tick_menu()
 
         if (menu_selected == &menu_main)
         {
-            if (SELECTED(ENTRY_PLAYGAME))
-            {
-                start_game(Outrun::MODE_ORIGINAL);
-                //cabdiag->set(CabDiag::STATE_MOTORT);
-                //state = STATE_DIAGNOSTICS;
-                return;
-            }
+            if (SELECTED(ENTRY_PLAYGAME))           set_menu(&menu_xover);    // crossover: race setup first
             else if (SELECTED(ENTRY_GAMEMODES))     set_menu(&menu_gamemodes);
             else if (SELECTED(ENTRY_SETTINGS))      set_menu(&menu_settings);
             else if (SELECTED(ENTRY_ABOUT))         set_menu(&menu_about);
@@ -491,6 +500,16 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_DIPS))          set_menu(&menu_s_dips);
             else if (SELECTED(ENTRY_CABTESTS))      set_menu(&menu_s_tests);
             else if (SELECTED(ENTRY_EXSETTINGS))    set_menu(&menu_s_exsettings);
+        }
+        else if (menu_selected == &menu_xover)
+        {
+            if (SELECTED(ENTRY_X_START))            { xover_start(); return; }
+            else if (SELECTED(ENTRY_BACK))
+            {
+                osoundint.queue_sound(sound::FM_RESET);     // stop a music preview
+                menu_back();
+            }
+            else                                    xover_cycle(+1);
         }
         else if (menu_selected == &menu_gamemodes)
         {
@@ -948,6 +967,16 @@ void Menu::refresh_menu()
             else if (SELECTED(ENTRY_TURBO))         set_menu_text(ENTRY_TURBO, config.engine.turbo ? "ON" : "OFF");
             else if (SELECTED(ENTRY_COLOR))         set_menu_text(ENTRY_COLOR, COLOR_LABELS[config.engine.car_pal]);
         }
+        else if (menu_selected == &menu_xover)
+        {
+            if (SELECTED(ENTRY_X_VEHICLE))          set_menu_text(ENTRY_X_VEHICLE, config.crossover.vehicle == 1 ? "SUPER HANG ON BIKE" : "OUTRUN FERRARI");
+            else if (SELECTED(ENTRY_X_TRACK))       set_menu_text(ENTRY_X_TRACK, xover_track_label(config.crossover.track));
+            else if (SELECTED(ENTRY_X_MUSIC))
+            {
+                int m = config.crossover.music;
+                set_menu_text(ENTRY_X_MUSIC, m < 0 || m >= (int) config.sound.music.size() ? "CHOOSE ON THE RADIO" : config.sound.music.at(m).title);
+            }
+        }
         else if (menu_selected == &menu_musictest)
         {
             if (SELECTED(ENTRY_MUSIC2))             set_menu_text(ENTRY_MUSIC2, music_track >= config.sound.music.size() ? ENTRY_MUSIC3 : config.sound.music.at(music_track).title);
@@ -1140,5 +1169,74 @@ void Menu::start_game(int mode, int settings)
         outrun.cannonball_mode = mode;
         cannonball::state = cannonball::STATE_INIT_GAME;
         osoundint.queue_clear();
+    }
+}
+// ------------------------------------------------------------------------------------------------
+// Crossover race setup: vehicle, track and music
+// ------------------------------------------------------------------------------------------------
+
+// OutRun's 15 stages in the order of Cannonball's time-trial course map (TTrial::STAGE_LOOKUP):
+// stage 1, then the two stage-2 courses, the three stage-3 courses, and so on. The letters follow
+// that order.
+static const int XOVER_TRACKS = 16;
+
+std::string Menu::xover_track_label(int track)
+{
+    if (track <= 0 || track >= XOVER_TRACKS) return "OUTRUN FULL ROUTE";
+    int n = track - 1, stage = 1;
+    while (n >= stage) { n -= stage; stage++; }
+    std::string label = "OUTRUN STAGE " + Utils::to_string(stage);
+    if (stage > 1) label += (char)('A' + n);          // e.g. STAGE 2B (the menu font has no hyphen)
+    return label;
+}
+
+void Menu::xover_cycle(int dir)
+{
+    const char* OPTION = menu_selected->at(cursor).c_str();
+    if (SELECTED(ENTRY_X_VEHICLE))
+    {
+        if (!bike.ready)
+        {
+            config.crossover.vehicle = 0;
+            display_message("SUPER HANG-ON ROMS NOT FOUND");
+            return;
+        }
+        config.crossover.vehicle = config.crossover.vehicle == 1 ? 0 : 1;
+    }
+    else if (SELECTED(ENTRY_X_TRACK))
+    {
+        config.crossover.track = (config.crossover.track + dir + XOVER_TRACKS) % XOVER_TRACKS;
+    }
+    else if (SELECTED(ENTRY_X_MUSIC))
+    {
+        // -1 (the radio screen), then every track in the music list
+        int n = (int) config.sound.music.size() + 1;
+        int m = config.crossover.music + 1;
+        m = ((m + dir) % n + n) % n;
+        config.crossover.music = m - 1;
+        // preview the choice
+        osoundint.queue_sound(sound::FM_RESET);
+        cannonball::audio.clear_wav();
+        if (config.crossover.music >= 0)
+            omusic.play_music(config.crossover.music);
+    }
+}
+
+void Menu::xover_start()
+{
+    if (config.crossover.vehicle == 1 && !bike.ready) config.crossover.vehicle = 0;
+    bike.enabled = config.crossover.vehicle == 1;
+    xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
+    osoundint.queue_sound(sound::FM_RESET);             // stop a music preview
+    config.save();
+
+    if (config.crossover.track <= 0)
+    {
+        start_game(Outrun::MODE_ORIGINAL);
+    }
+    else if (check_jap_roms())
+    {
+        state = STATE_TTRIAL;                           // one stage, with the time-trial settings
+        ttrial->init_direct(config.crossover.track - 1);
     }
 }

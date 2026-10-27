@@ -369,6 +369,14 @@ void Outrun::main_switch()
 
         case GS_INIT_MUSIC:
             omusic.enable();
+            // Crossover: music chosen in the race setup menu - skip the radio screen
+            if (config.crossover.music >= 0 && config.crossover.music < (int) config.sound.music.size())
+            {
+                omusic.preselect(config.crossover.music);
+                omusic.disable();
+                game_state = GS_INIT_GAME;
+                break;
+            }
             game_state = GS_MUSIC;
 
         case GS_MUSIC:

@@ -149,6 +149,8 @@ struct engine_settings_t
 struct crossover_settings_t
 {
     int vehicle;                    // 0 = OutRun Ferrari, 1 = Super Hang-On bike
+    int track;                      // 0 = OutRun's full route; 1-15 = one OutRun stage (time trial picker order)
+    int music;                      // -1 = choose on the radio screen; else index into sound.music
     std::string shangon_rompath;    // folder with the shangon1 ROM files (any names; found by CRC)
     std::string hangon_rompath;     // folder with the hangon ROM files
 };

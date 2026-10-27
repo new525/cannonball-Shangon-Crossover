@@ -28,6 +28,7 @@ public:
 
     uint8_t state;
     int8_t level_selected;
+    int    direct_level = -1;     // crossover: >= 0 starts this stage without waiting for input
 
     enum
     {
@@ -40,6 +41,7 @@ public:
     ~TTrial(void);
 
     void init();
+    void init_direct(int level);   // crossover menu: skip the map, start stage <level> (picker order)
     int  tick();
     void update_best_time();
 

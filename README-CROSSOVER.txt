@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.1.0 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.2.0 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -23,12 +23,20 @@ ROM files are recognised by CRC32 first, then by name, so the names don't
 have to match exactly.
 
 
-Choosing the vehicle
---------------------
-Edit config.xml, section <crossover>:
-    <vehicle>1</vehicle>   Super Hang-On's bike (the default in this release)
-    <vehicle>0</vehicle>   OutRun's Ferrari
-The in-game menu doesn't have this option yet.
+Race setup menu
+---------------
+Main menu > PLAY GAME opens the race setup:
+    START RACE
+    VEHICLE   OutRun's Ferrari or Super Hang-On's bike
+    TRACK     OutRun's full route (you choose at each fork), or any single
+              OutRun stage (1, 2A-2B, 3A-3C, 4A-4D, 5A-5E; letters follow
+              the order of Cannonball's time-trial course map). A single
+              stage is raced with the time-trial rules; laps and traffic are
+              set under GAME MODES > TIME TRIAL.
+    MUSIC     any of the eight tracks, previewed as you choose, or
+              "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
+Up/down moves, left/right (or select) changes a setting. Your choices are
+saved in config.xml (section <crossover>).
 
 
 Playing with the bike
@@ -73,10 +81,10 @@ Design choices (not original behaviour of either game):
 
 Not done yet
 ------------
-- The Ferrari on Super Hang-On's courses, and the Hang-On course.
+- Super Hang-On's courses and the Hang-On course (the TRACK option lists
+  OutRun's courses only).
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
-- A vehicle option in the menu.
 - In widescreen mode, crash objects near the screen edges are hidden early.
   Super Hang-On's sprite code clips to its own 320-pixel screen.
 
@@ -86,7 +94,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.1.0-src.zip     this program (git tag v0.1.0,
+  superscaler-crossover-0.2.0-src.zip     this program (git tag v0.2.0,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in

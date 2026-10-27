@@ -47,6 +47,13 @@ TTrial::~TTrial(void)
 void TTrial::init()
 {
     state = INIT_COURSEMAP;
+    direct_level = -1;
+}
+
+void TTrial::init_direct(int level)
+{
+    state = INIT_COURSEMAP;
+    direct_level = level;
 }
 
 int TTrial::tick()
@@ -87,8 +94,10 @@ int TTrial::tick()
                     if (++level_selected > sizeof(FERRARI_POS) - 1)
                         level_selected = 0;
                 }
-                else if (input.has_pressed(Input::START) || input.has_pressed(Input::ACCEL) || oinputs.is_analog_select())
+                else if (direct_level >= 0 || input.has_pressed(Input::START) || input.has_pressed(Input::ACCEL) || oinputs.is_analog_select())
                 {
+                    if (direct_level >= 0) level_selected = (int8_t) direct_level;
+                    direct_level = -1;
                     outils::convert_counter_to_time(best_times[level_selected], best_converted);
 
                     outrun.cannonball_mode         = Outrun::MODE_TTRIAL;

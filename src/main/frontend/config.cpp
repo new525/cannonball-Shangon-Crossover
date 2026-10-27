@@ -94,6 +94,8 @@ void Config::load()
 
     // Crossover
     crossover.vehicle         = pt_config.get("crossover.vehicle", 0);
+    crossover.track           = pt_config.get("crossover.track", 0);
+    crossover.music           = pt_config.get("crossover.music", -1);
     crossover.shangon_rompath = pt_config.get("crossover.shangon_rompath", "roms/shangon1/");
     crossover.hangon_rompath  = pt_config.get("crossover.hangon_rompath",  "roms/hangon/");
 
@@ -323,6 +325,8 @@ bool Config::save()
     pt_config.put("controls.analog.axis.brake", controls.axis[2]);
 
     pt_config.put("crossover.vehicle",         crossover.vehicle);
+    pt_config.put("crossover.track",           crossover.track);
+    pt_config.put("crossover.music",           crossover.music);
     pt_config.put("crossover.shangon_rompath", crossover.shangon_rompath);
     pt_config.put("crossover.hangon_rompath",  crossover.hangon_rompath);
     pt_config.put("engine.freeplay",        (int) engine.freeplay);

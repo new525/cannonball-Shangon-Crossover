@@ -51,6 +51,8 @@ OInitEngine::~OInitEngine()
 // Source: 0x8360
 void OInitEngine::init(int8_t level)
 {
+    if (bike.ready) bike.reset();   // crossover: fresh Super Hang-On state for every race and demo
+
     ostats.game_completed  = 0;
 
     ingame_engine          = false;

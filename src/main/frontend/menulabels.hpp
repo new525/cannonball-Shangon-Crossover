@@ -9,6 +9,12 @@ const static char* ENTRY_BACK = "BACK";
 
 // Main Menu
 const static char* ENTRY_PLAYGAME = "PLAY GAME";
+
+// Crossover race setup
+const static char* ENTRY_X_START   = "START RACE";
+const static char* ENTRY_X_VEHICLE = "VEHICLE  ";
+const static char* ENTRY_X_TRACK   = "TRACK  ";
+const static char* ENTRY_X_MUSIC   = "MUSIC  ";
 const static char* ENTRY_GAMEMODES = "GAME MODES";
 const static char* ENTRY_SETTINGS = "SETTINGS";
 const static char* ENTRY_ABOUT = "ABOUT";

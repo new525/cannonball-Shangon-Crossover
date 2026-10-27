@@ -16,6 +16,8 @@ class RomLoader;
 class OMusic
 {
 public:
+    // Crossover: choose the track without the radio screen
+    void preselect(int index) { music_selected = (uint8_t) index; cursor_pos = index; }
     OMusic(void);
     ~OMusic(void);
 
