@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.3.0 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.3.1 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -11,6 +11,19 @@ No game ROMs are included. You need your own copies.
 Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
+
+Changes in 0.3.1
+----------------
+- Widescreen on Super Hang-On's courses, done the way Cannonball widens
+  OutRun (the widescreen setting, which GAME MODES > ENHANCED turns on):
+  road, scenery, background and riders fill the wider screen; the score
+  and timer text stays in the middle. Super Hang-On drops sprites that
+  leave its own 320-pixel screen; in widescreen that limit moves out to the
+  wider edges.
+- Super Hang-On's high scores now last between sessions. The game itself
+  resets its rankings at every power-on; the program keeps them in
+  hiscores_superhangon.bin (save folder) and puts them back after the
+  game has started.
 
 Changes in 0.3.0
 ----------------
@@ -136,7 +149,6 @@ Design choices (not original behaviour of either game):
 Not done yet
 ------------
 - OutRun's Ferrari on Super Hang-On's courses, and the Hang-On course.
-- Super Hang-On's high scores are not kept between sessions.
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
 - In widescreen mode, crash objects near the screen edges are hidden early.
@@ -148,7 +160,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.3.0-src.zip     this program (git tag v0.3.0,
+  superscaler-crossover-0.3.1-src.zip     this program (git tag v0.3.1,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in

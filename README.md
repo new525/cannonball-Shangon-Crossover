@@ -84,7 +84,10 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   board. Compared with MAME 0.264 over a scripted game, the game's RAM matched in 1,208 of 1,210
   frames (the other two differed for one frame each, then matched again) and screenshots taken
   during play were pixel-identical. The program goes through the game's own class and music
-  screens for you, then hands over at the start line.
+  screens for you, then hands over at the start line. In widescreen (as Cannonball widens
+  OutRun) the road, scenery and riders fill the wider screen and the text stays in the middle.
+  Super Hang-On resets its rankings at every power-on; the program keeps them between sessions
+  in `hiscores_superhangon.bin`, as Cannonball keeps OutRun's in `hiscores.xml`.
 - **Menu**: *PLAY GAME* opens a race setup screen (vehicle, bike size, track, music).
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
@@ -208,7 +211,6 @@ has only been built and tested on Windows (MinGW-w64) and Linux.
 ## Known issues
 
 - OutRun's Ferrari can't drive Super Hang-On's courses yet.
-- Super Hang-On's high scores aren't kept between sessions.
 - OutRun's ending shows the Ferrari even when you ride the bike.
 - In widescreen mode, crash objects near the screen edges vanish early, because Super Hang-On's
   sprite code clips to its own 320-pixel screen.
