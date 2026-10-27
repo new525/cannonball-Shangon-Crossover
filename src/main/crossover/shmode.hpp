@@ -46,6 +46,14 @@ private:
     int  other_music = -1;                  // music list index replacing Super Hang-On's race music
     void set_inputs();
     void show_frame();
+
+    // High scores. Super Hang-On resets its rankings at every power-on (sub_088FA, called from the
+    // boot code at $1038: the four course tables at $61800-$619BF, $6003C and $61BE0-$61BFF), so
+    // its scores never outlive a session. Like Cannonball's hiscores.xml for OutRun, the program
+    // keeps exactly those areas in a file and puts them back once the boot code has run.
+    void load_scores();
+    void save_scores();
+    std::vector<uint8_t> scores;            // the saved areas, in the order above (empty = none)
 };
 
 extern SHMode shmode;

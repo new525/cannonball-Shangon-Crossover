@@ -7,7 +7,7 @@
     alternate tilemaps; text layer; palette weights), segaic16_road.cpp (ROAD_OUTRUN with
     Super Hang-On's colour bases $7F6/$7C0/$7C0) and sega16sp.cpp (System 16B sprites).
 
-    Output: 320x224 pixels as palette indices 0-$FFF, plus $1000 for shadowed/highlighted
+    Output: 320x224 pixels (398x224 in widescreen) as palette indices 0-$FFF, plus $1000 for shadowed/highlighted
     pixels (MAME's second palette half), and the matching RGB values.
 
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
@@ -23,11 +23,16 @@ class RomSet;
 class SHVideo
 {
 public:
-    static const int W = 320, H = 224;
+    static const int W = 320, H = 224, MAXW = 398;     // MAXW: Cannonball's widescreen width
+
+    // Widescreen (as Cannonball widens OutRun): the game's 320-pixel screen stays in the middle;
+    // road, tilemaps and sprites extend into the extra width, the text layer does not.
+    void set_width(int w);
+    int width = W, xoff = 0;
 
     bool init(const RomSet& roms);
     void render(SHBoard& b);                // into pixels[]
-    uint16_t pixels[W * H];                 // palette index (+$1000 = shadow/highlight entry)
+    uint16_t pixels[MAXW * H];                 // palette index (+$1000 = shadow/highlight entry)
 
     // RGB of a palette index (MAME's resistor weights), from the board's palette RAM
     uint32_t rgb(const SHBoard& b, uint16_t index) const;
@@ -39,8 +44,8 @@ private:
     std::vector<uint8_t>  road;             // decoded road rows: (512 + 1) x 512
     std::vector<uint16_t> sprites;          // sprite ROM as 16-bit words
     uint8_t  pal_normal[32], pal_shadow[32], pal_hilight[32];
-    uint8_t  pri[W * H];                    // priority bitmap
-    uint16_t spr[W * H];                    // sprite bitmap ($FFFF = empty)
+    uint8_t  pri[MAXW * H];                    // priority bitmap
+    uint16_t spr[MAXW * H];                    // sprite bitmap ($FFFF = empty)
     bool     ok = false;
 
     void draw_road(SHBoard& b, bool foreground);

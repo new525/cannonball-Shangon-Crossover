@@ -99,6 +99,17 @@ void SHBoard::reset()
     if (sound_reset) sound_reset(true);     // MAME: the PPI/output port powers up with the sound CPU in reset
 }
 
+bool SHBoard::set_widescreen(int xoff)
+{
+    // immediates of cmpi.w #$200,d0 at $2A50 and cmpi.w #$C0,d1 at $2A5E (program-key view)
+    static const uint32_t A_RIGHT = 0x2A52, A_LEFT = 0x2A60;
+    auto w16 = [&](std::vector<uint8_t>& r, uint32_t a, uint16_t v) { r[a] = v >> 8; r[a + 1] = (uint8_t) v; };
+    if (!ready || be16(&rom_op[A_RIGHT - 2]) != 0x0C40 || be16(&rom_op[A_LEFT - 2]) != 0x0C41) return false;
+    w16(rom_op, A_RIGHT, (uint16_t)(0x200 + xoff));
+    w16(rom_op, A_LEFT,  (uint16_t)(0x0C0 - xoff));
+    return true;
+}
+
 // ------------------------------------------------------------------------------------------------
 // 315-5195 memory mapper
 // ------------------------------------------------------------------------------------------------

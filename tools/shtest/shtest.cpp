@@ -19,6 +19,7 @@ int main(int argc, char** argv){
   if(!sh_roms.load(argv[1])){fprintf(stderr,"roms: %s\n", sh_roms.error.c_str());return 1;}
   if(!shboard.init(sh_roms)){fprintf(stderr,"board init failed\n");return 1;}
   if(!shvideo.init(sh_roms)){fprintf(stderr,"video init failed\n");return 1;}
+  if(getenv("SHT_NVRAM_LOAD")){ FILE* n=fopen(getenv("SHT_NVRAM_LOAD"),"rb"); if(n){ size_t r=fread(shboard.workram,1,0x8000,n); fclose(n); printf("nvram loaded %zu\n",r);} }
   static int cur_frame=0; FILE* sl = getenv("SHT_SOUNDLOG") ? fopen(getenv("SHT_SOUNDLOG"),"w") : nullptr;
   shboard.sound_command = [&](uint8_t b){ if(sl) fprintf(sl,"%d %02x\n",cur_frame,b); };
   shboard.sound_reset = [&](bool held){ if(sl) fprintf(sl,"%d reset %d\n",cur_frame,held?1:0); };
@@ -35,6 +36,7 @@ int main(int argc, char** argv){
       if(k=="buttons") shboard.port_buttons=v; else if(k=="dsw") shboard.port_dsw=v; else if(k=="coinage") shboard.port_coinage=v;
       else if(k.rfind("adc",0)==0) shboard.adc[k[3]-'0']=v;
       else if(k=="trace") shboard.trace=fopen(it->second.second.c_str(),"w");
+      else if(k=="poke"){ unsigned a=strtoul(it->second.second.c_str(),0,16); unsigned val=0; char* c=strchr((char*)it->second.second.c_str(),':'); if(c) val=strtoul(c+1,0,16); shboard.workram[a&0x7fff]=val; }
       else if(k=="snap"){ snaps[fr]=it->second.second; }
       else if(k=="untrace"){ if(shboard.trace) fclose(shboard.trace); shboard.trace=nullptr; }
     }
@@ -46,6 +48,7 @@ int main(int argc, char** argv){
     if(fr%every==0){ put(fm,fr,shboard.workram,0x8000); put(fs,fr,shboard.cpu1ram,0x8000); }
   }
   fclose(fm); fclose(fs);
+  if(getenv("SHT_NVRAM_SAVE")){ FILE* n=fopen(getenv("SHT_NVRAM_SAVE"),"wb"); fwrite(shboard.workram,1,0x8000,n); fclose(n); }
   printf("main pc %06x sub pc %06x\n", shboard.main_pc(), shboard.sub_pc());
   return 0;
 }

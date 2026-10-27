@@ -66,6 +66,12 @@ public:
     // ---- ROM ----
     std::vector<uint8_t> rom_data, rom_op, rom_raw, sub_rom;
 
+    // Widescreen (shvideo set_width): Super Hang-On's sprite builder (sub_02994) drops a sprite whose
+    // left edge is at sprite x $200 or more ($2A50) or whose right edge is at $C0 or less ($2A5E):
+    // the edges of its 320-pixel screen. Like Cannonball's widened sprite bounds for OutRun, the two
+    // limits move out by xoff pixels (0 restores the original program).
+    bool set_widescreen(int xoff);
+
     // ---- debugging / verification ----
     uint64_t frame_count = 0;
     uint32_t main_pc() const;

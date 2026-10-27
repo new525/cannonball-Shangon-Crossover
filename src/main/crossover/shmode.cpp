@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <string>
+#include <iterator>
 #include "video.hpp"
 #include "frontend/config.hpp"
 #include "sdl2/input.hpp"
@@ -46,12 +49,38 @@ void SHMode::set_inputs()
     shboard.port_buttons = buttons;
 }
 
+// Work RAM areas Super Hang-On's power-on reset gives default rankings (offsets in work RAM)
+static const struct { uint32_t off, len; } SCORE_AREAS[] = { { 0x1800, 0x1C0 }, { 0x003C, 4 }, { 0x1BE0, 0x20 } };
+static const uint32_t SCORE_BYTES = 0x1C0 + 4 + 0x20;
+
+static std::string scores_file() { return config.data.save_path + "hiscores_superhangon.bin"; }
+
+void SHMode::load_scores()
+{
+    scores.clear();
+    std::ifstream f(scores_file(), std::ios::binary);
+    if (!f) return;
+    std::vector<uint8_t> v((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (v.size() == SCORE_BYTES) scores = v;
+}
+
+void SHMode::save_scores()
+{
+    std::vector<uint8_t> v;
+    for (const auto& a : SCORE_AREAS) v.insert(v.end(), shboard.workram + a.off, shboard.workram + a.off + a.len);
+    std::ofstream f(scores_file(), std::ios::binary);
+    if (f) f.write((const char*) v.data(), (std::streamsize) v.size());
+}
+
 // Super Hang-On's race music commands, in the order of its music screen
 static const uint8_t SH_MUSIC[4] = { 0x9D, 0x82, 0x96, 0x81 };
 
 void SHMode::start(int course, int music_index)
 {
     if (!ok) return;
+    // Widescreen as Cannonball does it for OutRun (config video.widescreen, set by GAME MODES > ENHANCED)
+    shvideo.set_width(config.video.widescreen ? SHVideo::MAXW : SHVideo::W);
+    shboard.set_widescreen(shvideo.xoff);
     int music = -1;                                                      // on the game's screen
     other_music = -1;
     if (music_index >= 0 && music_index < (int) config.sound.music.size())
@@ -86,9 +115,15 @@ void SHMode::start(int course, int music_index)
         last = 806;
     }
     shboard.adc[0] = 0x80; shboard.adc[1] = 0; shboard.adc[2] = 0; shboard.port_buttons = 0xFF;
+    load_scores();
     size_t k = 0;
     for (int f = 1; f <= last; f++)
     {
+        if (f == 60 && !scores.empty())                                  // boot code done (rankings reset at frame 1)
+        {
+            uint32_t o = 0;
+            for (const auto& a : SCORE_AREAS) { std::copy(&scores[o], &scores[o] + a.len, shboard.workram + a.off); o += a.len; }
+        }
         while (k < s.size() && s[k].frame == f)
         {
             if (s[k].what == 0) shboard.port_buttons = (uint8_t) s[k].value;
@@ -112,6 +147,7 @@ void SHMode::stop()
 {
     if (!active) return;
     active = false;
+    save_scores();
     xaudio.sh_raw_end();
     xaudio.stop_music();
     osoundint.queue_sound(sound::FM_RESET);
@@ -123,7 +159,7 @@ void SHMode::show_frame()
     shvideo.render(shboard);
     static uint32_t rgb[0x2000];
     shvideo.palette_rgb(shboard, rgb);
-    video.set_external(shvideo.pixels, SHVideo::W, SHVideo::H, rgb);
+    video.set_external(shvideo.pixels, shvideo.width, SHVideo::H, rgb);
 }
 
 void SHMode::tick()

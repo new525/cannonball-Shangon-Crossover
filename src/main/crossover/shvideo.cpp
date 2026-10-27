@@ -7,6 +7,7 @@
 
 #include <cstring>
 #include <cmath>
+#include <algorithm>
 
 SHVideo shvideo;
 
@@ -81,6 +82,12 @@ bool SHVideo::init(const RomSet& roms)
     return true;
 }
 
+void SHVideo::set_width(int w)
+{
+    width = std::max(W, std::min(w, MAXW));
+    xoff = (width - W) / 2;
+}
+
 uint32_t SHVideo::rgb(const SHBoard& b, uint16_t index) const
 {
     uint16_t v = be16(&b.palram[(index & 0xfff) * 2]);
@@ -107,7 +114,7 @@ void SHVideo::draw_road(SHBoard& b, bool foreground)
     const uint8_t ctl = b.road_control;
     for (int y = 0; y < H; y++)
     {
-        uint16_t* dest = &pixels[y * W];
+        uint16_t* dest = &pixels[y * width];
         const uint16_t data0 = rr(0x000 + y), data1 = rr(0x100 + y);
         if (!foreground)
         {
@@ -120,7 +127,7 @@ void SHVideo::draw_road(SHBoard& b, bool foreground)
                 case 3: if (data1 & 0x800) color = data1 & 0x7f; break;
             }
             if (color != -1)
-                for (int x = 0; x < W; x++) dest[x] = (uint16_t)(color | colorbase3);
+                for (int x = 0; x < width; x++) dest[x] = (uint16_t)(color | colorbase3);
             continue;
         }
         if ((data0 & 0x800) && (data1 & 0x800)) continue;
@@ -145,15 +152,15 @@ void SHVideo::draw_road(SHBoard& b, bool foreground)
         {
             case 0:
                 if (data0 & 0x800) continue;
-                hpos0 = (hpos0 - (0x5f8 + xoffs)) & 0xfff;
-                for (int x = 0; x < W; x++) { int p0 = hpos0 < 0x200 ? src0[hpos0] : 3; dest[x] = ct[p0]; hpos0 = (hpos0 + 1) & 0xfff; }
+                hpos0 = (hpos0 - (0x5f8 + xoffs + xoff)) & 0xfff;
+                for (int x = 0; x < width; x++) { int p0 = hpos0 < 0x200 ? src0[hpos0] : 3; dest[x] = ct[p0]; hpos0 = (hpos0 + 1) & 0xfff; }
                 break;
             case 1: case 2:
             {
                 const uint8_t* pm = priority_map[(ctl & 3) - 1];
-                hpos0 = (hpos0 - (0x5f8 + xoffs)) & 0xfff;
-                hpos1 = (hpos1 - (0x5f8 + xoffs)) & 0xfff;
-                for (int x = 0; x < W; x++)
+                hpos0 = (hpos0 - (0x5f8 + xoffs + xoff)) & 0xfff;
+                hpos1 = (hpos1 - (0x5f8 + xoffs + xoff)) & 0xfff;
+                for (int x = 0; x < width; x++)
                 {
                     int p0 = hpos0 < 0x200 ? src0[hpos0] : 3, p1 = hpos1 < 0x200 ? src1[hpos1] : 3;
                     dest[x] = ((pm[p0] >> p1) & 1) ? ct[0x10 + p1] : ct[p0];
@@ -163,8 +170,8 @@ void SHVideo::draw_road(SHBoard& b, bool foreground)
             }
             case 3:
                 if (data1 & 0x800) continue;
-                hpos1 = (hpos1 - (0x5f8 + xoffs)) & 0xfff;
-                for (int x = 0; x < W; x++) { int p1 = hpos1 < 0x200 ? src1[hpos1] : 3; dest[x] = ct[0x10 + p1]; hpos1 = (hpos1 + 1) & 0xfff; }
+                hpos1 = (hpos1 - (0x5f8 + xoffs + xoff)) & 0xfff;
+                for (int x = 0; x < width; x++) { int p1 = hpos1 < 0x200 ? src1[hpos1] : 3; dest[x] = ct[0x10 + p1]; hpos1 = (hpos1 + 1) & 0xfff; }
                 break;
         }
     }
@@ -183,7 +190,7 @@ void SHVideo::draw_virtual(SHBoard& b, int x0, int x1, int y0, int y1, uint16_t 
         int vy = (y + yscroll) & 0x1ff;
         for (int x = x0; x <= x1; x++)
         {
-            int vx = (x + xscroll) & 0x3ff;
+            int vx = (x - xoff + xscroll) & 0x3ff;
             int page = (pages >> (4 * ((vy >= 256 ? 2 : 0) + (vx >= 512 ? 1 : 0)))) & 0xf;
             int tx = (vx & 0x1ff) >> 3, ty = (vy & 0xff) >> 3;
             uint16_t data = be16(&b.tileram[(page * 64 * 32 + ty * 64 + tx) * 2]);
@@ -192,8 +199,8 @@ void SHVideo::draw_virtual(SHBoard& b, int x0, int x1, int y0, int y1, uint16_t 
             int color = (data >> 5) & 0x7f;
             uint8_t pen = tiles[(size_t) code * 64 + (vy & 7) * 8 + (vx & 7)];
             if (!pen) continue;
-            pixels[y * W + x] = (uint16_t)(color * 8 + pen);
-            pri[y * W + x] |= mark;
+            pixels[y * width + x] = (uint16_t)(color * 8 + pen);
+            pri[y * width + x] |= mark;
         }
     }
 }
@@ -213,11 +220,14 @@ void SHVideo::draw_tile_layer(SHBoard& b, int which, int category, uint8_t mark)
         if (yscroll & 0x8000)
         {
             // column and row scroll
-            for (int x = ((0 + 8) & ~15) - 8; x < W; x += 16)
+            // 16-pixel columns of the game's screen (x = game x; widescreen columns outside it
+            // take the nearest column's scroll)
+            for (int x = ((-xoff + 8) & ~15) - 8; x < width - xoff; x += 16)
             {
-                int cx0 = std::max(x, 0), cx1 = std::min(x + 15, W - 1);
+                int cx0 = std::max(x + xoff, 0), cx1 = std::min(x + xoff + 15, width - 1);
+                int col = std::max(0, std::min((x + 8) / 16, 20));
                 uint16_t effx = (xscroll & 0x8000) ? rowscroll : xscroll;
-                uint16_t effy = tr(0xf16 / 2 + 0x40 / 2 * which + (x + 8) / 16);
+                uint16_t effy = tr(0xf16 / 2 + 0x40 / 2 * which + col);
                 uint16_t effp = pages;
                 if (rowscroll & 0x8000)
                 {
@@ -238,7 +248,7 @@ void SHVideo::draw_tile_layer(SHBoard& b, int which, int category, uint8_t mark)
             }
             effx = (0xc0 - effx + xoffs) & 0x3ff;
             effy = effy & 0x1ff;
-            draw_virtual(b, 0, W - 1, ry0, ry1, effp, effx, effy, category, mark);
+            draw_virtual(b, 0, width - 1, ry0, ry1, effp, effx, effy, category, mark);
         }
     }
 }
@@ -256,8 +266,8 @@ void SHVideo::draw_text(SHBoard& b, int category, uint8_t mark)
             int color = (data >> 8) & 0x07;
             uint8_t pen = tiles[(size_t) code * 64 + (y & 7) * 8 + ((x + 192) & 7)];
             if (!pen) continue;
-            pixels[y * W + x] = (uint16_t)(color * 8 + pen);
-            pri[y * W + x] |= mark;
+            pixels[y * width + x + xoff] = (uint16_t)(color * 8 + pen);
+            pri[y * width + x + xoff] |= mark;
         }
 }
 
@@ -266,17 +276,18 @@ void SHVideo::draw_text(SHBoard& b, int category, uint8_t mark)
 // ------------------------------------------------------------------------------------------------
 void SHVideo::draw_sprites(SHBoard& b)
 {
-    const int XO = 184;
-    const int clip_min = XO, clip_max = XO + W - 1;
+    const int XO = 184 - xoff;                                // sprite x of screen x 0
+    const int clip_min = XO, clip_max = XO + width - 1;
+    const int xmask = xoff ? 0x3ff : 0x1ff;                    // widescreen: see SHBoard::set_widescreen
     const int numbanks = (int)(sprites.size() * 2 / 0x20000);
-    for (int i = 0; i < W * H; i++) spr[i] = 0xffff;
+    for (int i = 0; i < width * H; i++) spr[i] = 0xffff;
     for (int e = 0; e < 0x1000; e += 16)
     {
         uint8_t* d = &b.sprram[e];
         auto D = [&](int k) { return be16(&d[2 * k]); };
         if (D(2) & 0x8000) break;
         int bottom = D(0) >> 8, top = D(0) & 0xff;
-        int xpos = D(1) & 0x1ff;
+        int xpos = D(1) & xmask;
         int hide = D(2) & 0x4000, flip = D(2) & 0x100;
         int pitch = (int8_t)(D(2) & 0xff);
         uint16_t addr = D(3);
@@ -296,7 +307,7 @@ void SHVideo::draw_sprites(SHBoard& b)
             put16(&d[10], d5);
             if (y >= 0 && y < H)
             {
-                uint16_t* dest = &spr[y * W];
+                uint16_t* dest = &spr[y * width];
                 int x, xacc = 4 * hzoom;
                 uint16_t d7;
                 if (!flip)
@@ -361,7 +372,7 @@ void SHVideo::render(SHBoard& b)
     draw_road(b, true);
     draw_text(b, 0, 0x08);
     draw_text(b, 1, 0x08);
-    for (int i = 0; i < W * H; i++)
+    for (int i = 0; i < width * H; i++)
     {
         uint16_t p = spr[i];
         if (p == 0xffff) continue;
