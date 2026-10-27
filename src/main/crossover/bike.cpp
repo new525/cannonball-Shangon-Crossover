@@ -12,11 +12,13 @@
 #include <algorithm>
 #include <iostream>
 
+#include "main.hpp"
 #include "trackloader.hpp"
 #include "sdl2/input.hpp"
 #include "hwvideo/hwsprites.hpp"
 #include "video.hpp"
 #include "engine/outrun.hpp"
+#include "frontend/config.hpp"
 #include "engine/oinitengine.hpp"
 #include "engine/oroad.hpp"
 #include "engine/oferrari.hpp"
@@ -205,6 +207,8 @@ void CrossoverBike::reset()
     WB(W_TIMER, 0x99);
     road_center = 0;
     prev_pal = 0;
+    last_frame = -1;
+    sh_frame_acc = 0;
     knock_pending = 0;
     for (bool& v : crash_vis) v = false;
     xaudio.reset_packets();
@@ -287,7 +291,8 @@ void CrossoverBike::build_road_table()
 }
 
 // ------------------------------------------------------------------------------------------------
-// Per OutRun logic tick (30 Hz): two Super Hang-On frames
+// Per OutRun logic tick: as many Super Hang-On frames (60 Hz) as the tick spans - two at
+// OutRun's original 30 Hz logic rate, one in Cannonball's 60 fps "smooth" mode
 // ------------------------------------------------------------------------------------------------
 void CrossoverBike::tick()
 {
@@ -339,7 +344,18 @@ void CrossoverBike::tick()
         car_x = (int16_t)(car_x + (car_x < 0 ? -change : change));
     }
 
-    for (int step = 0; step < 2; step++)
+    // Super Hang-On frames owed: 60 per second of video frames since the last call (Cannonball
+    // calls this at OutRun's 30 Hz logic rate in its 30 and 60 fps modes; measured, not assumed)
+    const int per_tick = config.fps >= 60 ? 2 : 1;          // video frames in one 30 Hz logic tick
+    int elapsed = cannonball::frame - last_frame;
+    if (last_frame < 0 || elapsed <= 0 || elapsed > 4 * per_tick) elapsed = per_tick;   // first call / resumed
+    last_frame = cannonball::frame;
+    sh_frame_acc += elapsed * 60;
+    int steps = sh_frame_acc / config.fps;
+    sh_frame_acc -= steps * config.fps;
+    if (getenv("CB_BIKE_STEPS")) { static int calls = 0, total = 0; calls++; total += steps;
+        if (calls % 60 == 0) fprintf(stderr, "f%d bike.tick calls %d steps %d tick_fps %d fps %d\n", harness.frame, calls, total, config.tick_fps, config.fps); }
+    for (int step = 0; step < steps; step++)
     {
         WL(V_POS, oroad.road_pos);
         compute_road_frame(car_x);

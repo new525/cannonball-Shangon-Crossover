@@ -82,6 +82,8 @@ private:
     std::vector<Frame>    frames;       // parallel to def_ptrs
 
     // crash
+    int     sh_frame_acc = 0;     // 60 Hz Super Hang-On frames owed to OutRun's logic ticks
+    int     last_frame = -1;      // cannonball::frame at the previous tick()
     int     knock_pending = 0;  // sign of a traffic hit reported this tick (applied per Super Hang-On frame)
     uint8_t crash_entry[4][12]; // sprite entries of the crash objects (sub_02994), last frame
     bool    crash_vis[4] = {};
