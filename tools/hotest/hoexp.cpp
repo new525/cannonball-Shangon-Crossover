@@ -2,7 +2,8 @@
 // usage: hoexp <hangon rom dir> <frames> <out prefix> [script]
 //   script lines as hotest ("<frame> service|coinage|dsw|adc0..2 <hex>", "<frame> snap <file>"),
 //   "<frame> autopilot 1|0" (the attract-mode rider steers in a game: hook at $AF26),
-//   "<frame> freeze 1|0" (the race timer $20C500 held at 50), "<frame> dump <file>" (work RAM, then shared RAM)
+//   "<frame> freeze 1|0" (the race timer $20C500 held at 50), "<frame> dump <file>" (work RAM, then shared RAM),
+//   "<frame> poke<addr> <byte>" (hex, work or shared RAM, e.g. "800 pokeC7E011 03")
 // writes <prefix>_main.cov / <prefix>_sub.cov (1 byte per ROM byte: 1 = an instruction executed
 // there), <prefix>_main.bin / <prefix>_sub.bin (the ROM images) and <prefix>_tasks.txt (the task
 // dispatcher's slots, $119A: a line whenever the set of (slot, entry) pairs changes)
@@ -53,6 +54,7 @@ int main(int argc, char** argv){
       else if(k=="snap") snap=it->second.second;
       else if(k=="autopilot") autopilot=v!=0;
       else if(k=="freeze") freeze=v!=0;
+      else if(k.rfind("poke",0)==0) { unsigned a=strtoul(k.c_str()+4,0,16); if(a>=0xc7c000&&a<0xc80000) hoboard.subram[a-0xc7c000]=v; else if(a>=0x20c000&&a<0x210000) hoboard.workram[a-0x20c000]=v; }
       else if(k=="dump") { FILE* d=fopen(it->second.second.c_str(),"wb"); fwrite(hoboard.workram,1,0x4000,d); fwrite(hoboard.subram,1,0x4000,d); fclose(d); }
     }
     if (freeze && hoboard.workram[0x408]) hoboard.workram[0x500] = 0x50;   // the race timer (BCD seconds)
