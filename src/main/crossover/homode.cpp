@@ -4,6 +4,7 @@
 #include "crossover/homode.hpp"
 #include "crossover/hoboard.hpp"
 #include "crossover/hovideo.hpp"
+#include "crossover/hoferrari.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/xaudio.hpp"
 #include "main.hpp"
@@ -78,6 +79,7 @@ void HOMode::start(int music_index)
         hovideo.render(hoboard);            // the sprite chip's scratch words, as on the board
         packet.clear();
     }
+    hoferrari.begin();                      // when the Ferrari is the vehicle
     xaudio.raw_begin(CrossoverAudio::HANGON);
     feeding = true;
     acc = 0;
@@ -91,6 +93,7 @@ void HOMode::stop()
 {
     if (!active) return;
     active = false;
+    hoferrari.end();
     xaudio.raw_end(CrossoverAudio::HANGON);
     xaudio.stop_music();
     osoundint.queue_sound(sound::FM_RESET);
@@ -102,6 +105,7 @@ void HOMode::show_frame()
     static uint32_t rgb[EXT_COLOURS];
     hovideo.palette_rgb(hoboard, rgb);
     for (uint32_t i = 0x2000; i < EXT_COLOURS; i++) rgb[i] = 0;
+    if (hoferrari.enabled) hoferrari.colours(rgb);
     video.set_external(hovideo.pixels, hovideo.width, HOVideo::H, rgb);
 }
 
@@ -116,6 +120,7 @@ void HOMode::tick()
     {
         packet.clear();
         hoboard.run_frame();
+        hoferrari.after_frame();            // OutRun's sprites, drawn into the frame by hovideo
         hovideo.render(hoboard);
         if (other_music >= 0 && !packet.empty() && packet[0] == HO_RACE_MUSIC)
         {

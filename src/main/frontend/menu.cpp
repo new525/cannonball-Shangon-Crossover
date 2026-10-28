@@ -29,6 +29,7 @@
 #include "crossover/xaudio.hpp"
 #include "crossover/shmode.hpp"
 #include "crossover/homode.hpp"
+#include "crossover/hoferrari.hpp"
 #include "crossover/shferrari.hpp"
 
 // Logo Y Position
@@ -1266,6 +1267,7 @@ void Menu::xover_start()
     }
     if (config.crossover.track == XOVER_HO_TRACK)
     {
+        hoferrari.enabled = !bike.enabled;     // OutRun's Ferrari on Hang-On's course
         homode.start(config.crossover.music);
         cannonball::state = cannonball::STATE_HANGON;
     }

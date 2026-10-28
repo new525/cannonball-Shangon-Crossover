@@ -377,6 +377,7 @@ void HOBoard::select(int cpu)
 void HOBoard::instr_hook(uint32_t pc)
 {
     if (trace) fprintf(trace, "%c %06x\n", cur ? 's' : 'm', pc);
+    if (coverage[cur]) coverage[cur][pc & 0x7FFFF] = 1;
     static const char* idle = getenv("HOB_IDLELOG");
     if (idle && cur == 0 && pc == 0x17e0 && !idle_seen) { idle_seen = true; fprintf(stderr, "idle f%llu t=%.0f\n", (unsigned long long) frame_count, cpu_now()); }
     if (cur == 0)

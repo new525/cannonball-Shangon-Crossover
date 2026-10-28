@@ -37,7 +37,10 @@ public:
     void     palette_rgb(const HOBoard& b, uint32_t* out) const;   // 0x2000 entries (0x1800-0x1FFF black)
 
     // Another game's sprites drawn into the frame (as SHVideo::overlay)
+    // An entry whose sprite data address is TAG_ADDR (while tag_active) is that point of the list: the
+    // overlay is drawn there, with the entry's priority; with no overlay the entry is not drawn
     static const uint16_t TAG_ADDR = 0xFE7A;
+    bool tag_active = false;
     const uint16_t* overlay = nullptr;
     bool overlay_placed = false;
 

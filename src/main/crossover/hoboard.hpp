@@ -71,6 +71,7 @@ public:
     uint32_t main_pc() const;
     uint32_t sub_pc() const;
     FILE* trace = nullptr;
+    uint8_t* coverage[2] = { nullptr, nullptr };   // tools: 1 at every executed instruction address
 
     // XoBus
     uint32_t bus_read(uint32_t a, int size, int space) override { return read(cur, a, size, space); }

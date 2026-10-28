@@ -116,8 +116,23 @@ void HOVideo::draw_road(HOBoard& b, bool foreground)
         const uint16_t plycont = (control >> 10) & 3;
         if ((plycont == 0) == foreground) continue;
         const uint8_t* src = &road[(size_t)(control & 0xff) * 512];
-        // Widescreen: the counters start xoff pixels earlier, as if the line began further left
-        if (xoff) hpos = (hpos & 0x800) | ((hpos - xoff) & 0x7ff);
+        // Widescreen: the counters start xoff pixels earlier, as if the line began further left. On the road's
+        // lines (control bit 10) with the mirror enabled (bit 8) the counter runs up to $FF and then back down,
+        // and a line whose hpos has bit 11 clear starts on the way down: step back along that whole run. (The
+        // lines above the road keep a plain offset: stepping back there would show the end of the road ROM's
+        // row 0, which the board keeps in the 24 pixels left of the screen.)
+        if (xoff)
+        {
+            if ((control & 0x500) == 0x500)
+            {
+                int c = (hpos >> 3) & 0xff, m = hpos & 7;
+                int p = (((hpos & 0x800) ? c : 0x1fe - c) << 3 | m) - xoff;
+                if (p < 0) p = 0;
+                int i = p >> 3;
+                hpos = i <= 0xff ? (0x800 | i << 3 | (p & 7)) : ((0x1fe - i) << 3 | (p & 7));
+            }
+            else hpos = (hpos & 0x800) | ((hpos - xoff) & 0x7ff);
+        }
         int ctr9m = hpos & 7, ctr9n9p = (hpos >> 3) & 0xff, ff9j1 = (hpos >> 11) & 1, ff9j2 = 1, ss8j = 0;
         for (int x = -24 - xoff; x < width - xoff; x++)
         {
@@ -256,8 +271,9 @@ void HOVideo::draw_sprites(HOBoard& b)
         int colpri = (((D(4) >> 8) & 0x3f) << 4) | ((D(4) & 3) << 10);
         int vzoom = (D(4) >> 2) & 0x3f, hzoom = vzoom << 1;
         put16(&d[14], addr);
-        if (addr == TAG_ADDR && overlay && top < bottom)
+        if (addr == TAG_ADDR && tag_active)
         {
+            if (!overlay || top >= bottom) continue;
             int pri2 = D(4) & 3;
             for (int i = 0; i < width * H; i++)
             {
