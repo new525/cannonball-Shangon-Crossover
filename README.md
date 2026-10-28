@@ -3,8 +3,10 @@
 **A fork of [Cannonball](https://github.com/djyt/cannonball), Chris White's OutRun engine.**
 
 This project takes Cannonball and adds Super Hang-On (1987) and Hang-On (1985) to it. You can
-ride Super Hang-On's bike on OutRun's courses, and race to the music of all three games, each
-tune played on an emulated copy of its own game's sound board.
+ride Super Hang-On's bike on OutRun's courses, drive OutRun's Ferrari on Super Hang-On's courses,
+race Hang-On's course with the Ferrari or either game's bike, and race to the music of all three
+games. Super Hang-On's and Hang-On's courses run on emulated copies of their own boards, and each
+tune plays on an emulated copy of its own game's sound board.
 
 It is a hobby project. It isn't affiliated with or endorsed by Chris White or SEGA.
 
@@ -20,12 +22,12 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
   [`docs/README-cannonball.md`](docs/README-cannonball.md).
 - **Nicolas Allemand**: the Z80 core in `src/main/crossover/z80` (MIT).
 - **Karl Stenerud**: Musashi, the 68000 core in `src/main/crossover/m68k` (MIT), which runs the
-  emulated Super Hang-On board. It bundles John R. Hauser's SoftFloat (its licence notice is in
+  emulated Super Hang-On and Hang-On boards. It bundles John R. Hauser's SoftFloat (its licence notice is in
   `m68k/softfloat/softfloat.c`).
 - **Aaron Giles**: ymfm, the YM2151/YM2203 cores in `src/main/crossover/ymfm` (BSD-3-Clause,
   the copy shipped with MAME 0.264).
-- **The MAME team**: the FD1089 decryption and the Sega PCM sample generation are derived from
-  MAME (BSD-3-Clause). MAME 0.264 was also the reference that every reconstruction here was
+- **The MAME team**: the FD1089 decryption, the Sega PCM sample generation and the two boards'
+  video (tilemaps, road, sprites, mixing) are derived from MAME (BSD-3-Clause). MAME 0.264 was also the reference that every reconstruction here was
   checked against.
 
 ---
@@ -50,7 +52,7 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 | Race setup menu: vehicle, bike size, track, music | Done |
 | Super Hang-On's four courses with the bike, on an emulated Super Hang-On board | Done |
 | OutRun's Ferrari on Super Hang-On's courses (handling, crash, skids, smoke, engine sound) | Done |
-| Hang-On's course (with either vehicle) | Planned |
+| Hang-On's course on an emulated Hang-On board, with the Ferrari, either game's bike | Done |
 | Bike versions of OutRun's start and ending scenes | Planned |
 
 ---
@@ -117,6 +119,31 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
     OutRun's (distance per speed unit is the same in both games, within 0.4%).
   - Off-road dust and wheel smoke use OutRun's first-stage colours. There is no start-line rev
     effect, because in OutRun that comes with its own start signal.
+- **Hang-On's course** (`crossover/hoboard.*`, `crossover/hovideo.*`, `crossover/homode.*`):
+  Hang-On runs on an emulated copy of its own board: both 68000 CPUs, the two 8255s, the ADC,
+  the road, tilemaps, sprites and its sound board. Compared with MAME 0.264 over a scripted game,
+  the main CPU's RAM matched in every frame up to 1,601 except two (22 and 414), and screenshots at
+  eight points up to frame 1,600 were pixel-identical. After that the runs drift apart: the
+  game's work for a frame ends within a few cycles of the vertical blank, and Musashi isn't
+  cycle-exact like MAME's 68000, so a task can land a frame later. The logic is the game's own
+  program throughout. Hang-On's rankings and lap records are kept in `hiscores_hangon.bin`.
+  The details, with every Hang-On address the code relies on, are in
+  [`docs/CROSSOVER-HANGON.md`](docs/CROSSOVER-HANGON.md).
+- **Vehicles on Hang-On's course** (`crossover/hovehicle.*`): Hang-On's own bike (the game as it
+  is), OutRun's Ferrari (as on Super Hang-On's courses), or Super Hang-On's bike (as on OutRun's
+  courses, in OutRun's car slot, with its own physics, crash, supercharger and engine sound). The
+  joins, as design decisions:
+  - Road edge: Hang-On's is 260 units from the centre (Super Hang-On's is 300). The Ferrari gets
+    OutRun's wheel rules around it; the bike gets it as its off-road limit.
+  - Curve push: each vehicle's own road builder (OutRun's for the Ferrari, Super Hang-On's for the
+    bike) run over Hang-On's road path, which has the same format in all three games.
+  - Rivals: for the Ferrari as on Super Hang-On's courses; for the bike, Super Hang-On's knockback
+    (Hang-On's is the same).
+  - Roadside objects: Hang-On's own test decides; a hit starts the vehicle's own crash.
+  - The bike's dust is drawn by Hang-On's dust code, the counterpart of Super Hang-On's.
+  - The Ferrari's crash, smoke and incline frames stand on OutRun's own flat-road heights.
+  - Speedometer: Hang-On's shows the speed value itself, so Super Hang-On's bike reads 241 at top
+    speed and 279 with the supercharger (280 and 324 on Super Hang-On's speedometer).
 - **Menu**: *PLAY GAME* opens a race setup screen (vehicle, bike size, track, music).
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
@@ -163,16 +190,18 @@ roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
 
 1. Run `cannonball.exe`.
 2. Choose **PLAY GAME**. The race setup screen opens:
-   - **VEHICLE**: OutRun's Ferrari or Super Hang-On's bike
+   - **VEHICLE**: OutRun's Ferrari, Super Hang-On's bike, or *HANG ON BIKE*, Hang-On's own bike,
+     which is offered for Hang-On's course only
    - **BIKE SIZE**: 80 percent by default; anything from 50 percent up to *FULL SIZE* (as in
      Super Hang-On) in steps of 10. Super Hang-On's bike takes up much more of the screen than
      OutRun's Ferrari, and a smaller bike shows more of the road ahead. It applies on OutRun's
-     courses only; on Super Hang-On's own courses the bike is always full size. The
+     courses only; on Super Hang-On's and Hang-On's courses the bike is always full size. The
      riding is the same at every size; the bike's reach in collisions with cars shrinks with it
      (see *Collisions* above).
    - **TRACK**: OutRun's full route (pick a road at each fork), any single OutRun stage, or one
      of Super Hang-On's courses: *AFRICA* (Beginner, 6 stages), *ASIA* (Junior, 10), *AMERICA*
-     (Senior, 14) or *EUROPE* (Expert, 18), with either vehicle.
+     (Senior, 14) or *EUROPE* (Expert, 18), with either vehicle, or Hang-On's course, *HANG ON*,
+     with any of the three.
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks (it previews as you
      choose), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen. On Super Hang-On's
      courses, *CHOOSE ON THE RADIO* takes you to Super Hang-On's own music screen instead
@@ -180,8 +209,8 @@ roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
 3. Choose **START RACE**.
 
 Up/down moves through the menu and left/right changes a setting. Your choices are saved in
-`config.xml`. On Super Hang-On's courses the game is Super Hang-On's own, rankings included; when
-it ends you're back in the menu. The menu key leaves at any time.
+`config.xml`. On Super Hang-On's and Hang-On's courses the game is that game's own, rankings
+included; when it ends you're back in the menu. The menu key leaves at any time.
 
 ### Controls (default keyboard)
 
@@ -245,6 +274,10 @@ has only been built and tested on Windows (MinGW-w64) and Linux.
 - On Super Hang-On's courses, the Ferrari's flying wreck and passengers are drawn at one depth in
   Super Hang-On's sprite order (the wreck's), so a roadside object between them and the camera
   can be drawn behind a passenger. They are also not hidden behind hill crests.
+- On Hang-On's course the Ferrari's wreck, if thrown far up the road, stops at OutRun's flat-road
+  horizon (screen line 151), below Hang-On's (line 128).
+- The emulated Hang-On board drifts from MAME's timing after about 1,600 frames of a game (see
+  *Hang-On's course* above).
 
 Bug reports are welcome in [Issues](../../issues).
 

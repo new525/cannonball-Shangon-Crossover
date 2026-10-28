@@ -1,16 +1,55 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.4.0 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.5.0 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
-Super Hang-On's bike ride OutRun's courses and OutRun's Ferrari drive Super
-Hang-On's own courses (on an emulated Super Hang-On board), and adds Super
-Hang-On's and Hang-On's race music. Non-commercial; see "Licences" below.
+Super Hang-On's bike ride OutRun's courses, OutRun's Ferrari drive Super
+Hang-On's own courses (on an emulated Super Hang-On board), and either of
+them, or Hang-On's own bike, race Hang-On's course (on an emulated Hang-On
+board), with all three games' race music. Non-commercial; see "Licences"
+below.
 
 No game ROMs are included. You need your own copies.
 
 Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
+
+Changes in 0.5.0
+----------------
+- Hang-On's course is in the TRACK option (HANG ON). Like Super Hang-On's
+  courses it runs on an emulated copy of its own game's board: both 68000
+  CPUs, the two 8255s, the ADC, road, tilemaps, sprites and sound board,
+  so the course, scenery, rival riders, timer, checkpoints, score, ending
+  and rankings are Hang-On's own. The program puts in a coin and presses
+  START for you and hands over at the start line; when the game ends you
+  are back in the menu.
+- Checked against MAME 0.264 over a scripted game: the main CPU's RAM
+  matched in every frame up to 1,601 except two (22 and 414), and
+  screenshots at eight points up to frame 1,600 were pixel-identical. After
+  that the two runs drift apart: the game's work for a frame ends within a
+  few CPU cycles of the vertical blank, and the 68000 core used here is not
+  cycle-exact like MAME's, so a task can land one frame later. The game's
+  logic is the original program throughout.
+- VEHICLE on Hang-On's course: OutRun's Ferrari (as on Super Hang-On's
+  courses), Super Hang-On's bike (as on OutRun's courses: its own physics,
+  crash, supercharger and engine sound, drawn full size), or the new
+  HANG ON BIKE, Hang-On's own bike, which is offered for its own course only.
+- Joins on Hang-On's course (design choices): Hang-On's road edge (260 units
+  from the centre; Super Hang-On's is 300) with OutRun's wheel rules for the
+  Ferrari and as the bike's off-road limit; the curve push from each
+  vehicle's own road builder run over Hang-On's road path; rivals for the
+  Ferrari as on Super Hang-On's courses, for the bike Super Hang-On's
+  knockback; roadside objects use Hang-On's own test and start the
+  vehicle's own crash; the bike's dust is drawn by Hang-On's dust code,
+  which is the counterpart of Super Hang-On's.
+- Hang-On's speedometer shows the speed value itself: Super Hang-On's bike
+  reads 241 at top speed and 279 with the supercharger (280 and 324 on Super
+  Hang-On's own speedometer).
+- Hang-On's rankings and lap records are kept between sessions in
+  hiscores_hangon.bin (save folder), as Super Hang-On's are.
+- Widescreen on Hang-On's course: the road is now drawn correctly far to
+  the side of the screen (it was cut off when the vehicle was far to the
+  right in a curve).
 
 Changes in 0.4.0
 ----------------
@@ -107,7 +146,8 @@ Setting up
 4. Run cannonball.exe.
 
 The crossover ROM sets are optional: without Super Hang-On's ROMs you drive
-the Ferrari, and each missing set only removes that game's music.
+the Ferrari, and each missing set only removes that game's part (its
+courses, vehicle and music).
 ROM files are recognised by CRC32 first, then by name, so the names don't
 have to match exactly.
 
@@ -116,14 +156,17 @@ Race setup menu
 ---------------
 Main menu > PLAY GAME opens the race setup:
     START RACE
-    VEHICLE   OutRun's Ferrari or Super Hang-On's bike
+    VEHICLE   OutRun's Ferrari, Super Hang-On's bike, or Hang-On's bike
+              (HANG ON BIKE: Hang-On's course only)
     BIKE SIZE 80 percent (default), 50 to 90 percent, or FULL SIZE
+              (OutRun's courses; the bike is full size on the others)
     TRACK     OutRun's full route (you choose at each fork), or any single
               OutRun stage (1, 2A-2B, 3A-3C, 4A-4D, 5A-5E; letters follow
               the order of Cannonball's time-trial course map). A single
               stage is raced with the time-trial rules; laps and traffic are
               set under GAME MODES > TIME TRIAL. Or one of Super Hang-On's
-              courses: AFRICA, ASIA, AMERICA, EUROPE (either vehicle).
+              courses: AFRICA, ASIA, AMERICA, EUROPE (either vehicle), or
+              Hang-On's course: HANG ON (any of the three vehicles).
     MUSIC     any of the eight tracks, previewed as you choose, or
               "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
 Up/down moves, left/right (or select) changes a setting. Your choices are
@@ -181,17 +224,22 @@ Design choices (not original behaviour of either game):
   (OutRun's hit areas are per-object data its objects don't have). The
   car's flying wreck and passengers are drawn at the wreck's depth in Super
   Hang-On's sprite order. Smoke colours are OutRun's first stage's.
+- On Hang-On's course: as above, with Hang-On's road edge (260 units); the
+  Ferrari's crash, smoke and incline frames stand on OutRun's own flat-road
+  heights (Hang-On's road is flat). The addresses and hooks are listed in
+  docs\CROSSOVER-HANGON.md in the source.
 
 
 Not done yet
 ------------
-- The Hang-On course.
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
 - In widescreen mode, crash objects near the screen edges are hidden early.
   Super Hang-On's sprite code clips to its own 320-pixel screen.
 - On Super Hang-On's courses the Ferrari's wreck and passengers are not
   hidden behind hill crests, and share one depth in the sprite order.
+- On Hang-On's course the Ferrari's wreck, when thrown far up the road,
+  stops at OutRun's flat-road horizon (line 151), below Hang-On's (line 128).
 
 
 Licences
@@ -199,7 +247,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.4.0-src.zip     this program (git tag v0.4.0,
+  superscaler-crossover-0.5.0-src.zip     this program (git tag v0.5.0,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in
@@ -209,7 +257,9 @@ source folder contains:
 Other components: Z80 core by Nicolas Allemand (MIT), 68000 core Musashi by
 Karl Stenerud (MIT; it bundles John R. Hauser's SoftFloat), ymfm by Aaron Giles
 (BSD-3-Clause, as shipped in MAME 0.264), and two parts derived from MAME
-(BSD-3-Clause): the FD1089 decryption and the Sega PCM sample generation.
+(BSD-3-Clause): the FD1089 decryption, the Sega PCM sample generation, and
+the Super Hang-On and Hang-On boards' video (tilemaps, road, sprites and
+mixing, transcribed from MAME's drivers).
 Licence texts are in the licenses folder.
 
 OutRun, Super Hang-On and Hang-On are trademarks of SEGA. This project is
