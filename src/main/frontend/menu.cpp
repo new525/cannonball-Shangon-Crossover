@@ -28,6 +28,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/shmode.hpp"
+#include "crossover/homode.hpp"
 #include "crossover/shferrari.hpp"
 
 // Logo Y Position
@@ -1184,14 +1185,24 @@ void Menu::start_game(int mode, int settings)
 // that order.
 // Then Super Hang-On's four courses (on its emulated board, crossover/shmode), in the order of its
 // class screen.
+// Then Hang-On's course (on its emulated board, crossover/homode).
 static const int XOVER_OR_TRACKS = 16;
+static const int XOVER_HO_TRACK = XOVER_OR_TRACKS + 4;
 static const char* SH_COURSES[4] = { "AFRICA", "ASIA", "AMERICA", "EUROPE" };
-static int xover_tracks() { return XOVER_OR_TRACKS + (shmode.available() ? 4 : 0); }
+static int xover_tracks() { return XOVER_HO_TRACK + 1; }
+static bool xover_track_ok(int t)
+{
+    if (t >= XOVER_OR_TRACKS && t < XOVER_HO_TRACK) return shmode.available();
+    if (t == XOVER_HO_TRACK) return homode.available();
+    return t >= 0 && t < XOVER_OR_TRACKS;
+}
 
 std::string Menu::xover_track_label(int track)
 {
-    if (track >= XOVER_OR_TRACKS && track < xover_tracks())
+    if (track >= XOVER_OR_TRACKS && track < XOVER_HO_TRACK && xover_track_ok(track))
         return std::string("SUPER HANG ON ") + SH_COURSES[track - XOVER_OR_TRACKS];
+    if (track == XOVER_HO_TRACK && xover_track_ok(track))
+        return "HANG ON";
     if (track <= 0 || track >= XOVER_OR_TRACKS) return "OUTRUN FULL ROUTE";
     int n = track - 1, stage = 1;
     while (n >= stage) { n -= stage; stage++; }
@@ -1221,8 +1232,9 @@ void Menu::xover_cycle(int dir)
     }
     else if (SELECTED(ENTRY_X_TRACK))
     {
-        int n = xover_tracks();
-        config.crossover.track = ((config.crossover.track + dir) % n + n) % n;
+        int n = xover_tracks(), t = config.crossover.track;
+        do t = ((t + dir) % n + n) % n; while (!xover_track_ok(t));
+        config.crossover.track = t;
     }
     else if (SELECTED(ENTRY_X_MUSIC))
     {
@@ -1247,9 +1259,18 @@ void Menu::xover_start()
     osoundint.queue_sound(sound::FM_RESET);             // stop a music preview
     config.save();
 
-    if (config.crossover.track >= XOVER_OR_TRACKS)
+    if (config.crossover.track >= XOVER_OR_TRACKS && !xover_track_ok(config.crossover.track))
     {
-        if (config.crossover.track >= xover_tracks()) { config.crossover.track = 0; return; }
+        config.crossover.track = 0;
+        return;
+    }
+    if (config.crossover.track == XOVER_HO_TRACK)
+    {
+        homode.start(config.crossover.music);
+        cannonball::state = cannonball::STATE_HANGON;
+    }
+    else if (config.crossover.track >= XOVER_OR_TRACKS)
+    {
         shferrari.enabled = !bike.enabled;     // OutRun's Ferrari on Super Hang-On's course
         shmode.start(config.crossover.track - XOVER_OR_TRACKS, config.crossover.music);
         cannonball::state = cannonball::STATE_SHANGON;

@@ -2282,6 +2282,66 @@ static inline void m68ki_store_bitfield(uint32 addr, unsigned offset, unsigned w
 }
 
 
+
+/* ======================================================================== */
+/* Crossover: data-dependent 68000 MULS/DIVU/DIVS timing (the tables charge MULS 38, DIVU 140 and
+ * DIVS 158 plus the effective address). After the 68000 manual (MULS: 38 + 2n, n = 01/10 pairs
+ * in the 17-bit operand with a 0 appended) and J. Cwik's analysis of the division microcode. */
+/* ======================================================================== */
+static inline void m68ki_muls_timing(uint x)
+{
+	uint v = (x & 0xffff) << 1, d = (v ^ (v >> 1)) & 0xffff, n = 0;
+	for (; d; d &= d - 1) n++;
+	USE_CYCLES(2 * n);
+}
+
+static inline void m68ki_divu_timing(uint dividend, uint divisor)
+{
+	int cycles;
+	if ((dividend >> 16) >= divisor)
+		cycles = 10;                                   /* overflow */
+	else
+	{
+		uint mcycles = 38, hdivisor = divisor << 16;
+		int i;
+		for (i = 0; i < 15; i++)
+		{
+			uint temp = dividend;
+			dividend <<= 1;
+			if (temp & 0x80000000)
+				dividend -= hdivisor;
+			else
+			{
+				mcycles += 2;
+				if (dividend >= hdivisor) { dividend -= hdivisor; mcycles--; }
+			}
+		}
+		cycles = (int)(mcycles * 2);
+	}
+	USE_CYCLES(cycles - 140);
+}
+
+static inline void m68ki_divs_timing(uint dividend, sint divisor)
+{
+	sint sdividend = (sint)MAKE_INT_32(dividend);
+	uint adividend = sdividend < 0 ? (uint)(-sdividend) : (uint)sdividend;
+	uint adivisor = divisor < 0 ? (uint)(-divisor) : (uint)divisor;
+	uint mcycles = 6, aquot;
+	int i, cycles;
+	if (sdividend < 0) mcycles++;
+	if ((adividend >> 16) >= adivisor)
+		cycles = (int)((mcycles + 2) * 2);             /* overflow */
+	else
+	{
+		mcycles += 55;
+		if (divisor >= 0) { if (sdividend >= 0) mcycles--; else mcycles++; }
+		aquot = adividend / adivisor;
+		for (i = 0; i < 15; i++) { if ((sint)MAKE_INT_16(aquot) >= 0) mcycles++; aquot <<= 1; }
+		cycles = (int)(mcycles * 2);
+	}
+	USE_CYCLES(cycles - 158);
+}
+
 /* ======================================================================== */
 /* ============================== END OF FILE ============================= */
 /* ======================================================================== */

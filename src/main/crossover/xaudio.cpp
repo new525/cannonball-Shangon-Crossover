@@ -63,34 +63,36 @@ void CrossoverAudio::play_music(Board b, uint8_t cmd)
     ch[b].cmds.push_back(cmd);
 }
 
-void CrossoverAudio::sh_raw_begin()
+void CrossoverAudio::raw_begin(Board b)
 {
     stop_music();
-    Channel& c = ch[SHANGON];
-    raw.clear();
+    Channel& c = ch[b];
+    c.raw.clear();
     c.cmds.clear(); c.slots.clear();
     c.music = false;
-    sh_raw = true;
+    c.raw_mode = true;
     c.was_active = false;                       // mix() starts it from a fresh Z80 reset
 }
 
-void CrossoverAudio::sh_raw_frame(const std::vector<uint8_t>& bytes)
+void CrossoverAudio::raw_frame(Board b, const std::vector<uint8_t>& bytes)
 {
-    if (sh_raw && raw.size() < 8) raw.push_back(bytes);
+    Channel& c = ch[b];
+    if (c.raw_mode && c.raw.size() < 8) c.raw.push_back(bytes);
 }
 
-void CrossoverAudio::sh_raw_end()
+void CrossoverAudio::raw_end(Board b)
 {
-    if (!sh_raw) return;
-    sh_raw = false;
-    raw.clear();
-    stop(SHANGON);
+    Channel& c = ch[b];
+    if (!c.raw_mode) return;
+    c.raw_mode = false;
+    c.raw.clear();
+    stop(b);
 }
 
 void CrossoverAudio::mix(int32_t* out, int samples)
 {
-    ch[SHANGON].active = sh_raw || sh_vehicle || ch[SHANGON].music;
-    ch[HANGON].active  = ch[HANGON].music;
+    ch[SHANGON].active = ch[SHANGON].raw_mode || sh_vehicle || ch[SHANGON].music;
+    ch[HANGON].active  = ch[HANGON].raw_mode || ch[HANGON].music;
     // the boards run in 60 Hz frames; at 30 fps two of them make one audio tick
     int sub = fps >= 60 ? 1 : 60 / fps;
     int per = samples / sub;
@@ -110,13 +112,13 @@ void CrossoverAudio::mix(int32_t* out, int samples)
             {
                 c.quiet--;
                 if (!c.slots.empty()) c.slots.pop_front();
-                if (b == SHANGON && sh_raw && !raw.empty()) raw.pop_front();
+                if (c.raw_mode && !c.raw.empty()) c.raw.pop_front();
                 c.board.frame(out + 2 * per * s, per);
                 continue;
             }
-            if (b == SHANGON && sh_raw)
+            if (c.raw_mode)
             {
-                if (!raw.empty()) { for (uint8_t v : raw.front()) c.board.command(v); raw.pop_front(); }
+                if (!c.raw.empty()) { for (uint8_t v : c.raw.front()) c.board.command(v); c.raw.pop_front(); }
                 c.board.frame(out + 2 * per * s, per);
                 continue;
             }

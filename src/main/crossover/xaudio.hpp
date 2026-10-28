@@ -39,9 +39,13 @@ public:
 
     // The emulated Super Hang-On board (shmode) feeds its sound board directly: each 60 Hz
     // frame, the bytes its main CPU wrote to the sound latch
-    void sh_raw_begin();
-    void sh_raw_frame(const std::vector<uint8_t>& bytes);
-    void sh_raw_end();
+    // (and the emulated Hang-On board, homode, its own)
+    void raw_begin(Board b);
+    void raw_frame(Board b, const std::vector<uint8_t>& bytes);
+    void raw_end(Board b);
+    void sh_raw_begin() { raw_begin(SHANGON); }
+    void sh_raw_frame(const std::vector<uint8_t>& bytes) { raw_frame(SHANGON, bytes); }
+    void sh_raw_end() { raw_end(SHANGON); }
 
     // Called once per audio tick: adds the boards' output to mix (interleaved stereo)
     void mix(int32_t* mix, int samples);
@@ -56,10 +60,10 @@ private:
         bool music = false;
         bool was_active = false;
         int  quiet = 0;                        // frames without packets after a Z80 reset
+        bool raw_mode = false;                 // fed by an emulated board's main CPU
+        std::deque<std::vector<uint8_t>> raw;
     };
     Channel ch[BOARDS];
-    bool sh_raw = false;
-    std::deque<std::vector<uint8_t>> raw;
     int fps = 60;
     void stop(Board b);
 };

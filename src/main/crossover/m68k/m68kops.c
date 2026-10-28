@@ -12115,6 +12115,8 @@ static void m68k_op_divs_16_d(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12153,6 +12155,8 @@ static void m68k_op_divs_16_ai(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12191,6 +12195,8 @@ static void m68k_op_divs_16_pi(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12229,6 +12235,8 @@ static void m68k_op_divs_16_pd(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12267,6 +12275,8 @@ static void m68k_op_divs_16_di(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12305,6 +12315,8 @@ static void m68k_op_divs_16_ix(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12343,6 +12355,8 @@ static void m68k_op_divs_16_aw(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12381,6 +12395,8 @@ static void m68k_op_divs_16_al(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12419,6 +12435,8 @@ static void m68k_op_divs_16_pcdi(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12457,6 +12475,8 @@ static void m68k_op_divs_16_pcix(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12495,6 +12515,8 @@ static void m68k_op_divs_16_i(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -12531,6 +12553,8 @@ static void m68k_op_divu_16_d(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12557,6 +12581,8 @@ static void m68k_op_divu_16_ai(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12583,6 +12609,8 @@ static void m68k_op_divu_16_pi(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12609,6 +12637,8 @@ static void m68k_op_divu_16_pd(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12635,6 +12665,8 @@ static void m68k_op_divu_16_di(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12661,6 +12693,8 @@ static void m68k_op_divu_16_ix(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12687,6 +12721,8 @@ static void m68k_op_divu_16_aw(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12713,6 +12749,8 @@ static void m68k_op_divu_16_al(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12739,6 +12777,8 @@ static void m68k_op_divu_16_pcdi(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12765,6 +12805,8 @@ static void m68k_op_divu_16_pcix(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -12791,6 +12833,8 @@ static void m68k_op_divu_16_i(void)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -23467,16 +23511,8 @@ static void m68k_op_muls_16_d(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(DY);
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
@@ -23493,16 +23529,8 @@ static void m68k_op_muls_16_ai(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_AY_AI_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23518,16 +23546,8 @@ static void m68k_op_muls_16_pi(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_AY_PI_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23543,16 +23563,8 @@ static void m68k_op_muls_16_pd(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_AY_PD_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23568,16 +23580,8 @@ static void m68k_op_muls_16_di(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_AY_DI_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23593,16 +23597,8 @@ static void m68k_op_muls_16_ix(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_AY_IX_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23618,16 +23614,8 @@ static void m68k_op_muls_16_aw(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_AW_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23643,16 +23631,8 @@ static void m68k_op_muls_16_al(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_AL_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23668,16 +23648,8 @@ static void m68k_op_muls_16_pcdi(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_PCDI_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23693,16 +23665,8 @@ static void m68k_op_muls_16_pcix(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_PCIX_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
@@ -23718,16 +23682,8 @@ static void m68k_op_muls_16_i(void)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(OPER_I_16());
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;

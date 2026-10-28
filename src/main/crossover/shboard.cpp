@@ -7,31 +7,18 @@
 ***************************************************************************/
 #include "crossover/shboard.hpp"
 #include "crossover/romset.hpp"
+#include "crossover/xobus.hpp"
 
 #include <cstring>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 extern "C" {
 #include "crossover/m68k/m68k.h"
 }
 
 SHBoard shboard;
-
-// ------------------------------------------------------------------------------------------------
-// Musashi callbacks
-// ------------------------------------------------------------------------------------------------
-extern "C" unsigned int xo_bus_read(int size, unsigned int address, int space)
-{
-    return shboard.read(shboard.cur, address, size, space);
-}
-extern "C" void xo_bus_write(int size, unsigned int address, unsigned int value)
-{
-    shboard.write(shboard.cur, address, size, value);
-}
-extern "C" int  xo_m68k_int_ack(int level) { return shboard.int_ack(level); }
-extern "C" void xo_m68k_reset_out(void)    { shboard.reset_out(); }
-extern "C" void xo_m68k_instr_hook(unsigned int pc) { shboard.instr_hook(pc); }
 
 static inline uint16_t be16(const uint8_t* p) { return (uint16_t)(p[0] << 8 | p[1]); }
 
@@ -64,6 +51,7 @@ bool SHBoard::init(const RomSet& roms)
 void SHBoard::reset()
 {
     if (!ready) return;
+    xo_bus = this;
     std::memset(workram, 0, sizeof workram);
     std::memset(cpu1ram, 0, sizeof cpu1ram);
     std::memset(roadram, 0, sizeof roadram);
@@ -434,11 +422,14 @@ uint32_t SHBoard::main_reg(int r) const
 void SHBoard::set_main_reg(int r, uint32_t v)
 {
     if (loaded == 0) { m68k_set_reg((m68k_register_t) r, v); return; }
-    // not in the core: swap it in for the change (only used from hooks, where it is in the core)
-    int was = loaded;
-    select(0);
+    // not in the core (only used from hooks, where it is): change the saved context
+    void* saved = std::malloc(m68k_context_size());
+    m68k_get_context(saved);
+    m68k_set_context(ctx[0].data());
     m68k_set_reg((m68k_register_t) r, v);
-    if (was >= 0) select(was);
+    m68k_get_context(ctx[0].data());
+    m68k_set_context(saved);
+    std::free(saved);
 }
 
 static int level_main(bool irq2, bool vblank, int mapper_irq)
@@ -501,6 +492,8 @@ void SHBoard::run_until(double t)
 void SHBoard::run_frame()
 {
     if (!ready) return;
+    xo_bus = this;                                          // the Musashi core is this board's
+    loaded = -1;                                            // (another board may have used it)
     const double L = LINE_CYCLES;
     // The frame runs from the start of line 224 (VBLANK, when the screen is drawn) to the next
     // one; the very first runs from power-on at line 0.
@@ -546,6 +539,8 @@ void SHBoard::run_frame()
         update_irqs();
     }
     run_until(end);
+    if (loaded >= 0) m68k_get_context(ctx[loaded].data());
+    loaded = -1;
     first_frame = false;
     frame_count++;
 }

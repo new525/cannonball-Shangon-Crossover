@@ -23,10 +23,11 @@
 #include <cstdio>
 #include <vector>
 #include <functional>
+#include "crossover/xobus.hpp"
 
 class RomSet;
 
-class SHBoard
+class SHBoard : public XoBus
 {
 public:
     SHBoard();
@@ -92,9 +93,11 @@ public:
     // Musashi glue (public for the C callbacks)
     uint32_t read(int cpu, uint32_t a, int size, int space);   // space 0 data, 1 program
     void     write(int cpu, uint32_t a, int size, uint32_t v);
-    int      int_ack(int level);
-    void     reset_out();
-    void     instr_hook(uint32_t pc);
+    uint32_t bus_read(uint32_t a, int size, int space) override { return read(cur, a, size, space); }
+    void     bus_write(uint32_t a, int size, uint32_t v) override { write(cur, a, size, v); }
+    int      int_ack(int level) override;
+    void     reset_out() override;
+    void     instr_hook(uint32_t pc) override;
     int      cur = 0;                       // CPU running in the Musashi core: 0 main, 1 second
 
 private:

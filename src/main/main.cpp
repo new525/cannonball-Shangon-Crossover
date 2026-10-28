@@ -39,6 +39,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/shmode.hpp"
+#include "crossover/homode.hpp"
 
 // ------------------------------------------------------------------------------------------------
 // Initialize Shared Variables
@@ -205,6 +206,17 @@ static void tick()
             osoundint.tick();
             break;
 
+        case STATE_HANGON:
+            homode.tick();
+            if (input.has_pressed(Input::MENU) || homode.finished || !homode.active)
+            {
+                homode.stop();
+                state = STATE_INIT_MENU;
+            }
+            if (tick_frame) input.frame_done();
+            osoundint.tick();
+            break;
+
         case STATE_MENU:
             menu->tick();
             input.frame_done();
@@ -363,6 +375,8 @@ int main(int argc, char* argv[])
         std::cout << "No crossover sound boards started" << std::endl;
     if (sh_roms.loaded() && !shmode.init())
         std::cout << "Super Hang-On board not started" << std::endl;
+    if (ho_roms.loaded() && !homode.init())
+        std::cout << "Hang-On board not started" << std::endl;
     xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
 
     // The other games' race music joins the music selection (titles from the games' own data;

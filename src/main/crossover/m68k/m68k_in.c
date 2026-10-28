@@ -4372,6 +4372,8 @@ M68KMAKE_OP(divs, 16, ., d)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -4410,6 +4412,8 @@ M68KMAKE_OP(divs, 16, ., .)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divs_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		if((uint32)*r_dst == 0x80000000 && src == -1)
 		{
 			FLAG_Z = 0;
@@ -4446,6 +4450,8 @@ M68KMAKE_OP(divu, 16, ., d)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -4472,6 +4478,8 @@ M68KMAKE_OP(divu, 16, ., .)
 
 	if(src != 0)
 	{
+		if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+			m68ki_divu_timing(*r_dst, src);	/* crossover: data-dependent 68000 timing */
 		uint quotient = *r_dst / src;
 		uint remainder = *r_dst % src;
 
@@ -7388,16 +7396,8 @@ M68KMAKE_OP(muls, 16, ., d)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(DY);
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
@@ -7414,16 +7414,8 @@ M68KMAKE_OP(muls, 16, ., .)
 {
 	uint* r_dst = &DX;
 	uint x = MAKE_INT_16(M68KMAKE_GET_OPER_AY_16);
-	if(CPU_TYPE_IS_010_LESS(CPU_TYPE)) {
-		uint c = 0;
-		for (uint y = x, f = 0; y; y>>=1) {
-			if ((y&1) != f) {
-				c += 2;
-				f = 1 - f;
-			}
-		}
-		USE_CYCLES(c);
-	}
+	if(CPU_TYPE_IS_010_LESS(CPU_TYPE))
+		m68ki_muls_timing(x);	/* crossover: 2 per 01/10 pair in the 17-bit <ea>:0 (was 2 per change up to the top 1) */
 	uint res = MASK_OUT_ABOVE_32(x * MAKE_INT_16(MASK_OUT_ABOVE_16(*r_dst)));
 
 	*r_dst = res;
