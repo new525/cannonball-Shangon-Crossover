@@ -1,9 +1,9 @@
 /***************************************************************************
-    OutRun's Ferrari as the vehicle on Hang-On's course. See hoferrari.hpp.
+    OutRun's Ferrari as the vehicle on Hang-On's course. See hovehicle.hpp.
 
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
-#include "crossover/hoferrari.hpp"
+#include "crossover/hovehicle.hpp"
 #include "crossover/hoboard.hpp"
 #include "crossover/m68k/m68k.h"
 
@@ -29,12 +29,13 @@
 #include "engine/olevelobjs.hpp"
 #include "engine/oentry.hpp"
 #include "engine/audio/osoundint.hpp"
+#include "crossover/bike.hpp"
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
 }
 
-HOFerrari hoferrari;
+HOVehicle hovehicle;
 
 // ------------------------------------------------------------------------------------------------
 // Hang-On addresses (main CPU view), see docs/CROSSOVER-HANGON.md
@@ -111,12 +112,20 @@ static inline uint32_t ROML(uint32_t a) { return (uint32_t) ROMW(a) << 16 | ROMW
 // sub_0B556), a little inside OutRun's bound for this road ($18 + $1F4 = 524)
 static inline uint16_t ho_x() { return (uint16_t) std::max(-500, std::min((int) oinitengine.car_x_pos, 500)); }
 
-static bool dbg() { static int d = getenv("CB_HOFERRARI_DEBUG") ? 1 : 0; return d; }
+static int16_t ho_path_word(void*, uint32_t off)
+{
+    uint32_t base = RL(V_PATH);
+    const std::vector<uint8_t>& r = hoboard.sub_rom;
+    uint32_t a = (base + off) & 0x7FFFF;
+    return a + 1 < r.size() ? (int16_t)(r[a] << 8 | r[a + 1]) : 0;
+}
+
+static bool dbg() { static int d = getenv("CB_HOVEHICLE_DEBUG") ? 1 : 0; return d; }
 
 // ------------------------------------------------------------------------------------------------
 // Start and end
 // ------------------------------------------------------------------------------------------------
-void HOFerrari::begin()
+void HOVehicle::begin()
 {
     if (!enabled) return;
 
@@ -138,8 +147,14 @@ void HOFerrari::begin()
     oferrari.reset_car();
     oferrari.car_ctrl_active = true;
     oferrari.init_ingame();
-    for (int s : { (int) OSprites::SPRITE_SMOKE1, (int) OSprites::SPRITE_SMOKE2 })
-        osprites.jump_table[s].control |= OSprites::ENABLE;
+    if (vehicle == FERRARI)                 // the bike's dust is Hang-On's (task 35)
+        for (int s : { (int) OSprites::SPRITE_SMOKE1, (int) OSprites::SPRITE_SMOKE2 })
+            osprites.jump_table[s].control |= OSprites::ENABLE;
+    if (vehicle == SH_BIKE)
+    {
+        bike.reset();
+        bike.set_course(true, ho_path_word);
+    }
     oinitengine.car_x_pos = oinitengine.car_x_old = 0;
     oinitengine.car_increment = 0;
     oinitengine.rd_split_state = OInitEngine::SPLIT_NONE;
@@ -160,15 +175,16 @@ void HOFerrari::begin()
 
     static const uint32_t pcs[] = { PC_DISPATCH, PC_SPRITE_SHOWN, PC_SPRITE_HIDDEN, PC_RIVAL_CMP, PC_RIVAL_HIT,
                                     PC_RIVAL_SOUND, PC_DUST_DRAW, PC_SOUND_QUEUE };
-    hoboard.set_pc_hooks(pcs, (int)(sizeof pcs / sizeof pcs[0]), &HOFerrari::hook, this);
+    hoboard.set_pc_hooks(pcs, (int)(sizeof pcs / sizeof pcs[0]), &HOVehicle::hook, this);
 }
 
-void HOFerrari::end()
+void HOVehicle::end()
 {
     hoboard.set_pc_hooks(nullptr, 0, nullptr, nullptr);
     hovideo.overlay = nullptr;
     hovideo.tag_active = false;
     if (!enabled) return;
+    bike.set_course(false, nullptr);
     osoundint.engine_data[sound::ENGINE_PITCH_H] = 0;
     osoundint.engine_data[sound::ENGINE_PITCH_L] = 0;
     osoundint.engine_data[sound::ENGINE_VOL] = 0;
@@ -179,9 +195,9 @@ void HOFerrari::end()
 // ------------------------------------------------------------------------------------------------
 // Hooks
 // ------------------------------------------------------------------------------------------------
-void HOFerrari::hook(void* ctx, uint32_t pc) { ((HOFerrari*) ctx)->on_pc(pc); }
+void HOVehicle::hook(void* ctx, uint32_t pc) { ((HOVehicle*) ctx)->on_pc(pc); }
 
-void HOFerrari::on_pc(uint32_t pc)
+void HOVehicle::on_pc(uint32_t pc)
 {
     switch (pc)
     {
@@ -196,7 +212,7 @@ void HOFerrari::on_pc(uint32_t pc)
             {
                 oinitengine.car_x_pos = oinitengine.car_x_old = (int16_t) RW(V_X);
                 crash_count = RW(V_CRASH_COUNT);
-                if (dbg()) fprintf(stderr, "hoferrari: race from X %d\n", oinitengine.car_x_pos);
+                if (dbg()) fprintf(stderr, "hovehicle: race from X %d\n", oinitengine.car_x_pos);
             }
             if (on_task(a5, a0)) hoboard.set_main_reg(M68K_REG_PC, PC_DISPATCH_NEXT);
             break;
@@ -209,8 +225,9 @@ void HOFerrari::on_pc(uint32_t pc)
 
         case PC_RIVAL_CMP:
             // d0 = allowance + 10, d1 = |rival x - $160|. OutRun's rule for the Ferrari against a car: hit
-            // within 11/8 of the half-width the allowance gives (as on Super Hang-On's courses)
-            if (racing)
+            // within 11/8 of the half-width the allowance gives (as on Super Hang-On's courses). The bike keeps
+            // Hang-On's rule (Super Hang-On's is the same, $750A).
+            if (racing && vehicle == FERRARI)
             {
                 int32_t half = (int16_t)(hoboard.main_reg(M68K_REG_D0) & 0xFFFF) - 10;
                 int32_t w = half * 11 / 8;
@@ -220,7 +237,7 @@ void HOFerrari::on_pc(uint32_t pc)
             break;
 
         case PC_RIVAL_HIT:
-            // contact: OutRun's traffic response instead of Hang-On's push
+            // contact: the vehicle's own response instead of Hang-On's push
             if (racing)
             {
                 rival_contact(hoboard.main_reg(M68K_REG_A5) & 0xFFFFFF);
@@ -231,13 +248,14 @@ void HOFerrari::on_pc(uint32_t pc)
         case PC_RIVAL_SOUND:
             if (racing)
             {
-                osoundint.queue_sound(sound::REBOUND);
+                if (vehicle == SH_BIKE) bike.sh_sound(0x89);              // Super Hang-On's, $7554
+                else                    osoundint.queue_sound(sound::REBOUND);
                 hoboard.set_main_reg(M68K_REG_PC, PC_RIVAL_SOUND_END);
             }
             break;
 
         case PC_DUST_DRAW:
-            if (racing) hoboard.set_main_reg(M68K_REG_PC, PC_DUST_DRAW_END);
+            if (racing && vehicle == FERRARI) hoboard.set_main_reg(M68K_REG_PC, PC_DUST_DRAW_END);
             break;
 
         case PC_SOUND_QUEUE:
@@ -257,7 +275,7 @@ void HOFerrari::on_pc(uint32_t pc)
     }
 }
 
-bool HOFerrari::on_task(uint32_t a5, uint32_t entry)
+bool HOVehicle::on_task(uint32_t a5, uint32_t entry)
 {
     if (a5 == SLOT_SOUND && entry == TASK_SOUND) { in_sound_task = racing; return false; }
     if (!racing) return false;
@@ -270,7 +288,7 @@ bool HOFerrari::on_task(uint32_t a5, uint32_t entry)
 
 // The packet's player part ($20C641-$20C643: mode, engine pitch, throttle), written by the sound task
 // for the sound board's bike engine
-void HOFerrari::silence_packet()
+void HOVehicle::silence_packet()
 {
     WB(W_PKT + 1, 0);
     WB(W_PKT + 2, 0);
@@ -280,7 +298,7 @@ void HOFerrari::silence_packet()
 // ------------------------------------------------------------------------------------------------
 // Slot 9: speed and track progress
 // ------------------------------------------------------------------------------------------------
-void HOFerrari::speed_task(uint32_t a5)
+void HOVehicle::speed_task(uint32_t a5)
 {
     if (RW(W_MODE) == 1) return;                                  // $8566: start line, nothing moves
     if (RW(V_GOAL) && (int16_t) RW(V_POS) > 0x1C)                 // $8572: past the goal line, every frame:
@@ -316,29 +334,14 @@ void HOFerrari::speed_task(uint32_t a5)
 // ------------------------------------------------------------------------------------------------
 // Slot 34: the vehicle
 // ------------------------------------------------------------------------------------------------
-void HOFerrari::bike_task(uint32_t a5)
+void HOVehicle::bike_task(uint32_t a5)
 {
     if (slot_depth < 0) slot_depth = RW(a5 + 0x14);
 
-    // what the rest of Hang-On reads about its vehicle
-    WW(V_X, ho_x());
-    WW(V_OFFROAD, oferrari.wheel_state == OFerrari::WHEELS_OFF ? 0xFFFF : 0);
-    WW(V_KNOCK, 0);
-    WW(V_CRASH, 0);
-    WB(V_SPR_LEAN, 0); WB(V_SPR_LEAN + 1, 0);
-    WW(V_SPR_X, BIKE_SX); WW(V_SPR_Y, BIKE_SY);
-
-    // its object: drawn as OutRun's sprites (tagged after sub_03F84 writes its entry)
-    WL(a5 + 0x1A, ROML(ROM_SPR_LEAN));
-    WW(a5 + 0x0A, BIKE_SX);
-    WW(a5 + 0x0C, BIKE_SY);
-    WW(a5 + 0x14, (uint16_t) car_depth());
-
+    publish(a5);
     if (sub_frame == 0) tick();
     sub_frame ^= 1;
-    WW(V_X, ho_x());
-    WW(V_OFFROAD, oferrari.wheel_state == OFerrari::WHEELS_OFF ? 0xFFFF : 0);
-    WW(a5 + 0x14, (uint16_t) car_depth());
+    publish(a5);
 
     if (RW(V_RETIRE))
     {
@@ -371,9 +374,35 @@ void HOFerrari::bike_task(uint32_t a5)
     register_sprite(a5);
 }
 
+// What the rest of Hang-On reads about its vehicle (the bike task's outputs), and the vehicle's object
+void HOVehicle::publish(uint32_t a5)
+{
+    WW(V_X, ho_x());
+    if (vehicle == SH_BIKE)
+    {
+        // Super Hang-On's state at the same offsets ($2600xx): off-road, knock, crash, and for the dust
+        // task (35, the counterpart of Super Hang-On's): hard brake, lean frame and flags, sprite position, squeal
+        for (uint32_t o : { 0x54u, 0x56u, 0x58u, 0x5Au, 0x88u, 0x94u, 0x98u, 0xE6u })
+            WW(0xC7E000 + o, bike.sh_word(o));
+    }
+    else
+    {
+        WW(V_OFFROAD, oferrari.wheel_state == OFerrari::WHEELS_OFF ? 0xFFFF : 0);
+        WW(V_KNOCK, 0);
+        WW(V_CRASH, 0);
+        WB(V_SPR_LEAN, 0); WB(V_SPR_LEAN + 1, 0);
+        WW(V_SPR_X, BIKE_SX); WW(V_SPR_Y, BIKE_SY);
+    }
+    // its object: drawn as OutRun's sprites (tagged after sub_03F84 writes its entry)
+    WL(a5 + 0x1A, ROML(ROM_SPR_LEAN));
+    WW(a5 + 0x0A, BIKE_SX);
+    WW(a5 + 0x0C, BIKE_SY);
+    WW(a5 + 0x14, (uint16_t) car_depth());
+}
+
 // The car's depth in Hang-On's sprite list: the bike's own, or, while OutRun's crash throws the car up the
 // road, the screen line of the crashed car (in Hang-On depth is the screen line, $80 = horizon).
-int HOFerrari::car_depth() const
+int HOVehicle::car_depth() const
 {
     int depth = slot_depth < 0 ? BIKE_DEPTH : slot_depth;
     const oentry& c = osprites.jump_table[OSprites::SPRITE_CRASH];
@@ -387,7 +416,7 @@ int HOFerrari::car_depth() const
 }
 
 // sub_0AD3A: the object into the draw list ($C7E500 count, $C7E502: depth.w, slot offset.w)
-void HOFerrari::register_sprite(uint32_t a5)
+void HOVehicle::register_sprite(uint32_t a5)
 {
     uint16_t n = RW(V_DRAW_COUNT);
     WW(V_DRAW_COUNT, (uint16_t)(n + 1));
@@ -398,7 +427,7 @@ void HOFerrari::register_sprite(uint32_t a5)
 // The bike's 10-byte sprite entry ($20D400 + 10 * rank, words 0-4 of the sprite chip's entry): word 3, the
 // sprite data address, becomes the overlay tag. Hang-On has no hide bit; an entry it clipped ($00EF) is
 // given lines again so the overlay keeps its place.
-void HOFerrari::tag_sprite(bool hidden)
+void HOVehicle::tag_sprite(bool hidden)
 {
     uint32_t e = W_SPRITES + RW(SLOT_BIKE + 6) * 10;
     if (hidden) WW(e, 0xDF80);
@@ -408,7 +437,7 @@ void HOFerrari::tag_sprite(bool hidden)
 // ------------------------------------------------------------------------------------------------
 // OutRun's car logic, one tick (OutRun's game logic runs at 30 Hz: every other board frame)
 // ------------------------------------------------------------------------------------------------
-void HOFerrari::world_to_outrun()
+void HOVehicle::world_to_outrun()
 {
     if (getenv("CB_HOF_FREEZE_TIME")) WB(W_TIMER, 0x50);         // testing: reach the goal
     outrun.tick_frame = true;
@@ -432,21 +461,32 @@ void HOFerrari::world_to_outrun()
     for (int i = 0; i < 512; i++) oroad.road_x[i] = (int16_t) road_x[i];
 }
 
-void HOFerrari::tick()
+void HOVehicle::tick()
 {
     world_to_outrun();
     uint32_t pos0 = oroad.road_pos;
 
     // OInitEngine::update_engine, the car block
-    oferrari.move();
-    if (RW(V_RETIRE)) oinitengine.car_increment = 0;
-    if (oferrari.car_ctrl_active)
+    if (vehicle == SH_BIKE)
     {
-        oferrari.set_curve_adjust();
-        oferrari.set_ferrari_x();
-        oferrari.do_skid();
-        oferrari.check_wheels();
-        oferrari.set_ferrari_bounds();
+        // Super Hang-On's knockback for the rivals touched since the last tick ($7510, see CrossoverBike)
+        for (int i = 0; i < n_hits; i++) bike.traffic_hit((int16_t) hits[i].side);
+        n_hits = 0;
+        if (oferrari.car_ctrl_active) bike.tick();
+        if (RW(V_RETIRE)) oinitengine.car_increment = 0;
+    }
+    else
+    {
+        oferrari.move();
+        if (RW(V_RETIRE)) oinitengine.car_increment = 0;
+        if (oferrari.car_ctrl_active)
+        {
+            oferrari.set_curve_adjust();
+            oferrari.set_ferrari_x();
+            oferrari.do_skid();
+            oferrari.check_wheels();
+            oferrari.set_ferrari_bounds();
+        }
     }
     oferrari.do_sound_score_slip();
     if (olevelobjs.spray_counter > 0) olevelobjs.spray_counter--;
@@ -467,7 +507,7 @@ void HOFerrari::tick()
             oferrari.car_inc_old = s;
             otraffic.collision_traffic++;
         }
-        if (dbg()) fprintf(stderr, "hoferrari: rival contact side %d rival %d km/h -> skid %d\n", hits[i].side, hits[i].speed, ocrash.skid_counter);
+        if (dbg()) fprintf(stderr, "hovehicle: rival contact side %d rival %d km/h -> skid %d\n", hits[i].side, hits[i].speed, ocrash.skid_counter);
     }
     n_hits = 0;
 
@@ -477,9 +517,12 @@ void HOFerrari::tick()
     if (oferrari.state != OFerrari::FERRARI_END_SEQ)
     {
         ocrash.tick();
-        osmoke.draw_ferrari_smoke(&osprites.jump_table[OSprites::SPRITE_SMOKE1]);
-        oferrari.draw_shadow();
-        osmoke.draw_ferrari_smoke(&osprites.jump_table[OSprites::SPRITE_SMOKE2]);
+        if (vehicle == FERRARI)
+        {
+            osmoke.draw_ferrari_smoke(&osprites.jump_table[OSprites::SPRITE_SMOKE1]);
+            oferrari.draw_shadow();
+            osmoke.draw_ferrari_smoke(&osprites.jump_table[OSprites::SPRITE_SMOKE2]);
+        }
     }
     osprites.sprite_copy();
     osprites.update_sprites();              // Outrun::vint: the list to the sprite chip, palettes
@@ -493,28 +536,20 @@ void HOFerrari::tick()
     {
         static int n = 0;
         if ((++n % 30) == 0)
-            fprintf(stderr, "hoferrari: tick %d x %d spd %d gear %d acc %d wheels %d crash %d/%d skid %d pos %08x curve %d/%d push %d spr %d eng %02x%02x/%02x\n", n,
+            fprintf(stderr, "hovehicle: tick %d x %d spd %d gear %d acc %d wheels %d crash %d/%d skid %d pos %08x curve %d/%d push %d spr %d eng %02x%02x/%02x\n", n,
                     oinitengine.car_x_pos, oinitengine.car_increment >> 16, oinputs.gear, oinputs.acc_adjust, oferrari.wheel_state,
                     ocrash.crash_counter, ocrash.coll_count1, ocrash.skid_counter, RL(V_POS), oinitengine.road_type, oinitengine.road_curve,
                     oroad.road_x[170], osprites.sprite_count, osoundint.engine_data[sound::ENGINE_PITCH_H],
                     osoundint.engine_data[sound::ENGINE_PITCH_L], osoundint.engine_data[sound::ENGINE_VOL]);
         static uint16_t last_mode = 0xFFFF;
-        if (RW(W_MODE) != last_mode) { fprintf(stderr, "hoferrari: mode %d\n", RW(W_MODE)); last_mode = RW(W_MODE); }
+        if (RW(W_MODE) != last_mode) { fprintf(stderr, "hovehicle: mode %d\n", RW(W_MODE)); last_mode = RW(W_MODE); }
     }
 }
 
 // OutRun's road builder (ORoad::setup_x_data, verified as sho_road_build_outrun) over Hang-On's path (the
 // second CPU's $7F0F0, a pointer into its ROM; same path format as Super Hang-On's): OFerrari::set_curve_adjust
 // reads its slice 170. Rebuilt when the position changes, keeping the slices it does not reach, as OutRun does.
-static int16_t ho_path_word(void*, uint32_t off)
-{
-    uint32_t base = RL(V_PATH);
-    const std::vector<uint8_t>& r = hoboard.sub_rom;
-    uint32_t a = (base + off) & 0x7FFFF;
-    return a + 1 < r.size() ? (int16_t)(r[a] << 8 | r[a + 1]) : 0;
-}
-
-void HOFerrari::build_road_x()
+void HOVehicle::build_road_x()
 {
     uint32_t pos = RL(V_POS) >> 16;
     if (pos == road_x_pos) return;
@@ -526,7 +561,7 @@ void HOFerrari::build_road_x()
 // The road heights OutRun's crash and smoke objects stand on (oroad.road_y, from road_p0; height above the
 // bottom line << 4). Hang-On's road is flat; these are OutRun's own heights for a flat road, which keep the
 // car's incline frames level (OFerrari reads the slope near the car).
-void HOFerrari::fill_road_heights()
+void HOVehicle::fill_road_heights()
 {
     int16_t* ry = oroad.road_y + oroad.road_p0;
     int32_t h = 0;
@@ -542,7 +577,7 @@ void HOFerrari::fill_road_heights()
 // ------------------------------------------------------------------------------------------------
 // Rivals
 // ------------------------------------------------------------------------------------------------
-void HOFerrari::rival_contact(uint32_t a5)
+void HOVehicle::rival_contact(uint32_t a5)
 {
     for (int i = 0; i < n_hits; i++) if (hits[i].slot == a5) return;     // once per OutRun tick
     if (n_hits >= 8) return;
@@ -553,7 +588,7 @@ void HOFerrari::rival_contact(uint32_t a5)
 // A rival's speed in km/h ($AB3C-$ABA6). Its position changes per frame by
 //   d0 + ((player speed - S) * 10) >> 4,   S = $10FA4[difficulty, stage], d0 = $36 + min($32 / 5, $26)
 // (d0 = 10 once it has been knocked), so it keeps pace with the player at player speed S - 1.6 * d0.
-int HOFerrari::rival_speed(uint32_t a5)
+int HOVehicle::rival_speed(uint32_t a5)
 {
     uint32_t d1 = (RW(W_DIP) & 6) * 8 + RW(V_STAGE) * 2;
     int s = (int16_t) ROMW(ROM_RIVAL_SPEED + d1);
@@ -572,7 +607,7 @@ int HOFerrari::rival_speed(uint32_t a5)
 // ------------------------------------------------------------------------------------------------
 // Display
 // ------------------------------------------------------------------------------------------------
-void HOFerrari::after_frame()
+void HOVehicle::after_frame()
 {
     if (!enabled) return;
     std::memset(overlay, 0, sizeof overlay);
@@ -580,7 +615,7 @@ void HOFerrari::after_frame()
     hovideo.overlay = racing ? overlay : nullptr;
 }
 
-void HOFerrari::colours(uint32_t* rgb)
+void HOVehicle::colours(uint32_t* rgb)
 {
     for (uint32_t i = 0; i < 0x1000; i++) rgb[0x2000 + i] = video.own_rgb((uint16_t) i);
 }

@@ -5,7 +5,8 @@
 -->
 <!--
     Crossover (OutRun / Super Hang-On / Hang-On)
-    vehicle: 0 = OutRun's Ferrari, 1 = Super Hang-On's bike (needs the Super Hang-On ROMs)
+    vehicle: 0 = OutRun's Ferrari, 1 = Super Hang-On's bike (needs the Super Hang-On ROMs),
+             2 = Hang-On's bike (needs the Hang-On ROMs; Hang-On's course only)
     The Super Hang-On and Hang-On ROMs also add their games' race music to the music selection.
 -->
 <crossover>

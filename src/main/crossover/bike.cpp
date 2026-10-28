@@ -289,7 +289,7 @@ void CrossoverBike::build_road_table()
     int b = ((RW(V_ROADBUF) ^ 0x400) & 0x400) ? 1 : 0;
     uint16_t buf = 0x800 + (b << 10);
     uint16_t* table = road_native[b];
-    sho_path_reader pr = { outrun_path_word, nullptr };
+    sho_path_reader pr = { path_fn ? path_fn : outrun_path_word, nullptr };
     sho_road_build_sh(&pr, (oroad.road_pos >> 16) << 2, depth, table);
     for (int k = 0; k < 0x200 && buf + 2 * k + 1 < (int) sizeof shared; k++)
     {
@@ -297,6 +297,12 @@ void CrossoverBike::build_road_table()
         shared[buf + 2 * k] = v >> 8;
         shared[buf + 2 * k + 1] = (uint8_t) v;
     }
+}
+
+void CrossoverBike::set_course(bool fs, PathFn path)
+{
+    full_size = fs;
+    path_fn = path;
 }
 
 // Curve type and radius from OutRun's curve list. On the mirrored road of a fork (see
@@ -659,7 +665,7 @@ void CrossoverBike::draw_crash_objects(oentry* rider, oentry* rider_shadow, oent
 // ------------------------------------------------------------------------------------------------
 int CrossoverBike::size_percent() const
 {
-    if (sh_course) return 100;
+    if (sh_course || full_size) return 100;
     int pct = config.crossover.bike_scale;
     return (pct < 50 || pct > 100) ? 100 : pct;
 }

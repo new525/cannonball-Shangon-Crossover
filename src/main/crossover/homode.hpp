@@ -14,6 +14,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <string>
 
 class HOMode
 {
@@ -37,6 +38,14 @@ private:
     void set_inputs();
     void show_frame();
     bool ingame() const;
+
+    // High scores. Hang-On resets its rankings ($20D800, 99 entries of 12 bytes, sub_05A7C), the value
+    // at $20C03C and its lap-time records ($20DF90, sub_07E8A) at every power-on, and the board is powered
+    // on for every race here; as SHMode does, the program keeps them in a file and puts them back once the
+    // boot code has run.
+    void load_scores();
+    void save_scores();
+    std::vector<uint8_t> scores;            // the saved areas, in the order of SCORE_AREAS (empty = none)
 };
 
 extern HOMode homode;

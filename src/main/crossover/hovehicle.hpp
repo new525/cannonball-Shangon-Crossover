@@ -1,5 +1,6 @@
 /***************************************************************************
-    OutRun's Ferrari as the vehicle on Hang-On's course (the emulated Hang-On board, homode).
+    OutRun's Ferrari or Super Hang-On's bike as the vehicle on Hang-On's course (the emulated Hang-On
+    board, homode).
 
     The same design as crossover/shferrari (the Ferrari on Super Hang-On's courses), on Hang-On's
     program, which Super Hang-On was built from: the world is Hang-On running unmodified on the
@@ -23,6 +24,12 @@
       $B76A   the bike's dust object is not drawn
       $3F2E   sound commands queued by the sound task: the bike's effects are dropped
 
+    Super Hang-On's bike runs in OutRun's car slot here, as it does on OutRun's courses (crossover/bike:
+    Super Hang-On's own speed, centrifugal and bike tasks, its crash and sound), with Hang-On's world in
+    place of OutRun's: its centrifugal table built from Hang-On's path, Hang-On's road edge (260), a scenery
+    hit or a rival's contact answered as Super Hang-On answers them, its dust drawn by Hang-On's dust task
+    (the counterpart of Super Hang-On's own).
+
     Hang-On's addresses are listed (with the code they were read from) in docs/CROSSOVER-HANGON.md.
     Units are Super Hang-On's (the same as OutRun's: track position, 16.16 km/h, lateral X).
 
@@ -33,10 +40,14 @@
 #include <cstdint>
 #include "crossover/hovideo.hpp"
 
-class HOFerrari
+class HOVehicle
 {
 public:
-    bool enabled = false;                   // the Ferrari drives this session's course
+    // The vehicle on Hang-On's course when it is not Hang-On's own bike: OutRun's Ferrari, or Super Hang-On's
+    // bike (crossover/bike: its reconstructed tasks and sprites, in OutRun's car slot as on OutRun's courses)
+    enum Vehicle { FERRARI, SH_BIKE };
+    bool    enabled = false;                // another game's vehicle drives this session's course
+    Vehicle vehicle = FERRARI;
 
     void begin();                           // after the board's run-up (HOMode::start)
     void end();                             // HOMode::stop
@@ -70,6 +81,7 @@ private:
     void fill_road_heights();
     void build_road_x();
     void register_sprite(uint32_t a5);
+    void publish(uint32_t a5);
     void tag_sprite(bool hidden);
     void rival_contact(uint32_t a5);
     int  rival_speed(uint32_t a5);
@@ -77,4 +89,4 @@ private:
     int  car_depth() const;                 // Hang-On depth (= screen line) of the car's sprites
 };
 
-extern HOFerrari hoferrari;
+extern HOVehicle hovehicle;

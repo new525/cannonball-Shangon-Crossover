@@ -67,6 +67,13 @@ public:
     int16_t  car_x_relative() const { return bike_x(); }   // X relative to the bike's road centre
     bool     offroad() const;
 
+    // Racing another game's course (crossover/hovehicle: Hang-On's): drawn full size, and the road path the
+    // centrifugal table is built from read through path (nullptr: OutRun's course, the default)
+    using PathFn = int16_t (*)(void* ctx, uint32_t offset);
+    void set_course(bool full_size, PathFn path);
+    // The bike's Super Hang-On state ($260000 + off, word), for a host world
+    uint16_t sh_word(uint32_t off) const { return (uint16_t)(shared[off] << 8 | shared[off + 1]); }
+
     // Palette expansion entries added for the bike (index base set at init)
     static const int NUM_PALS = 6;
     uint16_t pal_base = 0;
@@ -79,6 +86,8 @@ private:
     int16_t road_center = 0;    // centre of the bike's current road (OutRun car_x_pos units)
     int16_t road_half = 0;      // asphalt half-width around that centre
     bool    sh_course = false;  // racing a Super Hang-On course: drawn full size whatever BIKE SIZE says
+    bool    full_size = false;  // another game's course (set_course): the same
+    PathFn  path_fn = nullptr;
                                 // (set by the course loader once Super Hang-On's courses are in)
     bool    mirrored = false;   // on OutRun's mirrored road at a fork (see build_road_table)
     uint16_t road_native[2][512];   // the builder's own tables, per buffer, before mirroring

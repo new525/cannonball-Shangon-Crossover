@@ -25,7 +25,7 @@ class OFerrari
 {
     friend class CrossoverBike;   // crossover: shares road_width_old for the road-width carry
     friend class SHFerrari;       // crossover: the Ferrari on Super Hang-On's courses
-    friend class HOFerrari;       // crossover: the Ferrari on Hang-On's course
+    friend class HOVehicle;       // crossover: the Ferrari on Hang-On's course
 public:
     // Ferrari Sprite Object
     oentry *spr_ferrari;

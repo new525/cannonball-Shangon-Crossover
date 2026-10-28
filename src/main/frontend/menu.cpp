@@ -29,7 +29,7 @@
 #include "crossover/xaudio.hpp"
 #include "crossover/shmode.hpp"
 #include "crossover/homode.hpp"
-#include "crossover/hoferrari.hpp"
+#include "crossover/hovehicle.hpp"
 #include "crossover/shferrari.hpp"
 
 // Logo Y Position
@@ -974,7 +974,8 @@ void Menu::refresh_menu()
         }
         else if (menu_selected == &menu_xover)
         {
-            if (SELECTED(ENTRY_X_VEHICLE))          set_menu_text(ENTRY_X_VEHICLE, config.crossover.vehicle == 1 ? "SUPER HANG ON BIKE" : "OUTRUN FERRARI");
+            if (SELECTED(ENTRY_X_VEHICLE))          set_menu_text(ENTRY_X_VEHICLE, config.crossover.vehicle == 1 ? "SUPER HANG ON BIKE" :
+                                                                       config.crossover.vehicle == 2 ? "HANG ON BIKE" : "OUTRUN FERRARI");
             else if (SELECTED(ENTRY_X_BIKESIZE))    set_menu_text(ENTRY_X_BIKESIZE, config.crossover.bike_scale >= 100 ? "FULL SIZE" : Utils::to_string(config.crossover.bike_scale) + " PERCENT");
             else if (SELECTED(ENTRY_X_TRACK))       set_menu_text(ENTRY_X_TRACK, xover_track_label(config.crossover.track));
             else if (SELECTED(ENTRY_X_MUSIC))
@@ -1217,13 +1218,17 @@ void Menu::xover_cycle(int dir)
     const char* OPTION = menu_selected->at(cursor).c_str();
     if (SELECTED(ENTRY_X_VEHICLE))
     {
-        if (!bike.ready)
+        // OutRun's Ferrari, Super Hang-On's bike (its ROMs), Hang-On's bike (its ROMs; Hang-On's course only)
+        if (!bike.ready && !homode.available())
         {
             config.crossover.vehicle = 0;
             display_message("SUPER HANG-ON ROMS NOT FOUND");
             return;
         }
-        config.crossover.vehicle = config.crossover.vehicle == 1 ? 0 : 1;
+        int v = config.crossover.vehicle;
+        do v = ((v + dir) % 3 + 3) % 3; while ((v == 1 && !bike.ready) || (v == 2 && !homode.available()));
+        config.crossover.vehicle = v;
+        if (v == 2) config.crossover.track = XOVER_HO_TRACK;            // its own course
     }
     else if (SELECTED(ENTRY_X_BIKESIZE))
     {
@@ -1236,6 +1241,7 @@ void Menu::xover_cycle(int dir)
         int n = xover_tracks(), t = config.crossover.track;
         do t = ((t + dir) % n + n) % n; while (!xover_track_ok(t));
         config.crossover.track = t;
+        if (t != XOVER_HO_TRACK && config.crossover.vehicle == 2) config.crossover.vehicle = 0;   // Hang-On's bike: its course only
     }
     else if (SELECTED(ENTRY_X_MUSIC))
     {
@@ -1255,6 +1261,7 @@ void Menu::xover_cycle(int dir)
 void Menu::xover_start()
 {
     if (config.crossover.vehicle == 1 && !bike.ready) config.crossover.vehicle = 0;
+    if (config.crossover.vehicle == 2 && (!homode.available() || config.crossover.track != XOVER_HO_TRACK)) config.crossover.vehicle = 0;
     bike.enabled = config.crossover.vehicle == 1;
     xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
     osoundint.queue_sound(sound::FM_RESET);             // stop a music preview
@@ -1267,7 +1274,9 @@ void Menu::xover_start()
     }
     if (config.crossover.track == XOVER_HO_TRACK)
     {
-        hoferrari.enabled = !bike.enabled;     // OutRun's Ferrari on Hang-On's course
+        // OutRun's Ferrari or Super Hang-On's bike on Hang-On's course; Hang-On's own bike needs nothing
+        hovehicle.enabled = config.crossover.vehicle != 2;
+        hovehicle.vehicle = bike.enabled ? HOVehicle::SH_BIKE : HOVehicle::FERRARI;
         homode.start(config.crossover.music);
         cannonball::state = cannonball::STATE_HANGON;
     }

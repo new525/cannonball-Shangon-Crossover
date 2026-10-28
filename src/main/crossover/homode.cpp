@@ -4,7 +4,7 @@
 #include "crossover/homode.hpp"
 #include "crossover/hoboard.hpp"
 #include "crossover/hovideo.hpp"
-#include "crossover/hoferrari.hpp"
+#include "crossover/hovehicle.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/xaudio.hpp"
 #include "main.hpp"
@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <iterator>
 #include "video.hpp"
 #include "frontend/config.hpp"
 #include "sdl2/input.hpp"
@@ -23,6 +25,29 @@ HOMode homode;
 
 static const uint8_t HO_RACE_MUSIC = 0x9D;
 static const uint32_t W_INGAME = 0x408;     // $20C408: $FFFF while a game is played
+
+// Work RAM areas kept between sessions (offsets from $20C000), see homode.hpp
+static const struct { uint32_t off, len; } SCORE_AREAS[] = { { 0x1800, 0x4A4 }, { 0x003C, 4 }, { 0x1F90, 0x10 } };
+static const uint32_t SCORE_BYTES = 0x4A4 + 4 + 0x10;
+
+static std::string scores_file() { return config.data.save_path + "hiscores_hangon.bin"; }
+
+void HOMode::load_scores()
+{
+    scores.clear();
+    std::ifstream f(scores_file(), std::ios::binary);
+    if (!f) return;
+    std::vector<uint8_t> v((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (v.size() == SCORE_BYTES) scores = v;
+}
+
+void HOMode::save_scores()
+{
+    std::vector<uint8_t> v;
+    for (const auto& a : SCORE_AREAS) v.insert(v.end(), hoboard.workram + a.off, hoboard.workram + a.off + a.len);
+    std::ofstream f(scores_file(), std::ios::binary);
+    if (f) f.write((const char*) v.data(), (std::streamsize) v.size());
+}
 
 bool HOMode::init()
 {
@@ -69,8 +94,14 @@ void HOMode::start(int music_index)
     hoboard.adc[0] = 0x80; hoboard.adc[1] = 0; hoboard.adc[2] = 0;
     hoboard.port_service = 0xFF;
     // the run-up: a coin, then START (frame numbers from power-on)
+    load_scores();
     for (int f = 1; f <= 707; f++)
     {
+        if (f == 60 && !scores.empty())                                  // boot code done (rankings reset at frame 1)
+        {
+            uint32_t o = 0;
+            for (const auto& a : SCORE_AREAS) { std::copy(&scores[o], &scores[o] + a.len, hoboard.workram + a.off); o += a.len; }
+        }
         if (f == 601) hoboard.port_service = 0xFE;
         if (f == 607) hoboard.port_service = 0xFF;
         if (f == 701) hoboard.port_service = 0xEF;
@@ -79,7 +110,7 @@ void HOMode::start(int music_index)
         hovideo.render(hoboard);            // the sprite chip's scratch words, as on the board
         packet.clear();
     }
-    hoferrari.begin();                      // when the Ferrari is the vehicle
+    hovehicle.begin();                      // when the Ferrari is the vehicle
     xaudio.raw_begin(CrossoverAudio::HANGON);
     feeding = true;
     acc = 0;
@@ -93,7 +124,8 @@ void HOMode::stop()
 {
     if (!active) return;
     active = false;
-    hoferrari.end();
+    hovehicle.end();
+    save_scores();
     xaudio.raw_end(CrossoverAudio::HANGON);
     xaudio.stop_music();
     osoundint.queue_sound(sound::FM_RESET);
@@ -105,7 +137,7 @@ void HOMode::show_frame()
     static uint32_t rgb[EXT_COLOURS];
     hovideo.palette_rgb(hoboard, rgb);
     for (uint32_t i = 0x2000; i < EXT_COLOURS; i++) rgb[i] = 0;
-    if (hoferrari.enabled) hoferrari.colours(rgb);
+    if (hovehicle.enabled) hovehicle.colours(rgb);
     video.set_external(hovideo.pixels, hovideo.width, HOVideo::H, rgb);
 }
 
@@ -120,7 +152,7 @@ void HOMode::tick()
     {
         packet.clear();
         hoboard.run_frame();
-        hoferrari.after_frame();            // OutRun's sprites, drawn into the frame by hovideo
+        hovehicle.after_frame();            // OutRun's sprites, drawn into the frame by hovideo
         hovideo.render(hoboard);
         if (other_music >= 0 && !packet.empty() && packet[0] == HO_RACE_MUSIC)
         {
