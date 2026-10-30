@@ -18,6 +18,9 @@ extern "C" {
 #include "crossover/m68k/m68k.h"
 }
 
+// definition of the class constant (used by reference, e.g. in std::min, in unoptimised builds)
+const int SHBoard::MAX_HOOKS;
+
 SHBoard shboard;
 
 static inline uint16_t be16(const uint8_t* p) { return (uint16_t)(p[0] << 8 | p[1]); }

@@ -9,6 +9,9 @@
 #include <cstdlib>
 #include <algorithm>
 
+// definitions of the class constants (used by reference, e.g. in std::min, in unoptimised builds)
+const int HOVideo::W, HOVideo::H, HOVideo::MAXW;
+
 HOVideo hovideo;
 
 static inline uint16_t be16(const uint8_t* p) { return (uint16_t)(p[0] << 8 | p[1]); }

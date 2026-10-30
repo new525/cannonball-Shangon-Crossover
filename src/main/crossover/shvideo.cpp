@@ -10,6 +10,9 @@
 #include <cmath>
 #include <algorithm>
 
+// definitions of the class constants (used by reference, e.g. in std::min, in unoptimised builds)
+const int SHVideo::W, SHVideo::H, SHVideo::MAXW;
+
 SHVideo shvideo;
 
 static inline uint16_t be16(const uint8_t* p) { return (uint16_t)(p[0] << 8 | p[1]); }
