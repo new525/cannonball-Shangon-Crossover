@@ -5,13 +5,30 @@ A modified build of Cannonball (the OutRun engine by Chris White) that lets
 Super Hang-On's bike ride OutRun's courses, OutRun's Ferrari drive Super
 Hang-On's own courses (on an emulated Super Hang-On board), and either of
 them, or Hang-On's own bike, race Hang-On's course (on an emulated Hang-On
-board), with all three games' race music. Non-commercial; see "Licences"
-below.
+board), with all three games' race music and Cool Riders' cover of Hang-On's
+theme. Non-commercial; see "Licences" below.
 
 No game ROMs are included. You need your own copies.
 
 Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
+
+
+Changes since 0.5.0 (not yet released)
+--------------------------------------
+- Cool Riders' cover of Hang-On's theme, "HANG ON -THEME OF LOVE-", is in
+  the music list (HANG ON THEME OF LOVE). It plays on an emulated copy of
+  the sound side of Cool Riders' System H1 board (the SH-1 that streams the
+  samples, the 68000 and two Yamaha SCSPs), running Cool Riders' own sound
+  program. Compared with MAME 0.264 over the whole song: 5,542 notes started
+  against MAME's 5,541, no tempo drift, notes within about 4 ms of MAME's.
+  Needs 13 files of MAME's "coolridr" set in roms\coolridr\ (the ten 4 MB
+  sprite ROMs are not needed). The first time it is chosen, the board takes
+  about half a second to start.
+- The 68000 core (Musashi) now takes the same number of cycles as MAME
+  0.264's 68000 on every instruction tested (104,854 cases) and takes
+  interrupts at the same points. The emulated Hang-On board's RAM now
+  matches MAME's in 1,937 of 2,000 frames of a scripted game (1,614 before).
 
 
 Changes in 0.5.0
@@ -143,11 +160,13 @@ Setting up
    These are the files of MAME's "shangon1" set, including 317-0034.key.
 3. Put the Hang-On ROMs in             roms\hangon\       (list: roms\hangon\roms.txt)
    These are the files of MAME's "hangon" set (Rev A).
-4. Run cannonball.exe.
+4. Put the Cool Riders ROMs in         roms\coolridr\     (list: roms\coolridr\roms.txt)
+   13 files of MAME's "coolridr" set; only its music is used.
+5. Run cannonball.exe.
 
 The crossover ROM sets are optional: without Super Hang-On's ROMs you drive
 the Ferrari, and each missing set only removes that game's part (its
-courses, vehicle and music).
+courses, vehicle and music; for Cool Riders, its track).
 ROM files are recognised by CRC32 first, then by name, so the names don't
 have to match exactly.
 
@@ -167,7 +186,7 @@ Main menu > PLAY GAME opens the race setup:
               set under GAME MODES > TIME TRIAL. Or one of Super Hang-On's
               courses: AFRICA, ASIA, AMERICA, EUROPE (either vehicle), or
               Hang-On's course: HANG ON (any of the three vehicles).
-    MUSIC     any of the eight tracks, previewed as you choose, or
+    MUSIC     any of the nine tracks, previewed as you choose, or
               "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
 Up/down moves, left/right (or select) changes a setting. Your choices are
 saved in config.xml (section <crossover>).
@@ -187,8 +206,9 @@ Music
 -----
 On the music selection screen, steer (or use left/right) through the list:
 OutRun's three tracks, then Super Hang-On's Outride a Crisis, Sprinter,
-Winning Run and Hard Road, then Hang-On's race music ("HANG ON"). Each one
-plays on an emulated copy of its own game's sound board.
+Winning Run and Hard Road, then Hang-On's race music ("HANG ON"), then Cool
+Riders' cover of it ("HANG ON THEME OF LOVE"). Each one plays on an emulated
+copy of its own game's sound board.
 
 
 What is reconstructed, and how it was checked
@@ -256,11 +276,12 @@ source folder contains:
                                           (upstream v11.0.1)
 Other components: Z80 core by Nicolas Allemand (MIT), 68000 core Musashi by
 Karl Stenerud (MIT; it bundles John R. Hauser's SoftFloat), ymfm by Aaron Giles
-(BSD-3-Clause, as shipped in MAME 0.264), and two parts derived from MAME
-(BSD-3-Clause): the FD1089 decryption, the Sega PCM sample generation, and
-the Super Hang-On and Hang-On boards' video (tilemaps, road, sprites and
-mixing, transcribed from MAME's drivers).
+(BSD-3-Clause, as shipped in MAME 0.264), and parts derived from MAME
+(BSD-3-Clause): the FD1089 decryption, the Sega PCM sample generation, the
+Super Hang-On and Hang-On boards' video (tilemaps, road, sprites and
+mixing, transcribed from MAME's drivers), the SH-1 core (MAME's SH-2 family
+interpreter) and the SCSP sound chip.
 Licence texts are in the licenses folder.
 
-OutRun, Super Hang-On and Hang-On are trademarks of SEGA. This project is
+OutRun, Super Hang-On, Hang-On and Cool Riders are trademarks of SEGA. This project is
 not affiliated with SEGA.

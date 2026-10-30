@@ -100,6 +100,7 @@ void Config::load()
     if (crossover.bike_scale < 50 || crossover.bike_scale > 100) crossover.bike_scale = 80;
     crossover.shangon_rompath = pt_config.get("crossover.shangon_rompath", "roms/shangon1/");
     crossover.hangon_rompath  = pt_config.get("crossover.hangon_rompath",  "roms/hangon/");
+    crossover.coolriders_rompath = pt_config.get("crossover.coolriders_rompath", "roms/coolridr/");
 
     data.file_scores      = data.save_path + "hiscores.xml";
     data.file_scores_jap  = data.save_path + "hiscores_jap.xml";
@@ -332,6 +333,7 @@ bool Config::save()
     pt_config.put("crossover.bike_scale",      crossover.bike_scale);
     pt_config.put("crossover.shangon_rompath", crossover.shangon_rompath);
     pt_config.put("crossover.hangon_rompath",  crossover.hangon_rompath);
+    pt_config.put("crossover.coolriders_rompath", crossover.coolriders_rompath);
     pt_config.put("engine.freeplay",        (int) engine.freeplay);
     pt_config.put("engine.time",            engine.freeze_timer ? 4 : engine.dip_time);
     pt_config.put("engine.traffic",         engine.disable_traffic ? 4 : engine.dip_traffic);

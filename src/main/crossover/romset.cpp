@@ -13,6 +13,7 @@ namespace fs = std::filesystem;
 
 SuperHangOnRoms sh_roms;
 HangOnRoms      ho_roms;
+CoolRidersRoms  cr_roms;
 
 static uint32_t crc32_of(const std::vector<uint8_t>& d)
 {
@@ -180,4 +181,80 @@ bool HangOnRoms::load(const std::string& dir)
         { "epr-6844.ic123", "sprites:zoom", 0x2000, 0x0000, 0x2000, 0xe3ec7bd6, 1, 0, 0 },
     };
     return RomSet::load(dir, list, sizeof(list) / sizeof(list[0]));
+}
+
+// MAME 0.264 coolridr.cpp, ROM_START( coolridr ): the maincpu, gfx_data and sub regions.
+// ROM_LOAD32_WORD_SWAP / ROM_LOAD16_WORD_SWAP: the files hold byte-swapped 16-bit words.
+bool CoolRidersRoms::load(const std::string& dir)
+{
+    struct E { const char* name; const char* region; uint32_t region_size, offset, length, crc; int step; };
+    // step 4: every other word of a 32-bit bus (ROM_LOAD32_WORD_SWAP); step 2: contiguous words
+    static const E list[] =
+    {
+        { "ep17659.30", "maincpu",  0x200000,  0x000000, 0x080000, 0x473027b0, 4 },
+        { "ep17658.29", "maincpu",  0x200000,  0x000002, 0x080000, 0x7ecfdfcc, 4 },
+        { "ep17661.32", "maincpu",  0x200000,  0x100000, 0x080000, 0x81a7d90b, 4 },
+        { "ep17660.31", "maincpu",  0x200000,  0x100002, 0x080000, 0x27b7a507, 4 },
+        { "mp17650.11", "gfx_data", 0x1000000, 0x000002, 0x200000, 0x0ccc84a1, 4 },
+        { "mp17651.12", "gfx_data", 0x1000000, 0x000000, 0x200000, 0x25fd7dde, 4 },
+        { "mp17652.13", "gfx_data", 0x1000000, 0x400002, 0x200000, 0xbe9b4d05, 4 },
+        { "mp17653.14", "gfx_data", 0x1000000, 0x400000, 0x200000, 0x64d1406d, 4 },
+        { "mp17654.15", "gfx_data", 0x1000000, 0x800002, 0x200000, 0x5dee5cba, 4 },
+        { "mp17655.16", "gfx_data", 0x1000000, 0x800000, 0x200000, 0x02903cf2, 4 },
+        { "mp17656.17", "gfx_data", 0x1000000, 0xc00002, 0x200000, 0x945c89e3, 4 },
+        { "mp17657.18", "gfx_data", 0x1000000, 0xc00000, 0x200000, 0x74676b1f, 4 },
+        { "ep17662.12", "sub",      0x020000,  0x000000, 0x020000, 0x50d66b1f, 2 },
+    };
+    regions.clear();
+    error.clear();
+
+    // Index the folder by CRC32, files of the sizes above only (the set's 4 MB sprite ROMs are skipped)
+    std::map<uint32_t, fs::path> by_crc;
+    std::map<std::string, fs::path> by_name;
+    std::error_code ec;
+    for (auto& e : fs::directory_iterator(dir, ec))
+    {
+        if (!e.is_regular_file(ec)) continue;
+        uintmax_t sz = e.file_size(ec);
+        by_name[e.path().filename().string()] = e.path();
+        if (sz != 0x80000 && sz != 0x200000 && sz != 0x20000) continue;
+        std::vector<uint8_t> d;
+        if (!read_file(e.path(), d)) continue;
+        by_crc[crc32_of(d)] = e.path();
+    }
+    if (ec) { error = "cannot read folder " + dir; return false; }
+
+    std::map<std::string, RomRegion> out;
+    for (const E& r : list)
+    {
+        RomRegion& reg = out[r.region];
+        if (reg.data.empty()) reg.data.assign(r.region_size, 0);
+        fs::path p;
+        auto c = by_crc.find(r.crc);
+        if (c != by_crc.end()) p = c->second;
+        else
+        {
+            auto n = by_name.find(r.name);
+            if (n == by_name.end())
+            {
+                std::ostringstream s;
+                s << "missing ROM " << r.name << " (crc " << std::hex << r.crc << ") in " << dir;
+                error = s.str();
+                return false;
+            }
+            p = n->second;
+            std::cerr << "warning: " << r.name << " found by name but its CRC differs" << std::endl;
+        }
+        std::vector<uint8_t> d;
+        read_file(p, d);
+        if (d.size() < r.length) { error = std::string("short ROM file ") + r.name; return false; }
+        for (uint32_t k = 0; k + 1 < r.length; k += 2)
+        {
+            uint32_t a = r.offset + (r.step == 4 ? k * 2 : k);
+            reg.data[a]     = d[k + 1];
+            reg.data[a + 1] = d[k];
+        }
+    }
+    regions = std::move(out);
+    return true;
 }

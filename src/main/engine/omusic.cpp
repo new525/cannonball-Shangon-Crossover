@@ -289,6 +289,12 @@ void OMusic::play_music(int index)
             xaudio.play_music(next_track->type == music_t::IS_SHANGON ? CrossoverAudio::SHANGON : CrossoverAudio::HANGON,
                               (uint8_t) next_track->cmd);
             break;
+
+        case music_t::IS_COOLRIDERS:
+            cannonball::audio.clear_wav();
+            osoundint.queue_sound(sound::FM_RESET);
+            xaudio.play_coolriders((uint8_t) next_track->cmd);
+            break;
     }
 
     last_music_selected = index;

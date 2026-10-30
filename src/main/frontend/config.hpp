@@ -39,6 +39,7 @@ struct music_t
     const static int IS_WAV = 2;    // External WAV Track
     const static int IS_SHANGON = 3; // Crossover: Super Hang-On's board, command cmd
     const static int IS_HANGON  = 4; // Crossover: Hang-On's board, command cmd
+    const static int IS_COOLRIDERS = 5; // Crossover: Cool Riders' sound board, song number cmd
     int type;
 
     int cmd;                        // Z80 Command
@@ -154,6 +155,7 @@ struct crossover_settings_t
     int bike_scale;                 // bike and crash sprites drawn at this percentage (100 = arcade size; default 80)
     std::string shangon_rompath;    // folder with the shangon1 ROM files (any names; found by CRC)
     std::string hangon_rompath;     // folder with the hangon ROM files
+    std::string coolriders_rompath; // folder with the coolridr ROM files (sound only: its HANG ON cover)
 };
 
 class Config

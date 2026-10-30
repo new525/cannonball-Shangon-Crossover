@@ -22,6 +22,8 @@ bool CrossoverAudio::init(int rate, int fps_)
         any |= ch[SHANGON].board.init(SegaSoundBoard::Kind::OUTRUN, sh_roms["soundcpu"].data, sh_roms["pcm"].data, rate, 60);
     if (ho_roms.loaded())
         any |= ch[HANGON].board.init(SegaSoundBoard::Kind::HANGON, ho_roms["soundcpu"].data, ho_roms["pcm"].data, rate, 60);
+    if (cr_roms.loaded())
+        any |= cr.init(rate, fps);
     return any;
 }
 
@@ -52,6 +54,15 @@ void CrossoverAudio::stop_music()
     if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "xaudio: stop music\n");
     for (int b = 0; b < BOARDS; b++)
         if (ch[b].music) stop((Board) b);
+    cr.stop();
+}
+
+void CrossoverAudio::play_coolriders(uint8_t song)
+{
+    if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "xaudio: Cool Riders song %02x (ready %d)\n", song, cr.ready);
+    for (int b = 0; b < BOARDS; b++)
+        if (ch[b].music) stop((Board) b);
+    cr.play(song);
 }
 
 void CrossoverAudio::play_music(Board b, uint8_t cmd)
@@ -131,6 +142,8 @@ void CrossoverAudio::mix(int32_t* out, int samples)
             c.board.frame(out + 2 * per * s, per);
         }
     }
+    cr.mix(out, samples);
+
     // Debug: the boards' own output (env CB_XAUDIO_RAW=<file>: raw stereo int32)
     static FILE* raw = nullptr;
     static const char* rawname = getenv("CB_XAUDIO_RAW");

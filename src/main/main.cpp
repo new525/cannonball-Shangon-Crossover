@@ -371,6 +371,8 @@ int main(int argc, char* argv[])
     bike.enabled = config.crossover.vehicle == 1 && bike.ready;
     if (!ho_roms.load(config.crossover.hangon_rompath))
         std::cout << "Hang-On ROMs not loaded: " << ho_roms.error << std::endl;
+    if (!cr_roms.load(config.crossover.coolriders_rompath))
+        std::cout << "Cool Riders ROMs not loaded: " << cr_roms.error << std::endl;
     if (!xaudio.init(config.sound.rate, config.fps))
         std::cout << "No crossover sound boards started" << std::endl;
     if (sh_roms.loaded() && !shmode.init())
@@ -393,6 +395,10 @@ int main(int argc, char* argv[])
     }
     if (xaudio.ready(CrossoverAudio::HANGON))
         add_track(music_t::IS_HANGON, 0x9D, "HANG ON");
+    // Cool Riders' cover, song $10 of its sound test; its radio calls it "HANG ON  -THEME OF LOVE-"
+    // (program ROM $4614B); the big font has no hyphen
+    if (xaudio.coolriders_ready())
+        add_track(music_t::IS_COOLRIDERS, 0x10, "HANG ON THEME OF LOVE");
 
     // Initialize SDL Audio
     audio.init();

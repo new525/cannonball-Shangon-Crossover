@@ -62,5 +62,15 @@ public:
     bool load(const std::string& dir);
 };
 
+// Cool Riders (MAME coolridr), for its sound board only. Regions, big-endian as the SH CPUs see
+// them: "maincpu" (2 MB, the SH-2 program; the sound DMA reads it), "gfx_data" (16 MB, the
+// sample data), "sub" (128 KB, the SH-1 program). The compressed sprite ROMs are not needed.
+class CoolRidersRoms : public RomSet
+{
+public:
+    bool load(const std::string& dir);
+};
+
 extern SuperHangOnRoms sh_roms;
 extern HangOnRoms      ho_roms;
+extern CoolRidersRoms  cr_roms;

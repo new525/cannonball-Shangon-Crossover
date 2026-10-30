@@ -5,8 +5,9 @@
 This project takes Cannonball and adds Super Hang-On (1987) and Hang-On (1985) to it. You can
 ride Super Hang-On's bike on OutRun's courses, drive OutRun's Ferrari on Super Hang-On's courses,
 race Hang-On's course with the Ferrari or either game's bike, and race to the music of all three
-games. Super Hang-On's and Hang-On's courses run on emulated copies of their own boards, and each
-tune plays on an emulated copy of its own game's sound board.
+games, plus Cool Riders' cover of Hang-On's theme. Super Hang-On's and Hang-On's courses run on
+emulated copies of their own boards, and each tune plays on an emulated copy of its own game's
+sound board.
 
 It is a hobby project. It isn't affiliated with or endorsed by Chris White or SEGA.
 
@@ -26,8 +27,11 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
   `m68k/softfloat/softfloat.c`).
 - **Aaron Giles**: ymfm, the YM2151/YM2203 cores in `src/main/crossover/ymfm` (BSD-3-Clause,
   the copy shipped with MAME 0.264).
-- **The MAME team**: the FD1089 decryption, the Sega PCM sample generation and the two boards'
-  video (tilemaps, road, sprites, mixing) are derived from MAME (BSD-3-Clause). MAME 0.264 was also the reference that every reconstruction here was
+- **The MAME team**: the FD1089 decryption, the Sega PCM sample generation, the two boards'
+  video (tilemaps, road, sprites, mixing), the SH-1 core in `src/main/crossover/sh` (MAME's
+  SH-2 family interpreter: Juergen Buchmueller, R. Belmont, David Haywood, Angelo Salese) and the
+  SCSP in `src/main/crossover/scsp` (ElSemi, R. Belmont, kingshriek) are derived from MAME
+  (BSD-3-Clause). MAME 0.264 was also the reference that every reconstruction here was
   checked against.
 
 ---
@@ -53,6 +57,7 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 | Super Hang-On's four courses with the bike, on an emulated Super Hang-On board | Done |
 | OutRun's Ferrari on Super Hang-On's courses (handling, crash, skids, smoke, engine sound) | Done |
 | Hang-On's course on an emulated Hang-On board, with the Ferrari, either game's bike | Done |
+| Cool Riders' cover of Hang-On's theme, on an emulated Cool Riders sound board | Done |
 | Bike versions of OutRun's start and ending scenes | Planned |
 
 ---
@@ -83,9 +88,9 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
 - **Super Hang-On's courses** (`crossover/shboard.*`, `crossover/shvideo.*`, `crossover/shmode.*`):
   Super Hang-On runs on an emulated copy of its own board: both 68000 CPUs (Musashi), the
   315-5195 memory mapper, the I/O, the road chip, tilemaps and System 16B sprites, and its sound
-  board. Compared with MAME 0.264 over a scripted game, the game's RAM matched in 1,208 of 1,210
-  frames (the other two differed for one frame each, then matched again) and screenshots taken
-  during play were pixel-identical. The program goes through the game's own class and music
+  board. Compared with MAME 0.264 over a scripted game, the main CPU's RAM matched in 1,208 of 1,210
+  frames (frames 10 and 11 differed, then matched again) and the second CPU's in 1,205 (frames 8,
+  10, 11, 802 and 803), and screenshots taken during play were pixel-identical. The program goes through the game's own class and music
   screens for you, then hands over at the start line. In widescreen (as Cannonball widens
   OutRun) the road, scenery and riders fill the wider screen and the text stays in the middle.
   Super Hang-On resets its rankings at every power-on; the program keeps them between sessions
@@ -122,11 +127,11 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
 - **Hang-On's course** (`crossover/hoboard.*`, `crossover/hovideo.*`, `crossover/homode.*`):
   Hang-On runs on an emulated copy of its own board: both 68000 CPUs, the two 8255s, the ADC,
   the road, tilemaps, sprites and its sound board. Compared with MAME 0.264 over a scripted game,
-  the main CPU's RAM matched in every frame up to 1,601 except two (22 and 414), and screenshots at
-  eight points up to frame 1,600 were pixel-identical. After that the runs drift apart: the
-  game's work for a frame ends within a few cycles of the vertical blank, and Musashi isn't
-  cycle-exact like MAME's 68000, so a task can land a frame later. The logic is the game's own
-  program throughout. Hang-On's rankings and lap records are kept in `hiscores_hangon.bin`.
+  the main CPU's RAM matched in every frame up to 1,631 except frame 22, and in 1,937 of 2,000
+  frames in all. From frame 1,632 short runs of frames (at most 4) differ, then match again: the
+  game's work for a frame ends within a few cycles of the vertical blank, so a small timing
+  difference can move a task into the next frame. The logic is the game's own program
+  throughout. Hang-On's rankings and lap records are kept in `hiscores_hangon.bin`.
   The details, with every Hang-On address the code relies on, are in
   [`docs/CROSSOVER-HANGON.md`](docs/CROSSOVER-HANGON.md).
 - **Vehicles on Hang-On's course** (`crossover/hovehicle.*`): Hang-On's own bike (the game as it
@@ -144,12 +149,24 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   - The Ferrari's crash, smoke and incline frames stand on OutRun's own flat-road heights.
   - Speedometer: Hang-On's shows the speed value itself, so Super Hang-On's bike reads 241 at top
     speed and 279 with the supercharger (280 and 324 on Super Hang-On's speedometer).
+- **Cool Riders' cover of Hang-On's theme** (`crossover/crsound.*`, `crossover/crmusic.*`):
+  *HANG ON -THEME OF LOVE-* from Cool Riders (1995), played by its own sound program on an
+  emulated copy of the sound side of its System H1 board: the SH-1 that streams the samples, the
+  68000 and the two Yamaha SCSPs. Cool Riders' main CPU isn't emulated; the program writes the
+  sound commands as its main program does. Compared with MAME 0.264 over the whole song, the
+  notes, loudness and tempo match: 5,542 notes started against MAME's 5,541, no tempo drift,
+  and notes within about 4 ms of MAME's.
+  The details are in [`docs/CROSSOVER-COOLRIDERS.md`](docs/CROSSOVER-COOLRIDERS.md), together
+  with why Cool Riders' courses and bikes are not in (yet).
+- **68000 timing**: Musashi now takes the same number of cycles as MAME 0.264's 68000 on every
+  instruction tested (104,854 cases) and takes interrupts at the same points. This brought the
+  emulated Hang-On board much closer to MAME (see *Hang-On's course* above).
 - **Menu**: *PLAY GAME* opens a race setup screen (vehicle, bike size, track, music).
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
 
-Super Hang-On and Hang-On ROMs are optional. Without them, Cannonball runs as normal with the
-Ferrari, and each missing set only removes that game's part.
+Super Hang-On, Hang-On and Cool Riders ROMs are optional. Without them, Cannonball runs as normal
+with the Ferrari, and each missing set only removes that game's part.
 
 ---
 
@@ -169,6 +186,7 @@ No game ROMs are included. You need your own copies, as zip-extracted files from
 | OutRun | `outrun` (Revision B) | `roms\` |
 | Super Hang-On | `shangon1` (mini ride-on, FD1089B 317-0034), including `317-0034.key` | `roms\shangon1\` |
 | Hang-On | `hangon` (Rev A) | `roms\hangon\` |
+| Cool Riders (music only) | `coolridr`: 13 of its files, without the ten 4 MB `mpr-176xx` sprite ROMs | `roms\coolridr\` |
 
 Each folder has a `roms.txt` listing the exact files and their CRC32s. Files are recognised by
 CRC32 first and by name second, so they don't need to be renamed.
@@ -184,6 +202,7 @@ res\
 roms\            epr-10380b.133, epr-10382b.118, ... (OutRun)
 roms\shangon1\   epr-10636.133, ..., 317-0034.key   (Super Hang-On)
 roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
+roms\coolridr\   ep17659.30, ..., ep17662.12        (Cool Riders)
 ```
 
 ### 3. Play
@@ -202,8 +221,9 @@ roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
      of Super Hang-On's courses: *AFRICA* (Beginner, 6 stages), *ASIA* (Junior, 10), *AMERICA*
      (Senior, 14) or *EUROPE* (Expert, 18), with either vehicle, or Hang-On's course, *HANG ON*,
      with any of the three.
-   - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks (it previews as you
-     choose), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen. On Super Hang-On's
+   - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks, or Cool Riders'
+     *HANG ON THEME OF LOVE* (it previews as you choose; Cool Riders' board takes about half a
+     second to start the first time), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen. On Super Hang-On's
      courses, *CHOOSE ON THE RADIO* takes you to Super Hang-On's own music screen instead
      (choose with the brake, confirm with START).
 3. Choose **START RACE**.
@@ -276,8 +296,11 @@ has only been built and tested on Windows (MinGW-w64) and Linux.
   can be drawn behind a passenger. They are also not hidden behind hill crests.
 - On Hang-On's course the Ferrari's wreck, if thrown far up the road, stops at OutRun's flat-road
   horizon (screen line 151), below Hang-On's (line 128).
-- The emulated Hang-On board drifts from MAME's timing after about 1,600 frames of a game (see
-  *Hang-On's course* above).
+- The emulated Hang-On board's RAM differs from MAME's in short runs of frames after about 1,630
+  frames of a game (see *Hang-On's course* above).
+- Cool Riders' sound board: the 68000 has to repeat its interrupt to the SH-1 more often than in
+  MAME before the SH-1 answers, and notes come up to about 4 ms earlier than in MAME. The cause
+  hasn't been found (see [`docs/CROSSOVER-COOLRIDERS.md`](docs/CROSSOVER-COOLRIDERS.md)).
 
 Bug reports are welcome in [Issues](../../issues).
 
@@ -294,5 +317,5 @@ The Z80 core and Musashi are MIT-licensed, ymfm is BSD-3-Clause, and the MAME-de
 BSD-3-Clause; SoftFloat (bundled with Musashi) has its own permissive notice.
 The licence texts are in the release zip's `licenses` folder and next to the code.
 
-OutRun, Super Hang-On and Hang-On are trademarks of SEGA. This project is not affiliated with
+OutRun, Super Hang-On, Hang-On and Cool Riders are trademarks of SEGA. This project is not affiliated with
 SEGA.

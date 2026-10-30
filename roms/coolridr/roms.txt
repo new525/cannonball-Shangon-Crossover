@@ -1,0 +1,20 @@
+-------------------------------------------------------------------------------
+Place the Cool Riders ROMs in this folder: files of MAME set coolridr,
+"Cool Riders" (MAME 0.264). Only the sound side is used (the game's
+cover of Hang-On's theme), so only these 13 files are needed; the set's
+ten 4 MB sprite ROMs (mpr-17640 to mpr-17649) can be left out.
+Files are found by CRC32 first, then by name.
+-------------------------------------------------------------------------------
+ep17659.30     CRC32 473027b0  (maincpu)
+ep17658.29     CRC32 7ecfdfcc  (maincpu)
+ep17661.32     CRC32 81a7d90b  (maincpu)
+ep17660.31     CRC32 27b7a507  (maincpu)
+mp17650.11     CRC32 0ccc84a1  (gfx_data)
+mp17651.12     CRC32 25fd7dde  (gfx_data)
+mp17652.13     CRC32 be9b4d05  (gfx_data)
+mp17653.14     CRC32 64d1406d  (gfx_data)
+mp17654.15     CRC32 5dee5cba  (gfx_data)
+mp17655.16     CRC32 02903cf2  (gfx_data)
+mp17656.17     CRC32 945c89e3  (gfx_data)
+mp17657.18     CRC32 74676b1f  (gfx_data)
+ep17662.12     CRC32 50d66b1f  (sub, the sound SH-1)

@@ -10,6 +10,7 @@
       are no rival bikes in OutRun's world. It also plays Super Hang-On's music when selected.
     - Hang-On's board: plays Hang-On's race music when selected (slots 1-7 are 0).
     A board's music is stopped the way its game stops everything: by resetting its Z80.
+    - Cool Riders' board (crmusic.hpp): its cover of Hang-On's theme, when selected.
 ***************************************************************************/
 #pragma once
 
@@ -18,6 +19,7 @@
 #include <array>
 #include <vector>
 #include "crossover/soundboard.hpp"
+#include "crossover/crmusic.hpp"
 
 class CrossoverAudio
 {
@@ -32,6 +34,9 @@ public:
     void frame_slots(Board b, const uint8_t slots17[7]);
 
     void play_music(Board b, uint8_t cmd);     // stops music on the other boards first
+    // Cool Riders' music (its sound test's song numbers); stops the other boards' music first
+    void play_coolriders(uint8_t song);
+    bool coolriders_ready() const { return cr.ready; }
     void stop_music();                         // all boards (OutRun's FM_RESET)
     void reset_packets();
 
@@ -64,6 +69,7 @@ private:
         std::deque<std::vector<uint8_t>> raw;
     };
     Channel ch[BOARDS];
+    CoolRidersMusic cr;
     int fps = 60;
     void stop(Board b);
 };
