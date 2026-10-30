@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.5.0 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.6.0 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -14,8 +14,8 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
-Changes since 0.5.0 (not yet released)
---------------------------------------
+Changes in 0.6.0
+----------------
 - Cool Riders' cover of Hang-On's theme, "HANG ON -THEME OF LOVE-", is in
   the music list (HANG ON THEME OF LOVE). It plays on an emulated copy of
   the sound side of Cool Riders' System H1 board (the SH-1 that streams the
@@ -260,6 +260,9 @@ Not done yet
   hidden behind hill crests, and share one depth in the sprite order.
 - On Hang-On's course the Ferrari's wreck, when thrown far up the road,
   stops at OutRun's flat-road horizon (line 151), below Hang-On's (line 128).
+- Cool Riders' sound board: its 68000 has to repeat its interrupt to the
+  SH-1 more often than in MAME before the SH-1 answers, and notes come up to
+  about 4 ms earlier than in MAME. The cause hasn't been found.
 
 
 Licences
@@ -267,7 +270,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.5.0-src.zip     this program (git tag v0.5.0,
+  superscaler-crossover-0.6.0-src.zip     this program (git tag v0.6.0,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in
@@ -283,5 +286,5 @@ mixing, transcribed from MAME's drivers), the SH-1 core (MAME's SH-2 family
 interpreter) and the SCSP sound chip.
 Licence texts are in the licenses folder.
 
-OutRun, Super Hang-On, Hang-On and Cool Riders are trademarks of SEGA. This project is
-not affiliated with SEGA.
+OutRun, Super Hang-On, Hang-On and Cool Riders are trademarks of SEGA. This
+project is not affiliated with SEGA.
