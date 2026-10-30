@@ -1,8 +1,11 @@
 /*
  * Musashi configuration for the crossover's emulated Sega OutRun-hardware board (Super Hang-On).
  * Musashi by Karl Stenerud (MIT licence, see readme.txt); upstream commit in VERSION.txt.
- * This file replaces upstream's m68kconf.h; the other Musashi files are unmodified, and
- * m68kops.c/.h were generated from upstream m68k_in.c with upstream m68kmake.
+ * This file replaces upstream's m68kconf.h. m68k.h, m68k_in.c, m68kcpu.c, m68kcpu.h and m68kmake.c
+ * carry the crossover's 68000 timing corrections (instruction cycles and interrupt timing, marked
+ * "crossover"; measured against MAME 0.264's 68000 with tools/m68ktiming), m68kops.c/.h are
+ * generated from them with m68kmake, and m68kipl.h by tools/m68ktiming/iplscan.py from MAME's
+ * 68000 microcode.
  */
 #ifndef M68KCONF__HEADER
 #define M68KCONF__HEADER

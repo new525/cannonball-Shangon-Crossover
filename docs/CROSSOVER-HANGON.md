@@ -19,9 +19,16 @@ Transcribed from MAME 0.264's `segahang.cpp` (Hang-On), `segahang_v.cpp`, `segai
 - the 1/6000 s interleave of MAME's driver, with the main CPU's slice ended at writes to the first
   8255 as MAME does.
 
-Musashi now charges the 68000's data-dependent MULS/DIVU/DIVS times: its tables charged fixed
-times (38, 140 and 158 cycles plus the effective address); now the 68000 manual's MULS rule and
-J. Cwik's analysis of the division microcode.
+Musashi's 68000 timing was brought to MAME 0.264's (`tools/m68ktiming`):
+- Instruction times: every legal opcode word with every addressing mode, plus data-dependent
+  cases (shift counts, bit numbers, MUL/DIV operands, conditions, DBcc, MOVEM counts, CHK,
+  TRAPV), were run on Hang-On's sub CPU in MAME and in Musashi. All 104,854 compared cases take
+  the same number of cycles. The data-dependent MULS/DIVU/DIVS times follow the 68000 manual's
+  MULS rule and J. Cwik's analysis of the division microcode.
+- Interrupts: where MAME's core samples the interrupt level in each instruction
+  (`m68k/m68kipl.h`, generated from MAME's microcode), the autovector acknowledge time and STOP.
+  In a test program, 2,998 interrupts started their handlers at the same cycle as in MAME, and
+  every one of 20,292,334 instructions started at the same cycle.
 
 ### Checked against MAME 0.264
 
@@ -29,15 +36,19 @@ A scripted game (coin at frame 600, START at 700, full accelerator from 760), RA
 frame by both (`tools/hotest`, MAME through `drive.lua`), stacks and the write-only `$20C460`
 excluded:
 
-- main work RAM `$20C000-$20FFFF`: identical in every frame up to 1,601 except frames 22 and 414;
-- shared RAM `$C7C000-$C7FFFF`: different in frames 1-15 and 414, identical otherwise up to 1,601;
-- screenshots at frames 100, 400, 650, 720, 800, 1000, 1300 and 1600: pixel-identical.
+- main work RAM `$20C000-$20FFFF`: identical in every frame up to 1,631 except frame 22;
+- shared RAM `$C7C000-$C7FFFF`: different in frames 1-15, identical otherwise up to 1,620;
+- of frames 1,632-2,000, 62 differ in the main RAM. They come in runs of at most 4 frames, each
+  followed by identical frames, not as a lasting drift.
 
-From frame 1,602 the two runs drift apart and stay apart. The main CPU's work for a frame ends
-within a few cycles of VBLANK, so a small difference in CPU timing between Musashi and MAME's
-cycle-exact 68000 core moves a task into the next frame. Adding the exact multiply/divide timing
-and MAME's 8255 synchronisation did not remove the drift. The game logic itself is the original
-program; only the timing of the board differs.
+Before the 68000 timing work the runs drifted apart for good from frame 1,602 (main RAM
+identical in 1,614 of 2,000 frames, now 1,937; shared RAM 1,596, now 1,952). The main CPU's work
+for a frame ends within a few cycles of VBLANK, so a small timing difference moves a task into
+the next frame; what remains is not explained yet. The game logic is the original program; only
+the timing of the board differs.
+
+Screenshots at frames 100, 400, 650, 720, 800, 1000, 1300 and 1600 were pixel-identical with
+MAME's. That comparison was made before the 68000 timing work and has not been repeated.
 
 Hang-On's ending (the photo collage after the goal and bonus) was compared by eye with MAME's,
 reached in both by the same shortcut (the demo rider steering in a game, the timer held, the stage
@@ -124,6 +135,8 @@ Joins (design decisions):
 
 - `tools/hotest` (`build.sh <dir> [video]`): headless board runs with RAM dumps per frame, for
   comparison with MAME (`drive.lua` dumps), and screenshots.
+- `tools/m68ktiming` (`run.sh <work dir> <MAME home>`): the 68000 instruction-timing comparison
+  with MAME 0.264 (generated tests on Hang-On's sub CPU); `run_irq.sh` does the interrupt timing.
 - `tools/hotest/hoexp.cpp` (built alongside): exploration runs: executed-instruction maps of both
   CPUs, the task slots per frame, the demo rider steering in a game (`autopilot`), the timer held
   (`freeze`), RAM pokes and dumps.

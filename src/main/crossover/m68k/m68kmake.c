@@ -634,13 +634,17 @@ int get_oper_cycles(opcode_struct* op, int ea_mode, int cpu_type)
 		}
 
 		/* ASG: added these cases -- immediate modes take 2 extra cycles here */
+		/* crossover: only the long forms (MAME 0.264's 68000: ADD.B/.W #imm,Dn 8, ADDA.W #imm,An 12),
+		 * and BTST Dn,#imm (10) */
 		if(cpu_type == CPU_TYPE_000 && ea_mode == EA_MODE_I &&
-		   ((strcmp(op->name, "add") == 0 && strcmp(op->spec_proc, "er") == 0) ||
+		   ((op->size == 32 &&
+		    ((strcmp(op->name, "add") == 0 && strcmp(op->spec_proc, "er") == 0) ||
 			strcmp(op->name, "adda")   == 0                                    ||
 			(strcmp(op->name, "and") == 0 && strcmp(op->spec_proc, "er") == 0) ||
 			(strcmp(op->name, "or") == 0 && strcmp(op->spec_proc, "er") == 0)  ||
 			(strcmp(op->name, "sub") == 0 && strcmp(op->spec_proc, "er") == 0) ||
-			strcmp(op->name, "suba")   == 0))
+			strcmp(op->name, "suba")   == 0)) ||
+		    (strcmp(op->name, "btst") == 0 && strcmp(op->spec_proc, "r") == 0)))
 			return op->cycles[cpu_type] + g_ea_cycle_table[ea_mode][cpu_type][size] + 2;
 
 		if(strcmp(op->name, "jmp") == 0)

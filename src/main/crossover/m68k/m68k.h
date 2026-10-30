@@ -345,6 +345,18 @@ void m68k_end_timeslice(void);          /* End timeslice now */
  */
 void m68k_set_irq(unsigned int int_level);
 
+/* Crossover (68000 only): interrupt timing as MAME 0.264's 68000 has it.
+ * m68k_set_irq() takes the change to have happened at the end of the time slice the last
+ * m68k_execute() was asked to run (Musashi finishes the instruction it is in, so it may have run
+ * past it); m68k_set_irq_ago() says how many cycles before the CPU's current time it happened.
+ * Musashi counts the cycles it has run since the last reset (the E clock phase for autovectored
+ * interrupts); a host can read or set that count. */
+void m68k_set_irq_ago(unsigned int int_level, int cycles_ago);
+unsigned long long m68k_get_total_cycles(void);
+/* Crossover: the table cycles of the instruction being executed (for timing its bus accesses) */
+int m68k_instruction_cycles(void);
+void m68k_set_total_cycles(unsigned long long cycles);
+
 /* Set the virtual irq lines, where the highest level
  * active line is automatically selected.  If you use this function,
  * do not use m68k_set_irq.

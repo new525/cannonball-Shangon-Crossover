@@ -4838,7 +4838,11 @@ static void m68k_op_ble_32(void)
 static void m68k_op_bchg_32_r_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint bit = DX & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst ^= mask;
@@ -4947,7 +4951,11 @@ static void m68k_op_bchg_8_r_al(void)
 static void m68k_op_bchg_32_s_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint bit = OPER_I_8() & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst ^= mask;
@@ -5056,7 +5064,11 @@ static void m68k_op_bchg_8_s_al(void)
 static void m68k_op_bclr_32_r_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint bit = DX & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst &= ~mask;
@@ -5165,7 +5177,11 @@ static void m68k_op_bclr_8_r_al(void)
 static void m68k_op_bclr_32_s_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint bit = OPER_I_8() & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst &= ~mask;
@@ -7789,7 +7805,11 @@ static void m68k_op_bra_32(void)
 static void m68k_op_bset_32_r_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint bit = DX & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst |= mask;
@@ -7898,7 +7918,11 @@ static void m68k_op_bset_8_r_al(void)
 static void m68k_op_bset_32_s_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint bit = OPER_I_8() & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst |= mask;
@@ -9118,6 +9142,8 @@ static void m68k_op_chk_16_d(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9136,6 +9162,8 @@ static void m68k_op_chk_16_ai(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9154,6 +9182,8 @@ static void m68k_op_chk_16_pi(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9172,6 +9202,8 @@ static void m68k_op_chk_16_pd(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9190,6 +9222,8 @@ static void m68k_op_chk_16_di(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9208,6 +9242,8 @@ static void m68k_op_chk_16_ix(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9226,6 +9262,8 @@ static void m68k_op_chk_16_aw(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9244,6 +9282,8 @@ static void m68k_op_chk_16_al(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9262,6 +9302,8 @@ static void m68k_op_chk_16_pcdi(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9280,6 +9322,8 @@ static void m68k_op_chk_16_pcix(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -9298,6 +9342,8 @@ static void m68k_op_chk_16_i(void)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -12142,6 +12188,8 @@ static void m68k_op_divs_16_d(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12182,6 +12230,8 @@ static void m68k_op_divs_16_ai(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12222,6 +12272,8 @@ static void m68k_op_divs_16_pi(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12262,6 +12314,8 @@ static void m68k_op_divs_16_pd(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12302,6 +12356,8 @@ static void m68k_op_divs_16_di(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12342,6 +12398,8 @@ static void m68k_op_divs_16_ix(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12382,6 +12440,8 @@ static void m68k_op_divs_16_aw(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12422,6 +12482,8 @@ static void m68k_op_divs_16_al(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12462,6 +12524,8 @@ static void m68k_op_divs_16_pcdi(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12502,6 +12566,8 @@ static void m68k_op_divs_16_pcix(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12542,6 +12608,8 @@ static void m68k_op_divs_16_i(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12570,6 +12638,8 @@ static void m68k_op_divu_16_d(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12598,6 +12668,8 @@ static void m68k_op_divu_16_ai(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12626,6 +12698,8 @@ static void m68k_op_divu_16_pi(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12654,6 +12728,8 @@ static void m68k_op_divu_16_pd(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12682,6 +12758,8 @@ static void m68k_op_divu_16_di(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12710,6 +12788,8 @@ static void m68k_op_divu_16_ix(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12738,6 +12818,8 @@ static void m68k_op_divu_16_aw(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12766,6 +12848,8 @@ static void m68k_op_divu_16_al(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12794,6 +12878,8 @@ static void m68k_op_divu_16_pcdi(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12822,6 +12908,8 @@ static void m68k_op_divu_16_pcix(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -12850,6 +12938,8 @@ static void m68k_op_divu_16_i(void)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -30630,7 +30720,12 @@ static void m68k_op_stop(void)
 		uint new_sr = OPER_I_16();
 		m68ki_trace_t0();			   /* auto-disable (see m68kcpu.h) */
 		CPU_STOPPED |= STOP_LEVEL_STOP;
+		if(CPU_TYPE_IS_000(CPU_TYPE))
+			m68ki_cpu.stop_time = m68ki_now();	/* crossover: STOP's iterations count from here */
 		m68ki_set_sr(new_sr);
+		/* crossover: a 68000 that STOP leaves with an interrupt to take keeps the rest of its time slice */
+		if(CPU_TYPE_IS_000(CPU_TYPE) && (m68ki_cpu.nmi_pending || CPU_INT_LEVEL > FLAG_INT_MASK))
+			return;
 		if(m68ki_remaining_cycles >= CYC_INSTRUCTION[REG_IR])
 			m68ki_remaining_cycles = CYC_INSTRUCTION[REG_IR];
 		else
@@ -34384,21 +34479,21 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_btst_8_r_pd         , 0xf1f8, 0x0120, { 10,  10,   9,   9,   9}},
 	{m68k_op_btst_8_r_di         , 0xf1f8, 0x0128, { 12,  12,   9,   9,   9}},
 	{m68k_op_btst_8_r_ix         , 0xf1f8, 0x0130, { 14,  14,  11,  11,  11}},
-	{m68k_op_bchg_32_r_d         , 0xf1f8, 0x0140, {  8,   8,   4,   4,   4}},
+	{m68k_op_bchg_32_r_d         , 0xf1f8, 0x0140, {  6,   8,   4,   4,   4}},
 	{m68k_op_movep_32_er         , 0xf1f8, 0x0148, { 24,  24,  18,  18,  18}},
 	{m68k_op_bchg_8_r_ai         , 0xf1f8, 0x0150, { 12,  12,   8,   8,   8}},
 	{m68k_op_bchg_8_r_pi         , 0xf1f8, 0x0158, { 12,  12,   8,   8,   8}},
 	{m68k_op_bchg_8_r_pd         , 0xf1f8, 0x0160, { 14,  14,   9,   9,   9}},
 	{m68k_op_bchg_8_r_di         , 0xf1f8, 0x0168, { 16,  16,   9,   9,   9}},
 	{m68k_op_bchg_8_r_ix         , 0xf1f8, 0x0170, { 18,  18,  11,  11,  11}},
-	{m68k_op_bclr_32_r_d         , 0xf1f8, 0x0180, { 10,  10,   4,   4,   4}},
+	{m68k_op_bclr_32_r_d         , 0xf1f8, 0x0180, {  8,  10,   4,   4,   4}},
 	{m68k_op_movep_16_re         , 0xf1f8, 0x0188, { 16,  16,  11,  11,  11}},
 	{m68k_op_bclr_8_r_ai         , 0xf1f8, 0x0190, { 12,  14,   8,   8,   8}},
 	{m68k_op_bclr_8_r_pi         , 0xf1f8, 0x0198, { 12,  14,   8,   8,   8}},
 	{m68k_op_bclr_8_r_pd         , 0xf1f8, 0x01a0, { 14,  16,   9,   9,   9}},
 	{m68k_op_bclr_8_r_di         , 0xf1f8, 0x01a8, { 16,  18,   9,   9,   9}},
 	{m68k_op_bclr_8_r_ix         , 0xf1f8, 0x01b0, { 18,  20,  11,  11,  11}},
-	{m68k_op_bset_32_r_d         , 0xf1f8, 0x01c0, {  8,   8,   4,   4,   4}},
+	{m68k_op_bset_32_r_d         , 0xf1f8, 0x01c0, {  6,   8,   4,   4,   4}},
 	{m68k_op_movep_32_re         , 0xf1f8, 0x01c8, { 24,  24,  17,  17,  17}},
 	{m68k_op_bset_8_r_ai         , 0xf1f8, 0x01d0, { 12,  12,   8,   8,   8}},
 	{m68k_op_bset_8_r_pi         , 0xf1f8, 0x01d8, { 12,  12,   8,   8,   8}},
@@ -34561,7 +34656,7 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_addq_8_di           , 0xf1f8, 0x5028, { 16,  16,   9,   9,   9}},
 	{m68k_op_addq_8_ix           , 0xf1f8, 0x5030, { 18,  18,  11,  11,  11}},
 	{m68k_op_addq_16_d           , 0xf1f8, 0x5040, {  4,   4,   2,   2,   2}},
-	{m68k_op_addq_16_a           , 0xf1f8, 0x5048, {  4,   4,   2,   2,   2}},
+	{m68k_op_addq_16_a           , 0xf1f8, 0x5048, {  8,   4,   2,   2,   2}},
 	{m68k_op_addq_16_ai          , 0xf1f8, 0x5050, { 12,  12,   8,   8,   8}},
 	{m68k_op_addq_16_pi          , 0xf1f8, 0x5058, { 12,  12,   8,   8,   8}},
 	{m68k_op_addq_16_pd          , 0xf1f8, 0x5060, { 14,  14,   9,   9,   9}},
@@ -34606,7 +34701,7 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_or_16_er_pd         , 0xf1f8, 0x8060, { 10,  10,   7,   7,   7}},
 	{m68k_op_or_16_er_di         , 0xf1f8, 0x8068, { 12,  12,   7,   7,   7}},
 	{m68k_op_or_16_er_ix         , 0xf1f8, 0x8070, { 14,  14,   9,   9,   9}},
-	{m68k_op_or_32_er_d          , 0xf1f8, 0x8080, {  6,   6,   2,   2,   2}},
+	{m68k_op_or_32_er_d          , 0xf1f8, 0x8080, {  8,   6,   2,   2,   2}},
 	{m68k_op_or_32_er_ai         , 0xf1f8, 0x8090, { 14,  14,   6,   6,   6}},
 	{m68k_op_or_32_er_pi         , 0xf1f8, 0x8098, { 14,  14,   6,   6,   6}},
 	{m68k_op_or_32_er_pd         , 0xf1f8, 0x80a0, { 16,  16,   7,   7,   7}},
@@ -34658,8 +34753,8 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_sub_16_er_pd        , 0xf1f8, 0x9060, { 10,  10,   7,   7,   7}},
 	{m68k_op_sub_16_er_di        , 0xf1f8, 0x9068, { 12,  12,   7,   7,   7}},
 	{m68k_op_sub_16_er_ix        , 0xf1f8, 0x9070, { 14,  14,   9,   9,   9}},
-	{m68k_op_sub_32_er_d         , 0xf1f8, 0x9080, {  6,   6,   2,   2,   2}},
-	{m68k_op_sub_32_er_a         , 0xf1f8, 0x9088, {  6,   6,   2,   2,   2}},
+	{m68k_op_sub_32_er_d         , 0xf1f8, 0x9080, {  8,   6,   2,   2,   2}},
+	{m68k_op_sub_32_er_a         , 0xf1f8, 0x9088, {  8,   6,   2,   2,   2}},
 	{m68k_op_sub_32_er_ai        , 0xf1f8, 0x9090, { 14,  14,   6,   6,   6}},
 	{m68k_op_sub_32_er_pi        , 0xf1f8, 0x9098, { 14,  14,   6,   6,   6}},
 	{m68k_op_sub_32_er_pd        , 0xf1f8, 0x90a0, { 16,  16,   7,   7,   7}},
@@ -34693,8 +34788,8 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_sub_32_re_pd        , 0xf1f8, 0x91a0, { 22,  22,   9,   9,   9}},
 	{m68k_op_sub_32_re_di        , 0xf1f8, 0x91a8, { 24,  24,   9,   9,   9}},
 	{m68k_op_sub_32_re_ix        , 0xf1f8, 0x91b0, { 26,  26,  11,  11,  11}},
-	{m68k_op_suba_32_d           , 0xf1f8, 0x91c0, {  6,   6,   2,   2,   2}},
-	{m68k_op_suba_32_a           , 0xf1f8, 0x91c8, {  6,   6,   2,   2,   2}},
+	{m68k_op_suba_32_d           , 0xf1f8, 0x91c0, {  8,   6,   2,   2,   2}},
+	{m68k_op_suba_32_a           , 0xf1f8, 0x91c8, {  8,   6,   2,   2,   2}},
 	{m68k_op_suba_32_ai          , 0xf1f8, 0x91d0, { 14,  14,   6,   6,   6}},
 	{m68k_op_suba_32_pi          , 0xf1f8, 0x91d8, { 14,  14,   6,   6,   6}},
 	{m68k_op_suba_32_pd          , 0xf1f8, 0x91e0, { 16,  16,   7,   7,   7}},
@@ -34767,7 +34862,7 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_and_16_er_pd        , 0xf1f8, 0xc060, { 10,  10,   7,   7,   7}},
 	{m68k_op_and_16_er_di        , 0xf1f8, 0xc068, { 12,  12,   7,   7,   7}},
 	{m68k_op_and_16_er_ix        , 0xf1f8, 0xc070, { 14,  14,   9,   9,   9}},
-	{m68k_op_and_32_er_d         , 0xf1f8, 0xc080, {  6,   6,   2,   2,   2}},
+	{m68k_op_and_32_er_d         , 0xf1f8, 0xc080, {  8,   6,   2,   2,   2}},
 	{m68k_op_and_32_er_ai        , 0xf1f8, 0xc090, { 14,  14,   6,   6,   6}},
 	{m68k_op_and_32_er_pi        , 0xf1f8, 0xc098, { 14,  14,   6,   6,   6}},
 	{m68k_op_and_32_er_pd        , 0xf1f8, 0xc0a0, { 16,  16,   7,   7,   7}},
@@ -34818,8 +34913,8 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_add_16_er_pd        , 0xf1f8, 0xd060, { 10,  10,   7,   7,   7}},
 	{m68k_op_add_16_er_di        , 0xf1f8, 0xd068, { 12,  12,   7,   7,   7}},
 	{m68k_op_add_16_er_ix        , 0xf1f8, 0xd070, { 14,  14,   9,   9,   9}},
-	{m68k_op_add_32_er_d         , 0xf1f8, 0xd080, {  6,   6,   2,   2,   2}},
-	{m68k_op_add_32_er_a         , 0xf1f8, 0xd088, {  6,   6,   2,   2,   2}},
+	{m68k_op_add_32_er_d         , 0xf1f8, 0xd080, {  8,   6,   2,   2,   2}},
+	{m68k_op_add_32_er_a         , 0xf1f8, 0xd088, {  8,   6,   2,   2,   2}},
 	{m68k_op_add_32_er_ai        , 0xf1f8, 0xd090, { 14,  14,   6,   6,   6}},
 	{m68k_op_add_32_er_pi        , 0xf1f8, 0xd098, { 14,  14,   6,   6,   6}},
 	{m68k_op_add_32_er_pd        , 0xf1f8, 0xd0a0, { 16,  16,   7,   7,   7}},
@@ -34853,8 +34948,8 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_add_32_re_pd        , 0xf1f8, 0xd1a0, { 22,  22,   9,   9,   9}},
 	{m68k_op_add_32_re_di        , 0xf1f8, 0xd1a8, { 24,  24,   9,   9,   9}},
 	{m68k_op_add_32_re_ix        , 0xf1f8, 0xd1b0, { 26,  26,  11,  11,  11}},
-	{m68k_op_adda_32_d           , 0xf1f8, 0xd1c0, {  6,   6,   2,   2,   2}},
-	{m68k_op_adda_32_a           , 0xf1f8, 0xd1c8, {  6,   6,   2,   2,   2}},
+	{m68k_op_adda_32_d           , 0xf1f8, 0xd1c0, {  8,   6,   2,   2,   2}},
+	{m68k_op_adda_32_a           , 0xf1f8, 0xd1c8, {  8,   6,   2,   2,   2}},
 	{m68k_op_adda_32_ai          , 0xf1f8, 0xd1d0, { 14,  14,   6,   6,   6}},
 	{m68k_op_adda_32_pi          , 0xf1f8, 0xd1d8, { 14,  14,   6,   6,   6}},
 	{m68k_op_adda_32_pd          , 0xf1f8, 0xd1e0, { 16,  16,   7,   7,   7}},
@@ -34918,7 +35013,7 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_btst_8_r_al         , 0xf1ff, 0x0139, { 16,  16,   8,   8,   8}},
 	{m68k_op_btst_8_r_pcdi       , 0xf1ff, 0x013a, { 12,  12,   9,   9,   9}},
 	{m68k_op_btst_8_r_pcix       , 0xf1ff, 0x013b, { 14,  14,  11,  11,  11}},
-	{m68k_op_btst_8_r_i          , 0xf1ff, 0x013c, {  8,   8,   6,   6,   6}},
+	{m68k_op_btst_8_r_i          , 0xf1ff, 0x013c, { 10,   8,   6,   6,   6}},
 	{m68k_op_bchg_8_r_pi7        , 0xf1ff, 0x015f, { 12,  12,   8,   8,   8}},
 	{m68k_op_bchg_8_r_pd7        , 0xf1ff, 0x0167, { 14,  14,   9,   9,   9}},
 	{m68k_op_bchg_8_r_aw         , 0xf1ff, 0x0178, { 16,  16,   8,   8,   8}},
@@ -35079,12 +35174,12 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_or_8_er_al          , 0xf1ff, 0x8039, { 16,  16,   6,   6,   6}},
 	{m68k_op_or_8_er_pcdi        , 0xf1ff, 0x803a, { 12,  12,   7,   7,   7}},
 	{m68k_op_or_8_er_pcix        , 0xf1ff, 0x803b, { 14,  14,   9,   9,   9}},
-	{m68k_op_or_8_er_i           , 0xf1ff, 0x803c, { 10,   8,   4,   4,   4}},
+	{m68k_op_or_8_er_i           , 0xf1ff, 0x803c, {  8,   8,   4,   4,   4}},
 	{m68k_op_or_16_er_aw         , 0xf1ff, 0x8078, { 12,  12,   6,   6,   6}},
 	{m68k_op_or_16_er_al         , 0xf1ff, 0x8079, { 16,  16,   6,   6,   6}},
 	{m68k_op_or_16_er_pcdi       , 0xf1ff, 0x807a, { 12,  12,   7,   7,   7}},
 	{m68k_op_or_16_er_pcix       , 0xf1ff, 0x807b, { 14,  14,   9,   9,   9}},
-	{m68k_op_or_16_er_i          , 0xf1ff, 0x807c, { 10,   8,   4,   4,   4}},
+	{m68k_op_or_16_er_i          , 0xf1ff, 0x807c, {  8,   8,   4,   4,   4}},
 	{m68k_op_or_32_er_aw         , 0xf1ff, 0x80b8, { 18,  18,   6,   6,   6}},
 	{m68k_op_or_32_er_al         , 0xf1ff, 0x80b9, { 22,  22,   6,   6,   6}},
 	{m68k_op_or_32_er_pcdi       , 0xf1ff, 0x80ba, { 18,  18,   7,   7,   7}},
@@ -35117,12 +35212,12 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_sub_8_er_al         , 0xf1ff, 0x9039, { 16,  16,   6,   6,   6}},
 	{m68k_op_sub_8_er_pcdi       , 0xf1ff, 0x903a, { 12,  12,   7,   7,   7}},
 	{m68k_op_sub_8_er_pcix       , 0xf1ff, 0x903b, { 14,  14,   9,   9,   9}},
-	{m68k_op_sub_8_er_i          , 0xf1ff, 0x903c, { 10,   8,   4,   4,   4}},
+	{m68k_op_sub_8_er_i          , 0xf1ff, 0x903c, {  8,   8,   4,   4,   4}},
 	{m68k_op_sub_16_er_aw        , 0xf1ff, 0x9078, { 12,  12,   6,   6,   6}},
 	{m68k_op_sub_16_er_al        , 0xf1ff, 0x9079, { 16,  16,   6,   6,   6}},
 	{m68k_op_sub_16_er_pcdi      , 0xf1ff, 0x907a, { 12,  12,   7,   7,   7}},
 	{m68k_op_sub_16_er_pcix      , 0xf1ff, 0x907b, { 14,  14,   9,   9,   9}},
-	{m68k_op_sub_16_er_i         , 0xf1ff, 0x907c, { 10,   8,   4,   4,   4}},
+	{m68k_op_sub_16_er_i         , 0xf1ff, 0x907c, {  8,   8,   4,   4,   4}},
 	{m68k_op_sub_32_er_aw        , 0xf1ff, 0x90b8, { 18,  18,   6,   6,   6}},
 	{m68k_op_sub_32_er_al        , 0xf1ff, 0x90b9, { 22,  22,   6,   6,   6}},
 	{m68k_op_sub_32_er_pcdi      , 0xf1ff, 0x90ba, { 18,  18,   7,   7,   7}},
@@ -35132,7 +35227,7 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_suba_16_al          , 0xf1ff, 0x90f9, { 20,  20,   6,   6,   6}},
 	{m68k_op_suba_16_pcdi        , 0xf1ff, 0x90fa, { 16,  16,   7,   7,   7}},
 	{m68k_op_suba_16_pcix        , 0xf1ff, 0x90fb, { 18,  18,   9,   9,   9}},
-	{m68k_op_suba_16_i           , 0xf1ff, 0x90fc, { 14,  12,   4,   4,   4}},
+	{m68k_op_suba_16_i           , 0xf1ff, 0x90fc, { 12,  12,   4,   4,   4}},
 	{m68k_op_subx_8_mm_ay7       , 0xf1ff, 0x910f, { 18,  18,  12,  12,  12}},
 	{m68k_op_sub_8_re_pi7        , 0xf1ff, 0x911f, { 12,  12,   8,   8,   8}},
 	{m68k_op_sub_8_re_pd7        , 0xf1ff, 0x9127, { 14,  14,   9,   9,   9}},
@@ -35189,12 +35284,12 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_and_8_er_al         , 0xf1ff, 0xc039, { 16,  16,   6,   6,   6}},
 	{m68k_op_and_8_er_pcdi       , 0xf1ff, 0xc03a, { 12,  12,   7,   7,   7}},
 	{m68k_op_and_8_er_pcix       , 0xf1ff, 0xc03b, { 14,  14,   9,   9,   9}},
-	{m68k_op_and_8_er_i          , 0xf1ff, 0xc03c, { 10,   8,   4,   4,   4}},
+	{m68k_op_and_8_er_i          , 0xf1ff, 0xc03c, {  8,   8,   4,   4,   4}},
 	{m68k_op_and_16_er_aw        , 0xf1ff, 0xc078, { 12,  12,   6,   6,   6}},
 	{m68k_op_and_16_er_al        , 0xf1ff, 0xc079, { 16,  16,   6,   6,   6}},
 	{m68k_op_and_16_er_pcdi      , 0xf1ff, 0xc07a, { 12,  12,   7,   7,   7}},
 	{m68k_op_and_16_er_pcix      , 0xf1ff, 0xc07b, { 14,  14,   9,   9,   9}},
-	{m68k_op_and_16_er_i         , 0xf1ff, 0xc07c, { 10,   8,   4,   4,   4}},
+	{m68k_op_and_16_er_i         , 0xf1ff, 0xc07c, {  8,   8,   4,   4,   4}},
 	{m68k_op_and_32_er_aw        , 0xf1ff, 0xc0b8, { 18,  18,   6,   6,   6}},
 	{m68k_op_and_32_er_al        , 0xf1ff, 0xc0b9, { 22,  22,   6,   6,   6}},
 	{m68k_op_and_32_er_pcdi      , 0xf1ff, 0xc0ba, { 18,  18,   7,   7,   7}},
@@ -35225,12 +35320,12 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_add_8_er_al         , 0xf1ff, 0xd039, { 16,  16,   6,   6,   6}},
 	{m68k_op_add_8_er_pcdi       , 0xf1ff, 0xd03a, { 12,  12,   7,   7,   7}},
 	{m68k_op_add_8_er_pcix       , 0xf1ff, 0xd03b, { 14,  14,   9,   9,   9}},
-	{m68k_op_add_8_er_i          , 0xf1ff, 0xd03c, { 10,   8,   4,   4,   4}},
+	{m68k_op_add_8_er_i          , 0xf1ff, 0xd03c, {  8,   8,   4,   4,   4}},
 	{m68k_op_add_16_er_aw        , 0xf1ff, 0xd078, { 12,  12,   6,   6,   6}},
 	{m68k_op_add_16_er_al        , 0xf1ff, 0xd079, { 16,  16,   6,   6,   6}},
 	{m68k_op_add_16_er_pcdi      , 0xf1ff, 0xd07a, { 12,  12,   7,   7,   7}},
 	{m68k_op_add_16_er_pcix      , 0xf1ff, 0xd07b, { 14,  14,   9,   9,   9}},
-	{m68k_op_add_16_er_i         , 0xf1ff, 0xd07c, { 10,   8,   4,   4,   4}},
+	{m68k_op_add_16_er_i         , 0xf1ff, 0xd07c, {  8,   8,   4,   4,   4}},
 	{m68k_op_add_32_er_aw        , 0xf1ff, 0xd0b8, { 18,  18,   6,   6,   6}},
 	{m68k_op_add_32_er_al        , 0xf1ff, 0xd0b9, { 22,  22,   6,   6,   6}},
 	{m68k_op_add_32_er_pcdi      , 0xf1ff, 0xd0ba, { 18,  18,   7,   7,   7}},
@@ -35240,7 +35335,7 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_adda_16_al          , 0xf1ff, 0xd0f9, { 20,  20,   6,   6,   6}},
 	{m68k_op_adda_16_pcdi        , 0xf1ff, 0xd0fa, { 16,  16,   7,   7,   7}},
 	{m68k_op_adda_16_pcix        , 0xf1ff, 0xd0fb, { 18,  18,   9,   9,   9}},
-	{m68k_op_adda_16_i           , 0xf1ff, 0xd0fc, { 14,  12,   4,   4,   4}},
+	{m68k_op_adda_16_i           , 0xf1ff, 0xd0fc, { 12,  12,   4,   4,   4}},
 	{m68k_op_addx_8_mm_ay7       , 0xf1ff, 0xd10f, { 18,  18,  12,  12,  12}},
 	{m68k_op_add_8_re_pi7        , 0xf1ff, 0xd11f, { 12,  12,   8,   8,   8}},
 	{m68k_op_add_8_re_pd7        , 0xf1ff, 0xd127, { 14,  14,   9,   9,   9}},
@@ -35288,7 +35383,7 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_andi_16_pd          , 0xfff8, 0x0260, { 18,  18,   9,   9,   9}},
 	{m68k_op_andi_16_di          , 0xfff8, 0x0268, { 20,  20,   9,   9,   9}},
 	{m68k_op_andi_16_ix          , 0xfff8, 0x0270, { 22,  22,  11,  11,  11}},
-	{m68k_op_andi_32_d           , 0xfff8, 0x0280, { 14,  14,   2,   2,   2}},
+	{m68k_op_andi_32_d           , 0xfff8, 0x0280, { 16,  14,   2,   2,   2}},
 	{m68k_op_andi_32_ai          , 0xfff8, 0x0290, { 28,  28,   8,   8,   8}},
 	{m68k_op_andi_32_pi          , 0xfff8, 0x0298, { 28,  28,   8,   8,   8}},
 	{m68k_op_andi_32_pd          , 0xfff8, 0x02a0, { 30,  30,   9,   9,   9}},
@@ -35345,19 +35440,19 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_btst_8_s_pd         , 0xfff8, 0x0820, { 14,  14,   9,   9,   9}},
 	{m68k_op_btst_8_s_di         , 0xfff8, 0x0828, { 16,  16,   9,   9,   9}},
 	{m68k_op_btst_8_s_ix         , 0xfff8, 0x0830, { 18,  18,  11,  11,  11}},
-	{m68k_op_bchg_32_s_d         , 0xfff8, 0x0840, { 12,  12,   4,   4,   4}},
+	{m68k_op_bchg_32_s_d         , 0xfff8, 0x0840, { 10,  12,   4,   4,   4}},
 	{m68k_op_bchg_8_s_ai         , 0xfff8, 0x0850, { 16,  16,   8,   8,   8}},
 	{m68k_op_bchg_8_s_pi         , 0xfff8, 0x0858, { 16,  16,   8,   8,   8}},
 	{m68k_op_bchg_8_s_pd         , 0xfff8, 0x0860, { 18,  18,   9,   9,   9}},
 	{m68k_op_bchg_8_s_di         , 0xfff8, 0x0868, { 20,  20,   9,   9,   9}},
 	{m68k_op_bchg_8_s_ix         , 0xfff8, 0x0870, { 22,  22,  11,  11,  11}},
-	{m68k_op_bclr_32_s_d         , 0xfff8, 0x0880, { 14,  14,   4,   4,   4}},
+	{m68k_op_bclr_32_s_d         , 0xfff8, 0x0880, { 12,  14,   4,   4,   4}},
 	{m68k_op_bclr_8_s_ai         , 0xfff8, 0x0890, { 16,  16,   8,   8,   8}},
 	{m68k_op_bclr_8_s_pi         , 0xfff8, 0x0898, { 16,  16,   8,   8,   8}},
 	{m68k_op_bclr_8_s_pd         , 0xfff8, 0x08a0, { 18,  18,   9,   9,   9}},
 	{m68k_op_bclr_8_s_di         , 0xfff8, 0x08a8, { 20,  20,   9,   9,   9}},
 	{m68k_op_bclr_8_s_ix         , 0xfff8, 0x08b0, { 22,  22,  11,  11,  11}},
-	{m68k_op_bset_32_s_d         , 0xfff8, 0x08c0, { 12,  12,   4,   4,   4}},
+	{m68k_op_bset_32_s_d         , 0xfff8, 0x08c0, { 10,  12,   4,   4,   4}},
 	{m68k_op_bset_8_s_ai         , 0xfff8, 0x08d0, { 16,  16,   8,   8,   8}},
 	{m68k_op_bset_8_s_pi         , 0xfff8, 0x08d8, { 16,  16,   8,   8,   8}},
 	{m68k_op_bset_8_s_pd         , 0xfff8, 0x08e0, { 18,  18,   9,   9,   9}},
@@ -35621,11 +35716,11 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_tst_32_di           , 0xfff8, 0x4aa8, { 16,  16,   7,   7,   7}},
 	{m68k_op_tst_32_ix           , 0xfff8, 0x4ab0, { 18,  18,   9,   9,   9}},
 	{m68k_op_tas_8_d             , 0xfff8, 0x4ac0, {  4,   4,   4,   4,   4}},
-	{m68k_op_tas_8_ai            , 0xfff8, 0x4ad0, { 18,  18,  16,  16,  16}},
-	{m68k_op_tas_8_pi            , 0xfff8, 0x4ad8, { 18,  18,  16,  16,  16}},
-	{m68k_op_tas_8_pd            , 0xfff8, 0x4ae0, { 20,  20,  17,  17,  17}},
-	{m68k_op_tas_8_di            , 0xfff8, 0x4ae8, { 22,  22,  17,  17,  17}},
-	{m68k_op_tas_8_ix            , 0xfff8, 0x4af0, { 24,  24,  19,  19,  19}},
+	{m68k_op_tas_8_ai            , 0xfff8, 0x4ad0, { 14,  18,  16,  16,  16}},
+	{m68k_op_tas_8_pi            , 0xfff8, 0x4ad8, { 14,  18,  16,  16,  16}},
+	{m68k_op_tas_8_pd            , 0xfff8, 0x4ae0, { 16,  20,  17,  17,  17}},
+	{m68k_op_tas_8_di            , 0xfff8, 0x4ae8, { 18,  22,  17,  17,  17}},
+	{m68k_op_tas_8_ix            , 0xfff8, 0x4af0, { 20,  24,  19,  19,  19}},
 	{m68k_op_mull_32_d           , 0xfff8, 0x4c00, {  0,   0,  43,  43,  43}},
 	{m68k_op_mull_32_ai          , 0xfff8, 0x4c10, {  0,   0,  47,  47,  47}},
 	{m68k_op_mull_32_pi          , 0xfff8, 0x4c18, {  0,   0,  47,  47,  47}},
@@ -36084,10 +36179,10 @@ static const opcode_handler_struct m68k_opcode_handler_table[] =
 	{m68k_op_tst_32_pcdi         , 0xffff, 0x4aba, {  0,   0,   7,   7,   7}},
 	{m68k_op_tst_32_pcix         , 0xffff, 0x4abb, {  0,   0,   9,   9,   9}},
 	{m68k_op_tst_32_i            , 0xffff, 0x4abc, {  0,   0,   6,   6,   6}},
-	{m68k_op_tas_8_pi7           , 0xffff, 0x4adf, { 18,  18,  16,  16,  16}},
-	{m68k_op_tas_8_pd7           , 0xffff, 0x4ae7, { 20,  20,  17,  17,  17}},
-	{m68k_op_tas_8_aw            , 0xffff, 0x4af8, { 22,  22,  16,  16,  16}},
-	{m68k_op_tas_8_al            , 0xffff, 0x4af9, { 26,  26,  16,  16,  16}},
+	{m68k_op_tas_8_pi7           , 0xffff, 0x4adf, { 14,  18,  16,  16,  16}},
+	{m68k_op_tas_8_pd7           , 0xffff, 0x4ae7, { 16,  20,  17,  17,  17}},
+	{m68k_op_tas_8_aw            , 0xffff, 0x4af8, { 18,  22,  16,  16,  16}},
+	{m68k_op_tas_8_al            , 0xffff, 0x4af9, { 22,  26,  16,  16,  16}},
 	{m68k_op_illegal             , 0xffff, 0x4afc, {  4,   4,   4,   4,   4}},
 	{m68k_op_mull_32_aw          , 0xffff, 0x4c38, {  0,   0,  47,  47,  47}},
 	{m68k_op_mull_32_al          , 0xffff, 0x4c39, {  0,   0,  47,  47,  47}},

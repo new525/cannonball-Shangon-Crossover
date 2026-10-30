@@ -47,6 +47,7 @@ extern void m68ki_build_opcode_table(void);
 
 #include "m68kops.h"
 #include "m68kcpu.h"
+#include "m68kipl.h"   /* crossover */
 
 #include "m68kfpu.c"
 #include "m68kmmu.h" // uses some functions from m68kfpu.c which are static !
@@ -137,7 +138,7 @@ const uint m68ki_shift_32_table[65] =
 const uint8 m68ki_exception_cycle_table[5][256] =
 {
 	{ /* 000 */
-		 40, /*  0: Reset - Initial Stack Pointer                      */
+		 34, /*  0: Reset - Initial Stack Pointer  (crossover: MAME 0.264's first instruction starts at 34) */
 		  4, /*  1: Reset - Initial Program Counter                    */
 		 50, /*  2: Bus Error                             (unemulated) */
 		 50, /*  3: Address Error                         (unemulated) */
@@ -957,21 +958,33 @@ void m68k_set_cpu_type(unsigned int cpu_type)
 /* ASG: removed per-instruction interrupt checks */
 int m68k_execute(int num_cycles)
 {
+	int rc = 0;
+	int is000 = CPU_TYPE_IS_000(CPU_TYPE);
+
 	/* eat up any reset cycles */
 	if (RESET_CYCLES) {
-	    int rc = RESET_CYCLES;
+	    rc = RESET_CYCLES;
 	    RESET_CYCLES = 0;
 	    num_cycles -= rc;
+	    m68ki_cpu.total_cycles += rc;
 	    if (num_cycles <= 0)
 		return rc;
+	    /* crossover: the 68000 counts them in the cycles it reports */
+	    if (!is000)
+		rc = 0;
 	}
 
 	/* Set our pool of clock cycles available */
 	SET_CYCLES(num_cycles);
 	m68ki_initial_cycles = num_cycles;
+	m68ki_cpu.in_execute = 1;
 
 	/* See if interrupts came in */
-	m68ki_check_interrupts();
+	if(!(is000 && m68ki_cpu.ipl_defer))
+	{
+		m68ki_cpu.ipl_check = 0;
+		m68ki_check_interrupts();
+	}
 
 	/* Make sure we're not stopped */
 	if(!CPU_STOPPED)
@@ -1003,9 +1016,22 @@ int m68k_execute(int num_cycles)
 			}
 
 			/* Read an instruction and call its handler */
+			int before = GET_CYCLES();
 			REG_IR = m68ki_read_imm_16();
 			m68ki_instruction_jump_table[REG_IR]();
 			USE_CYCLES(CYC_INSTRUCTION[REG_IR]);
+
+			/* crossover: the 68000 takes an interrupt between instructions when MAME's would */
+			if(is000)
+			{
+				m68ki_cpu.ipl_last_ir = REG_IR;
+				m68ki_cpu.ipl_last_cycles = before - GET_CYCLES();
+				if(m68ki_cpu.ipl_defer | m68ki_cpu.ipl_check)
+				{
+					m68ki_cpu.ipl_defer = m68ki_cpu.ipl_check = 0;
+					m68ki_check_interrupts();
+				}
+			}
 
 			/* Trace m68k_exception, if necessary */
 			m68ki_exception_if_trace(); /* auto-disable (see m68kcpu.h) */
@@ -1017,8 +1043,12 @@ int m68k_execute(int num_cycles)
 	else
 		SET_CYCLES(0);
 
+	m68ki_cpu.ipl_last_over = -GET_CYCLES();
+	m68ki_cpu.total_cycles += m68ki_initial_cycles - GET_CYCLES();
+	m68ki_cpu.in_execute = 0;
+
 	/* return how many clocks we used */
-	return m68ki_initial_cycles - GET_CYCLES();
+	return m68ki_initial_cycles - GET_CYCLES() + rc;
 }
 
 
@@ -1053,6 +1083,44 @@ void m68k_end_timeslice(void)
  */
 void m68k_set_irq(unsigned int int_level)
 {
+	m68k_set_irq_ago(int_level, m68ki_cpu.ipl_last_over);
+}
+
+/* Crossover: when MAME 0.264's 68000 takes an interrupt. Its microcode-derived core can stop
+ * between bus cycles when its time slice ends; a new interrupt level is seen by the next sample of
+ * the level the instruction makes (m68kipl.h). An interrupt raised while an instruction runs is
+ * taken after it when it arrives no later than the end of the last bus cycle before the
+ * instruction's final sample, otherwise after the next instruction. */
+static void m68ki_ipl_changed(int ago)
+{
+	const m68ki_ipl_rule_t* r;
+	int c, deadline;
+
+	if(m68ki_cpu.in_execute)
+	{
+		/* raised by the instruction running now (a bus access): seen at its end */
+		m68ki_cpu.irq_time = m68ki_now();
+		m68ki_cpu.ipl_check = 1;
+		return;
+	}
+	if(ago < 0)
+		ago = 0;
+	m68ki_cpu.irq_time = m68ki_cpu.total_cycles - (unsigned long long)ago;
+	m68ki_cpu.ipl_defer = 0;
+	c = m68ki_cpu.ipl_last_cycles;
+	if(CPU_STOPPED || c == 0 || !(m68ki_cpu.nmi_pending || CPU_INT_LEVEL > FLAG_INT_MASK))
+		return;
+	r = &m68ki_ipl_rules[m68ki_ipl_rule_of[m68ki_cpu.ipl_last_ir & 0xffff]];
+	if(r->exc_cycles && c == r->exc_cycles)
+		deadline = r->exc_deadline;
+	else
+		deadline = r->diff ? c - r->val : r->val;
+	if(c - ago > deadline)
+		m68ki_cpu.ipl_defer = 1;
+}
+
+void m68k_set_irq_ago(unsigned int int_level, int cycles_ago)
+{
 	uint old_level = CPU_INT_LEVEL;
 	CPU_INT_LEVEL = int_level << 8;
 
@@ -1060,6 +1128,24 @@ void m68k_set_irq(unsigned int int_level)
 	/* Note: Level 7 can also level trigger like a normal IRQ */
 	if(old_level != 0x0700 && CPU_INT_LEVEL == 0x0700)
 		m68ki_cpu.nmi_pending = TRUE;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE) && CPU_INT_LEVEL != old_level)
+		m68ki_ipl_changed(cycles_ago);
+}
+
+int m68k_instruction_cycles(void)
+{
+	return CYC_INSTRUCTION[REG_IR];
+}
+
+unsigned long long m68k_get_total_cycles(void)
+{
+	return m68ki_now();
+}
+
+void m68k_set_total_cycles(unsigned long long cycles)
+{
+	m68ki_cpu.total_cycles = cycles - (m68ki_now() - m68ki_cpu.total_cycles);
 }
 
 void m68k_set_virq(unsigned int level, unsigned int active)
@@ -1154,6 +1240,12 @@ void m68k_pulse_reset(void)
 	CPU_RUN_MODE = RUN_MODE_NORMAL;
 
 	RESET_CYCLES = CYC_EXCEPTION[EXCEPTION_RESET];
+
+	/* crossover: interrupt timing state; MAME's 68000 counts its cycles from reset */
+	m68ki_cpu.total_cycles = m68ki_cpu.irq_time = m68ki_cpu.stop_time = 0;
+	m68ki_cpu.ipl_last_ir = 0;
+	m68ki_cpu.ipl_last_cycles = m68ki_cpu.ipl_last_over = 0;
+	m68ki_cpu.ipl_defer = m68ki_cpu.ipl_check = 0;
 }
 
 /* Pulse the HALT line on the CPU */

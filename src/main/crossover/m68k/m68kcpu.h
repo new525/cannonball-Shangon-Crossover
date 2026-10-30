@@ -1014,11 +1014,22 @@ typedef struct
 	void (*set_fc_callback)(unsigned int new_fc);     /* Called when the CPU function code changes */
 	void (*instr_hook_callback)(unsigned int pc);     /* Called every instruction cycle prior to execution */
 
+	/* Crossover: 68000 interrupt timing (see m68ki_ipl_changed) */
+	unsigned long long total_cycles;  /* cycles run since reset (the E clock phase) */
+	unsigned long long irq_time;      /* when the interrupt level last changed */
+	unsigned long long stop_time;     /* when the last STOP started */
+	uint ipl_last_ir;                 /* the last instruction of the last time slice ... */
+	int  ipl_last_cycles;             /* ... its cycles (0: none since reset or an interrupt) */
+	int  ipl_last_over;               /* how far that slice ran past its end */
+	uint ipl_defer;                   /* run one more instruction before taking an interrupt */
+	uint ipl_check;                   /* look for an interrupt after the current instruction */
+	uint in_execute;
 } m68ki_cpu_core;
 
 
 extern m68ki_cpu_core m68ki_cpu;
 extern sint           m68ki_remaining_cycles;
+extern int            m68ki_initial_cycles;
 extern uint           m68ki_tracing;
 extern const uint8    m68ki_shift_8_table[];
 extern const uint16   m68ki_shift_16_table[];
@@ -1591,7 +1602,10 @@ static inline void m68ki_set_sr_noint_nosp(uint value)
 static inline void m68ki_set_sr(uint value)
 {
 	m68ki_set_sr_noint(value);
-	m68ki_check_interrupts();
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_cpu.ipl_check = 1;	/* crossover: MAME's 68000 sees the new mask at the end of the instruction */
+	else
+		m68ki_check_interrupts();
 }
 
 
@@ -2086,6 +2100,36 @@ static inline void m68ki_exception_address_error(void)
 }
 
 
+/* Crossover: MAME 0.264's 68000 interrupt timing ------------------------------------------ */
+
+/* cycles run since reset, up to now */
+static inline unsigned long long m68ki_now(void)
+{
+	return m68ki_cpu.total_cycles + (m68ki_cpu.in_execute ? (unsigned long long)(m68ki_initial_cycles - GET_CYCLES()) : 0);
+}
+
+/* An autovectored interrupt acknowledge is a VPA cycle: it starts 10 cycles into the interrupt
+ * sequence and waits for the E clock (one tenth of the CPU clock, phase counted from reset):
+ * MAME's m68000_device::vpa_sync() and vpa_after() */
+static inline void m68ki_vpa_timing(void)
+{
+	unsigned long long t = m68ki_now() + 10;
+	uint mod = (uint)(t % 10);
+	USE_CYCLES((mod < 7 ? 10 - mod : 20 - mod) + 1);
+}
+
+/* MAME's STOP repeats every 4 cycles and samples the interrupt level inside: an interrupt seen
+ * at the end of an iteration starts after the following iteration (the first iteration's own
+ * samples come before STOP sets the new mask) */
+static inline void m68ki_stop_wake_timing(void)
+{
+	unsigned long long a = m68ki_cpu.stop_time, now = m68ki_now();
+	unsigned long long t = m68ki_cpu.irq_time > a + 4 ? m68ki_cpu.irq_time : a + 4;
+	unsigned long long start = a + 4 * ((t - a + 3) / 4) + 4;
+	if(start > now)
+		USE_CYCLES((int)(start - now));
+}
+
 /* Service an interrupt request and start exception processing */
 static inline void m68ki_exception_interrupt(uint int_level)
 {
@@ -2100,6 +2144,8 @@ static inline void m68ki_exception_interrupt(uint int_level)
 	}
 	#endif /* M68K_EMULATE_ADDRESS_ERROR */
 
+	uint was_stopped = CPU_STOPPED & STOP_LEVEL_STOP;	/* crossover */
+
 	/* Turn off the stopped state */
 	CPU_STOPPED &= ~STOP_LEVEL_STOP;
 
@@ -2107,8 +2153,18 @@ static inline void m68ki_exception_interrupt(uint int_level)
 	if(CPU_STOPPED)
 		return;
 
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+	{
+		if(was_stopped)
+			m68ki_stop_wake_timing();	/* crossover */
+		m68ki_cpu.ipl_last_cycles = 0;
+	}
+
 	/* Acknowledge the interrupt */
 	vector = m68ki_int_ack(int_level);
+
+	if(CPU_TYPE_IS_000(CPU_TYPE) && vector == M68K_INT_ACK_AUTOVECTOR)
+		m68ki_vpa_timing();	/* crossover: the acknowledge waits for the E clock */
 
 	/* Get the interrupt vector */
 	if(vector == M68K_INT_ACK_AUTOVECTOR)
@@ -2340,6 +2396,33 @@ static inline void m68ki_divs_timing(uint dividend, sint divisor)
 		cycles = (int)(mcycles * 2);
 	}
 	USE_CYCLES(cycles - 158);
+}
+
+/* ======================================================================== */
+/* Crossover: more data-dependent 68000 timing, measured against MAME 0.264's 68000 (its
+ * microcode-derived core) with tools/m68ktiming. */
+/* ======================================================================== */
+
+/* BCHG/BCLR/BSET on Dn: the table charges bit numbers 0-15; 16-31 take 2 more cycles */
+static inline void m68ki_bit_dn_timing(uint bit)
+{
+	if (bit & 16)
+		USE_CYCLES(2);
+}
+
+/* CHK that traps: 38 cycles plus the effective address when Dn > bound, 40 plus the effective
+ * address when Dn < 0 (and not above the bound). m68ki_exception_trap() charges 40 in all;
+ * CYC_INSTRUCTION is 10 plus the effective address. */
+static inline void m68ki_chk_timing(int above_bound)
+{
+	USE_CYCLES(CYC_INSTRUCTION[REG_IR] - 10 - (above_bound ? 2 : 0));
+}
+
+/* DIVU/DIVS by zero: 38 cycles plus the effective address. m68ki_exception_trap() charges 38;
+ * CYC_INSTRUCTION is the table's base (140 DIVU, 158 DIVS) plus the effective address. */
+static inline void m68ki_div0_timing(int base)
+{
+	USE_CYCLES(CYC_INSTRUCTION[REG_IR] - base);
 }
 
 /* ======================================================================== */

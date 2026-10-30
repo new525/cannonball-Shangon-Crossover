@@ -393,8 +393,8 @@ add        8  er    .     1101...000......  A+-DXWLdxI  U U U U U   4   4   2   
 add       16  er    d     1101...001000...  ..........  U U U U U   4   4   2   2   2
 add       16  er    a     1101...001001...  ..........  U U U U U   4   4   2   2   2
 add       16  er    .     1101...001......  A+-DXWLdxI  U U U U U   4   4   2   2   2
-add       32  er    d     1101...010000...  ..........  U U U U U   6   6   2   2   2
-add       32  er    a     1101...010001...  ..........  U U U U U   6   6   2   2   2
+add       32  er    d     1101...010000...  ..........  U U U U U   8   6   2   2   2
+add       32  er    a     1101...010001...  ..........  U U U U U   8   6   2   2   2
 add       32  er    .     1101...010......  A+-DXWLdxI  U U U U U   6   6   2   2   2
 add        8  re    .     1101...100......  A+-DXWL...  U U U U U   8   8   4   4   4
 add       16  re    .     1101...101......  A+-DXWL...  U U U U U   8   8   4   4   4
@@ -402,8 +402,8 @@ add       32  re    .     1101...110......  A+-DXWL...  U U U U U  12  12   4   
 adda      16  .     d     1101...011000...  ..........  U U U U U   8   8   2   2   2
 adda      16  .     a     1101...011001...  ..........  U U U U U   8   8   2   2   2
 adda      16  .     .     1101...011......  A+-DXWLdxI  U U U U U   8   8   2   2   2
-adda      32  .     d     1101...111000...  ..........  U U U U U   6   6   2   2   2
-adda      32  .     a     1101...111001...  ..........  U U U U U   6   6   2   2   2
+adda      32  .     d     1101...111000...  ..........  U U U U U   8   6   2   2   2
+adda      32  .     a     1101...111001...  ..........  U U U U U   8   6   2   2   2
 adda      32  .     .     1101...111......  A+-DXWLdxI  U U U U U   6   6   2   2   2
 addi       8  .     d     0000011000000...  ..........  U U U U U   8   8   2   2   2
 addi       8  .     .     0000011000......  A+-DXWL...  U U U U U  12  12   4   4   4
@@ -414,7 +414,7 @@ addi      32  .     .     0000011010......  A+-DXWL...  U U U U U  20  20   4   
 addq       8  .     d     0101...000000...  ..........  U U U U U   4   4   2   2   2
 addq       8  .     .     0101...000......  A+-DXWL...  U U U U U   8   8   4   4   4
 addq      16  .     d     0101...001000...  ..........  U U U U U   4   4   2   2   2
-addq      16  .     a     0101...001001...  ..........  U U U U U   4   4   2   2   2
+addq      16  .     a     0101...001001...  ..........  U U U U U   8   4   2   2   2
 addq      16  .     .     0101...001......  A+-DXWL...  U U U U U   8   8   4   4   4
 addq      32  .     d     0101...010000...  ..........  U U U U U   8   8   2   2   2
 addq      32  .     a     0101...010001...  ..........  U U U U U   8   8   2   2   2
@@ -432,7 +432,7 @@ and        8  er    d     1100...000000...  ..........  U U U U U   4   4   2   
 and        8  er    .     1100...000......  A+-DXWLdxI  U U U U U   4   4   2   2   2
 and       16  er    d     1100...001000...  ..........  U U U U U   4   4   2   2   2
 and       16  er    .     1100...001......  A+-DXWLdxI  U U U U U   4   4   2   2   2
-and       32  er    d     1100...010000...  ..........  U U U U U   6   6   2   2   2
+and       32  er    d     1100...010000...  ..........  U U U U U   8   6   2   2   2
 and       32  er    .     1100...010......  A+-DXWLdxI  U U U U U   6   6   2   2   2
 and        8  re    .     1100...100......  A+-DXWL...  U U U U U   8   8   4   4   4
 and       16  re    .     1100...101......  A+-DXWL...  U U U U U   8   8   4   4   4
@@ -443,7 +443,7 @@ andi       8  .     d     0000001000000...  ..........  U U U U U   8   8   2   
 andi       8  .     .     0000001000......  A+-DXWL...  U U U U U  12  12   4   4   4
 andi      16  .     d     0000001001000...  ..........  U U U U U   8   8   2   2   2
 andi      16  .     .     0000001001......  A+-DXWL...  U U U U U  12  12   4   4   4
-andi      32  .     d     0000001010000...  ..........  U U U U U  14  14   2   2   2
+andi      32  .     d     0000001010000...  ..........  U U U U U  16  14   2   2   2
 andi      32  .     .     0000001010......  A+-DXWL...  U U U U U  20  20   4   4   4
 asr        8  s     .     1110...000000...  ..........  U U U U U   6   6   6   6   6
 asr       16  s     .     1110...001000...  ..........  U U U U U   6   6   6   6   6
@@ -463,13 +463,13 @@ bcc        8  .     .     0110............  ..........  U U U U U  10  10   6   
 bcc       16  .     .     0110....00000000  ..........  U U U U U  10  10   6   6   6
 bcc       32  .     .     0110....11111111  ..........  U U U U U  10  10   6   6   6
 bchg       8  r     .     0000...101......  A+-DXWL...  U U U U U   8   8   4   4   4
-bchg      32  r     d     0000...101000...  ..........  U U U U U   8   8   4   4   4
+bchg      32  r     d     0000...101000...  ..........  U U U U U   6   8   4   4   4
 bchg       8  s     .     0000100001......  A+-DXWL...  U U U U U  12  12   4   4   4
-bchg      32  s     d     0000100001000...  ..........  U U U U U  12  12   4   4   4
+bchg      32  s     d     0000100001000...  ..........  U U U U U  10  12   4   4   4
 bclr       8  r     .     0000...110......  A+-DXWL...  U U U U U   8  10   4   4   4
-bclr      32  r     d     0000...110000...  ..........  U U U U U  10  10   4   4   4
+bclr      32  r     d     0000...110000...  ..........  U U U U U   8  10   4   4   4
 bclr       8  s     .     0000100010......  A+-DXWL...  U U U U U  12  12   4   4   4
-bclr      32  s     d     0000100010000...  ..........  U U U U U  14  14   4   4   4
+bclr      32  s     d     0000100010000...  ..........  U U U U U  12  14   4   4   4
 bfchg     32  .     d     1110101011000...  ..........  . . U U U   .   .  12  12  12  timing not quite correct
 bfchg     32  .     .     1110101011......  A..DXWL...  . . U U U   .   .  20  20  20
 bfclr     32  .     d     1110110011000...  ..........  . . U U U   .   .  12  12  12
@@ -490,10 +490,10 @@ bkpt       0  .     .     0100100001001...  ..........  . U U U U   .  10  10  1
 bra        8  .     .     01100000........  ..........  U U U U U  10  10  10  10  10
 bra       16  .     .     0110000000000000  ..........  U U U U U  10  10  10  10  10
 bra       32  .     .     0110000011111111  ..........  U U U U U  10  10  10  10  10
-bset      32  r     d     0000...111000...  ..........  U U U U U   8   8   4   4   4
+bset      32  r     d     0000...111000...  ..........  U U U U U   6   8   4   4   4
 bset       8  r     .     0000...111......  A+-DXWL...  U U U U U   8   8   4   4   4
 bset       8  s     .     0000100011......  A+-DXWL...  U U U U U  12  12   4   4   4
-bset      32  s     d     0000100011000...  ..........  U U U U U  12  12   4   4   4
+bset      32  s     d     0000100011000...  ..........  U U U U U  10  12   4   4   4
 bsr        8  .     .     01100001........  ..........  U U U U U  18  18   7   7   7
 bsr       16  .     .     0110000100000000  ..........  U U U U U  18  18   7   7   7
 bsr       32  .     .     0110000111111111  ..........  U U U U U  18  18   7   7   7
@@ -752,7 +752,7 @@ or         8  er    d     1000...000000...  ..........  U U U U U   4   4   2   
 or         8  er    .     1000...000......  A+-DXWLdxI  U U U U U   4   4   2   2   2
 or        16  er    d     1000...001000...  ..........  U U U U U   4   4   2   2   2
 or        16  er    .     1000...001......  A+-DXWLdxI  U U U U U   4   4   2   2   2
-or        32  er    d     1000...010000...  ..........  U U U U U   6   6   2   2   2
+or        32  er    d     1000...010000...  ..........  U U U U U   8   6   2   2   2
 or        32  er    .     1000...010......  A+-DXWLdxI  U U U U U   6   6   2   2   2
 or         8  re    .     1000...100......  A+-DXWL...  U U U U U   8   8   4   4   4
 or        16  re    .     1000...101......  A+-DXWL...  U U U U U   8   8   4   4   4
@@ -824,8 +824,8 @@ sub        8  er    .     1001...000......  A+-DXWLdxI  U U U U U   4   4   2   
 sub       16  er    d     1001...001000...  ..........  U U U U U   4   4   2   2   2
 sub       16  er    a     1001...001001...  ..........  U U U U U   4   4   2   2   2
 sub       16  er    .     1001...001......  A+-DXWLdxI  U U U U U   4   4   2   2   2
-sub       32  er    d     1001...010000...  ..........  U U U U U   6   6   2   2   2
-sub       32  er    a     1001...010001...  ..........  U U U U U   6   6   2   2   2
+sub       32  er    d     1001...010000...  ..........  U U U U U   8   6   2   2   2
+sub       32  er    a     1001...010001...  ..........  U U U U U   8   6   2   2   2
 sub       32  er    .     1001...010......  A+-DXWLdxI  U U U U U   6   6   2   2   2
 sub        8  re    .     1001...100......  A+-DXWL...  U U U U U   8   8   4   4   4
 sub       16  re    .     1001...101......  A+-DXWL...  U U U U U   8   8   4   4   4
@@ -833,8 +833,8 @@ sub       32  re    .     1001...110......  A+-DXWL...  U U U U U  12  12   4   
 suba      16  .     d     1001...011000...  ..........  U U U U U   8   8   2   2   2
 suba      16  .     a     1001...011001...  ..........  U U U U U   8   8   2   2   2
 suba      16  .     .     1001...011......  A+-DXWLdxI  U U U U U   8   8   2   2   2
-suba      32  .     d     1001...111000...  ..........  U U U U U   6   6   2   2   2
-suba      32  .     a     1001...111001...  ..........  U U U U U   6   6   2   2   2
+suba      32  .     d     1001...111000...  ..........  U U U U U   8   6   2   2   2
+suba      32  .     a     1001...111001...  ..........  U U U U U   8   6   2   2   2
 suba      32  .     .     1001...111......  A+-DXWLdxI  U U U U U   6   6   2   2   2
 subi       8  .     d     0000010000000...  ..........  U U U U U   8   8   2   2   2
 subi       8  .     .     0000010000......  A+-DXWL...  U U U U U  12  12   4   4   4
@@ -861,7 +861,7 @@ subx      16  mm    .     1001...101001...  ..........  U U U U U  18  18  12  1
 subx      32  mm    .     1001...110001...  ..........  U U U U U  30  30  12  12  12
 swap      32  .     .     0100100001000...  ..........  U U U U U   4   4   4   4   4
 tas        8  .     d     0100101011000...  ..........  U U U U U   4   4   4   4   4
-tas        8  .     .     0100101011......  A+-DXWL...  U U U U U  14  14  12  12  12
+tas        8  .     .     0100101011......  A+-DXWL...  U U U U U  10  14  12  12  12
 trap       0  .     .     010011100100....  ..........  U U U U U   4   4   4   4   4
 trapt      0  .     .     0101000011111100  ..........  . . U U U   .   .   4   4   4
 trapt     16  .     .     0101000011111010  ..........  . . U U U   .   .   6   6   6
@@ -2352,7 +2352,11 @@ M68KMAKE_OP(bcc, 32, ., .)
 M68KMAKE_OP(bchg, 32, r, d)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint bit = DX & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst ^= mask;
@@ -2373,7 +2377,11 @@ M68KMAKE_OP(bchg, 8, r, .)
 M68KMAKE_OP(bchg, 32, s, d)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint bit = OPER_I_8() & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst ^= mask;
@@ -2394,7 +2402,11 @@ M68KMAKE_OP(bchg, 8, s, .)
 M68KMAKE_OP(bclr, 32, r, d)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint bit = DX & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst &= ~mask;
@@ -2415,7 +2427,11 @@ M68KMAKE_OP(bclr, 8, r, .)
 M68KMAKE_OP(bclr, 32, s, d)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint bit = OPER_I_8() & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst &= ~mask;
@@ -3135,7 +3151,11 @@ M68KMAKE_OP(bra, 32, ., .)
 M68KMAKE_OP(bset, 32, r, d)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint bit = DX & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst |= mask;
@@ -3156,7 +3176,11 @@ M68KMAKE_OP(bset, 8, r, .)
 M68KMAKE_OP(bset, 32, s, d)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint bit = OPER_I_8() & 0x1f;
+	uint mask = 1 << bit;
+
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_bit_dn_timing(bit);	/* crossover: 68000 bits 16-31 take 2 more cycles */
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst |= mask;
@@ -3448,6 +3472,8 @@ M68KMAKE_OP(chk, 16, ., d)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -3466,6 +3492,8 @@ M68KMAKE_OP(chk, 16, ., .)
 		return;
 	}
 	FLAG_N = (src < 0)<<7;
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_chk_timing(src > bound);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_CHK);
 }
 
@@ -4399,6 +4427,8 @@ M68KMAKE_OP(divs, 16, ., d)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -4439,6 +4469,8 @@ M68KMAKE_OP(divs, 16, ., .)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(158);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -4467,6 +4499,8 @@ M68KMAKE_OP(divu, 16, ., d)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -4495,6 +4529,8 @@ M68KMAKE_OP(divu, 16, ., .)
 		FLAG_V = VFLAG_SET;
 		return;
 	}
+	if(CPU_TYPE_IS_000(CPU_TYPE))
+		m68ki_div0_timing(140);	/* crossover: 68000 exception timing */
 	m68ki_exception_trap(EXCEPTION_ZERO_DIVIDE);
 }
 
@@ -9501,7 +9537,12 @@ M68KMAKE_OP(stop, 0, ., .)
 		uint new_sr = OPER_I_16();
 		m68ki_trace_t0();			   /* auto-disable (see m68kcpu.h) */
 		CPU_STOPPED |= STOP_LEVEL_STOP;
+		if(CPU_TYPE_IS_000(CPU_TYPE))
+			m68ki_cpu.stop_time = m68ki_now();	/* crossover: STOP's iterations count from here */
 		m68ki_set_sr(new_sr);
+		/* crossover: a 68000 that STOP leaves with an interrupt to take keeps the rest of its time slice */
+		if(CPU_TYPE_IS_000(CPU_TYPE) && (m68ki_cpu.nmi_pending || CPU_INT_LEVEL > FLAG_INT_MASK))
+			return;
 		if(m68ki_remaining_cycles >= CYC_INSTRUCTION[REG_IR])
 			m68ki_remaining_cycles = CYC_INSTRUCTION[REG_IR];
 		else
