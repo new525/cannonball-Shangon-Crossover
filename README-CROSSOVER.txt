@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.6.0 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.6.1 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -14,8 +14,8 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
-Changes since 0.6.0 (not yet released)
---------------------------------------
+Changes in 0.6.1
+----------------
 - Cool Riders' board closer to MAME: the scanline interrupt's phase, the
   time seen in timer callbacks, the order of a CPU held in reset and the
   68000 stopping at the bus cycle that changes an interrupt line now follow
@@ -300,7 +300,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.6.0-src.zip     this program (git tag v0.6.0,
+  superscaler-crossover-0.6.1-src.zip     this program (git tag v0.6.1,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in
