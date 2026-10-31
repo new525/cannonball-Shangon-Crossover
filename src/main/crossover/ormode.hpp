@@ -2,18 +2,19 @@
     OutRunners' courses: the emulated System Multi 32 board (crossover/orboard) run as a mode of
     the program, the way HOMode runs Hang-On's course.
 
-    The player is player 1 (monitor A, the left screen and the left speaker). Starting: the board
-    is powered on and run without display or sound through a coin, START, the car select and the
-    transmission screen, then the player takes over as the race starts. The run-up follows the
-    game's own state (docs/OUTRUNNERS-RE.md), not fixed frame numbers:
-      - coin at frame 600; START once the game shows a credit ($208080 = 2);
-      - at the car select ($208082 = 3) the wheel is turned left, one step at a time, until the
-        cursor ($209060) is on the chosen car;
-      - a manual box: the wheel held right while the transmission screen is up, as in
-        tools/ortrace e09 (frames 2200-2520 of a run with the car select from 767);
-      - the single stage: the route node and stage bytes $2080A0-$2080A6 are written before the
-        race setup ($208082 = 5), as in tools/ortrace e04, so the race starts on that stage;
-      - the player takes over at substate 6 ($208082), the start line.
+    The player is player 1 (monitor A, the left screen and the left speaker; only that screen is
+    drawn, and only the frames shown). Starting: the board is powered on and run unseen and unheard
+    through a coin, START, the car select and the transmission screen, as fast as the game allows,
+    then the player takes over as the race starts. The run-up follows the game's own state
+    (docs/OUTRUNNERS-RE.md, "Starting a race quickly"), not fixed frame numbers:
+      - a coin during the boot; START when the boot is over ($208080 0 -> 2, frame 679);
+      - at the car select ($208082 = 3) the wheel turned left until the cursor ($209060) is on
+        the chosen car, then the accelerator; on the transmission screen the wheel held right
+        through the accelerator's confirmation for the manual box;
+      - the single stage: the route node and stage bytes $2080A0-$2080A6 written before the race
+        setup ($208082 = 5), as in tools/ortrace e04, so the race starts on that stage;
+      - the entry countdown ($20FB1A, $20FC1A), which waits for a second player, set to 2;
+      - the player takes over at substate 6 ($208082), the start line (board frame 1389).
     The race ends when the game leaves its game state ($208080 no longer 6).
 
     Courses: the full course (the game's own map: West/East and each branch chosen by the car's

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -29,6 +30,7 @@ static const uint32_t A_CAR      = 0x201080;    // player 1's car (name-table in
 static const uint32_t A_CAR_SEL  = 0x209060;    // the car select's cursor (set 6 frames into substate 3)
 static const uint32_t A_TRANS    = 0x209061;    // transmission: 0 automatic, 1 manual
 static const uint32_t A_ROUTE    = 0x2080A0;    // route node / stage bytes $2080A0-$2080A6
+static const uint32_t A_ENTRY_P1 = 0x20FB1A, A_ENTRY_P2 = 0x20FC1A;  // entry countdowns (16-bit, 1/30 s)
 
 // Sound: MAME's routing of the left speaker (YM3438 output 1 x 0.40, MultiPCM output 1 x 1.0) and
 // the program's level for a race on OutRunners' board: x 0.17 brings a race (music and the car's
@@ -91,33 +93,45 @@ void ORMode::run_up(int course, int car, bool manual)
                          b.sound().pcm0.clear(); b.sound().pcm1.clear(); };
     auto rd = [&](uint32_t a) { return b.read8(a); };
 
-    // coin
-    while (f < 600) frame();
+    auto frames = [&](int n) { for (int k = 0; k < n && f < RUNUP_LIMIT; k++) frame(); };
+
+    // A coin during the boot (taken at once), START as soon as the boot is over ($208080 0 -> 2
+    // at frame 679, coin or not; START at 680 starts the game at 683)
+    frames(300);
     b.set_coin(0, true);
-    for (int i = 0; i < 6; i++) frame();
+    frames(6);
     b.set_coin(0, false);
     while (rd(A_STATE) != 2 && f < RUNUP_LIMIT) frame();
-    // START
     b.set_start(0, true);
-    for (int i = 0; i < 60; i++) frame();
+    frames(20);
     b.set_start(0, false);
     while (rd(A_SUBSTATE) != 3 && f < RUNUP_LIMIT) frame();
-    int t0 = f;
-    while (f < t0 + 10) frame();
-    // the car: one step left at a time (20 frames held, then centred) until the cursor is on it
+    frames(6);                                          // the cursor is set 6 frames in
+    // The car: the wheel left until the cursor moves (the screen takes no input for its first ~105
+    // frames, then a step about 20 frames after the wheel turns), centred for 20 frames, again
+    // until the cursor is on the chosen car
     for (int i = 0; i < 8 && rd(A_CAR_SEL) != car && f < RUNUP_LIMIT; i++)
     {
-        while (f < t0 + 133 + 150 * i) frame();
+        uint8_t c = rd(A_CAR_SEL);
         b.set_steering(0, 0x00);
-        for (int k = 0; k < 20; k++) frame();
+        for (int k = 0; k < 300 && rd(A_CAR_SEL) == c && f < RUNUP_LIMIT; k++) frame();
         b.set_steering(0, 0x80);
-        for (int k = 0; k < 40; k++) frame();
+        frames(20);
     }
     if (rd(A_CAR_SEL) != car) std::cerr << "OutRunners: car select is on car " << (int) rd(A_CAR_SEL) << std::endl;
-    // the transmission: held right for a manual box (e09: frames 2200-2520, car select from 767)
-    while (f < t0 + 1433 && rd(A_SUBSTATE) == 3) frame();
+    // Confirmed with the accelerator ("choose with the wheel, decide with the accelerator"), then the
+    // transmission screen: wheel right for the manual box, held through its confirmation
+    frames(40);
+    b.set_accelerator(0, 0xFF);
+    frames(40);
+    b.set_accelerator(0, 0x00);
+    frames(40);
     if (manual) b.set_steering(0, 0xFF);
-    while (f < t0 + 1733 && rd(A_SUBSTATE) == 3) frame();
+    frames(50);
+    b.set_accelerator(0, 0xFF);
+    frames(40);
+    b.set_accelerator(0, 0x00);
+    frames(10);
     b.set_steering(0, 0x80);
     // the single stage: route node 30, stage 5 (Kenya, course 41), before the race setup
     if (course == KENYA)
@@ -126,8 +140,18 @@ void ORMode::run_up(int course, int car, bool manual)
         for (uint32_t o : { 0u, 1u, 3u, 6u }) b.write8(A_ROUTE + o, 30);
         for (uint32_t o : { 2u, 4u, 5u })     b.write8(A_ROUTE + o, 5);
     }
+    // The game then waits for other players to enter until its entry countdown ($20FB1A, $20FC1A:
+    // 1/30 s) runs out; it is shortened to 2 (the race starts about 200 frames later instead of
+    // about 760)
+    frames(50);
+    if (rd(A_SUBSTATE) == 3)
+    {
+        b.write8(A_ENTRY_P1, 2); b.write8(A_ENTRY_P1 + 1, 0);
+        b.write8(A_ENTRY_P2, 2); b.write8(A_ENTRY_P2 + 1, 0);
+    }
     while (rd(A_SUBSTATE) != 6 && f < RUNUP_LIMIT) frame();
     if (f >= RUNUP_LIMIT) std::cerr << "OutRunners: run-up did not reach the race" << std::endl;
+    if (getenv("CB_OR_DEBUG")) fprintf(stderr, "OutRunners: race from frame %d\n", f);
     if (rd(A_TRANS) != (manual ? 1 : 0)) std::cerr << "OutRunners: transmission is " << (int) rd(A_TRANS) << std::endl;
     if (rd(A_CAR) != car) std::cerr << "OutRunners: the race has car " << (int) rd(A_CAR) << std::endl;
     b.draw_mask = 1;                                    // the left screen (player 1)
@@ -236,6 +260,9 @@ void ORMode::tick()
     acc -= frames * config.fps;
     for (int i = 0; i < frames; i++)
     {
+        // only the left screen, and only the frame that will be shown (at 30 fps, the second of
+        // two); drawing changes nothing the game sees (tools/orbtest: RAM and I/O identical)
+        board->draw_mask = i == frames - 1 ? 1 : 0;
         board->run_frame();
         take_sound();
         if (board->read8(A_STATE) != 6) finished = true;

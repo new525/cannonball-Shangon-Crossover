@@ -25,6 +25,9 @@ Changes since 0.7.0 (not yet released)
   set (roms\orunners\roms.txt).
 - With the separate gear buttons setting, MAD POWER has its 6-speed manual
   box (GEAR1 down, GEAR2 up); otherwise its automatic.
+- Starting one of OutRunners' races skips its attract mode and car select
+  (the board plays them unseen, as fast as the game allows: about two
+  seconds from START RACE to the start line).
 
 
 Changes in 0.7.0
@@ -320,8 +323,7 @@ Not done yet
 - The Ferrari and the bikes on OutRunners' courses, and MAD POWER on the
   other games' courses.
 - On OutRunners' courses the MUSIC choice is not used: OutRunners plays its
-  own radio. Starting one of its races takes a few seconds (its board is
-  run unseen through the coin, START and the car select).
+  own radio.
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
 - In widescreen mode, crash objects near the screen edges are hidden early.

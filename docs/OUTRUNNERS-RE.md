@@ -72,8 +72,9 @@ loop (`$6B0-$717`, player 2's is the copy at `$719-$77C` with `R25 = $218000`):
 000715: be      6B0
 ```
 
-Game states (`$208080`, table `$8CC`): 0 `$1440` (before the coin), 2 `$1000` (credit, from the coin at
-frame 679), 6 `$30C0` game (from START at 701; also the car select), 3 `$16A4` (player 2's while player 1
+Game states (`$208080`, table `$8CC`): 0 `$1440` (the boot), 2 `$1000` (attract, from frame 679 with
+or without a coin: a run with no coin also changes 0 -> 2 at 679; a coin inserted during the boot, at
+frame 300, counts, and START at 680 starts the game at 683), 6 `$30C0` game (from START at 701; also the car select), 3 `$16A4` (player 2's while player 1
 races alone); 1 `$1698`, 4 `$1762`, 5 `$2018`, 7 `$E014`, 8 `$D9F` not identified. State 6 has substates
 (`$208082`, table `$30CC`); in e04-e15 (fresh EEPROM, coin at 600, START at 700): 1 at 701, 2 at 765
 (`$31B9`: the race init, clears `$2080A0-$2080A6`), 3 at 767 (car select, transmission), 4 at 2505, 5
@@ -629,3 +630,18 @@ What the experiments support:
 - The draw priority of the car in the sprite list is read from the code, not checked.
 - How the attract demo chooses its course (substate 9, `$32D4`, table `$3740`).
 - Linked cabinets (more cars through the comm board): not looked at.
+
+## Starting a race quickly (crossover/ormode)
+
+Found while shortening the program's run-up (tools/ortrace, frames from power-on, fresh EEPROM):
+- The car select's cursor is `$209060` (car index, set 6 frames into substate 3: 2 = EASY HANDLING);
+  `$201080` and the other car copies are only written as the race starts. The screen takes no input
+  for about its first 105 frames; a step comes about 20 frames after the wheel turns.
+- The accelerator confirms the car and then the transmission (the screen's own instruction). On the
+  transmission screen the wheel held right through the confirmation gives the manual box
+  (`$209061` = 1); centred, the automatic.
+- The game then waits for other players to enter until its entry countdown runs out: 16-bit, 1/30 s,
+  at `$20FB1A` and `$20FC1A` (`$20041C` is a copy: writing it has no effect). Writing 2 to both at
+  frame 1250 started the race at 1451 instead of about 2010.
+- With these, a race (car chosen, transmission confirmed) starts at frame 1389 (1381 from a used
+  EEPROM), against 2581 with the time-outs.

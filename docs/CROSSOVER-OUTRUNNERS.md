@@ -191,16 +191,20 @@ board (`tools/ortrace`, `run_all.sh` reruns them).
 
 **The mode** (`crossover/ormode`), with OutRunners' own car:
 - The board is powered on and run unseen and unheard through a coin, START, the car select and the
-  transmission screen. The run-up follows the game's own state rather than fixed frames:
-  - START once there is a credit (`$208080` = 2);
-  - the wheel turned left at the car select until its cursor (`$209060`) is on MAD POWER (car 0);
-  - for a manual box (the program's separate-gear-buttons setting), the wheel held right on the
-    transmission screen;
+  transmission screen, as fast as the game allows, following its own state rather than fixed frames
+  (`docs/OUTRUNNERS-RE.md`, "Starting a race quickly"):
+  - a coin during the boot, START as soon as the boot is over (`$208080` = 2, frame 679);
+  - at the car select, the wheel turned left until its cursor (`$209060`) is on MAD POWER (car 0),
+    then the accelerator to confirm; on the transmission screen, the wheel held right for the
+    manual box (the program's separate-gear-buttons setting), and the accelerator;
   - for OUTRUNNERS KENYA, the route node and stage bytes `$2080A0-$2080A6` written before the race
-    setup, so the race starts on the Kenya stage (course 41).
-  - The player takes over at the start line (substate `$208082` = 6). The run-up takes a few
-    seconds on the test machine.
-- The player is player 1: the left screen and the left speaker. The race ends when the game leaves
+    setup, so the race starts on the Kenya stage (course 41);
+  - the entry countdown (`$20FB1A`, `$20FC1A`), which waits for a second player, shortened to 2;
+  - the player takes over at the start line (substate `$208082` = 6), at frame 1389 of the board
+    (2581 when the screens time out). On the test machine, START RACE to the start line takes
+    about 1.9 s, the first ROM loading included.
+- The player is player 1: the left screen and the left speaker. Only the left screen is drawn, and
+  only the frames shown (at 30 fps, every second one); drawing changes nothing the game sees. The race ends when the game leaves
   its game state (`$208080` no longer 6); the program then returns to its menu.
 - Controls: OutRun's steering range onto the wheel's full travel, the pedals onto 0-255; GEAR1/GEAR2
   shift down/up with a manual box.
