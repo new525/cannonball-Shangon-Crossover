@@ -1,5 +1,5 @@
-// shtest: run the emulated Super Hang-On board headless and dump RAM per frame, in drive.lua's
-// "dump" format ([u32 frame][bytes], big-endian frame), for comparison with MAME 0.264.
+// shtest: run the emulated Super Hang-On board headless and dump RAM per frame ([u32 frame][bytes],
+// big-endian frame; the layout the MAME Lua dumps used), for comparison with MAME 0.264.
 // usage: shtest <shangon1 rom dir> <frames> <out prefix> [script]
 //   script lines: "<frame> <port> <value>" with port = buttons|dsw|coinage|adc0..adc3 (value hex)
 //                 "<frame> trace <file>" / "<frame> untrace"

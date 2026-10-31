@@ -9,6 +9,10 @@
       <frame> press <key> [frames]   hold a digital input (coin, start, gear1, gear2, left,
                                      right, up, down, accel, brake, viewpoint) for N frames (default 2)
       <frame> snap [name]            write a PPM screenshot after this frame is rendered
+      <frame> steerto <x> [abs]      steer towards lateral position x each frame, relative to the
+                                     bike's road (abs: absolute); "steerto off" ends it
+      <frame> autopilot on|off       the bike steers itself (Super Hang-On's attract-mode rider)
+      <frame> trace <file>           write engine variables per frame to the file
       <frame> exit                   quit
     <frame> counts engine ticks from 1. Commands run before that tick.
 ***************************************************************************/

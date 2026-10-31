@@ -14,6 +14,33 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
+Changes since 0.6.0 (not yet released)
+--------------------------------------
+- Cool Riders' board closer to MAME: the scanline interrupt's phase, the
+  time seen in timer callbacks, the order of a CPU held in reset and the
+  68000 stopping at the bus cycle that changes an interrupt line now follow
+  MAME's scheduler. Each note of the song now starts within a fraction of a
+  millisecond of MAME's (median 0.03 ms; before, 2-4 ms early).
+- The 68000 core measured an instruction's length wrongly when a bus access
+  in its middle ended the time slice, which could delay an interrupt by one
+  instruction on all three emulated boards.
+- Super Hang-On's and Hang-On's sound boards ran 0.008 percent fast (the
+  Z80's last instruction of each frame was added to the next frame); their
+  sound was 9 ms ahead after two minutes.
+- The sound boards' conversion to the output rate now holds a steady backlog
+  at any sample rate (at 22,050 Hz the music would have lagged more and
+  more), and a FRAME RATE change in the menu no longer breaks their sound.
+- The MUSIC choice is saved by its title: adding or removing a ROM set no
+  longer makes a different track play. A saved vehicle or track whose ROM set
+  is gone falls back to the Ferrari / OutRun's route at start-up.
+- CLEAR HISCORES now also clears Super Hang-On's and Hang-On's rankings, and
+  reports "SCORES CLEARED" when it clears anything (it always said "NO SAVED
+  SCORES FOUND").
+- config.xml now ships with the <crossover> section (ROM folders included).
+- The build sets C++17 in CMake (the code needed it; the compiler's default
+  happened to provide it).
+
+
 Changes in 0.6.0
 ----------------
 - Cool Riders' cover of Hang-On's theme, "HANG ON -THEME OF LOVE-", is in
@@ -260,9 +287,12 @@ Not done yet
   hidden behind hill crests, and share one depth in the sprite order.
 - On Hang-On's course the Ferrari's wreck, when thrown far up the road,
   stops at OutRun's flat-road horizon (line 151), below Hang-On's (line 128).
+- The emulated Hang-On board's RAM differs from MAME's in short runs of
+  frames after about 1,630 frames of a game; the logic is the game's own.
 - Cool Riders' sound board: its 68000 has to repeat its interrupt to the
-  SH-1 more often than in MAME before the SH-1 answers, and notes come up to
-  about 4 ms earlier than in MAME. The cause hasn't been found.
+  SH-1 more often than in MAME before the SH-1 answers. It doesn't affect
+  the music; the likely cause is that MAME's scheduler also runs the game's
+  main CPU, which this board leaves out.
 
 
 Licences

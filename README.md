@@ -217,19 +217,24 @@ roms\coolridr\   ep17659.30, ..., ep17662.12        (Cool Riders)
      courses only; on Super Hang-On's and Hang-On's courses the bike is always full size. The
      riding is the same at every size; the bike's reach in collisions with cars shrinks with it
      (see *Collisions* above).
-   - **TRACK**: OutRun's full route (pick a road at each fork), any single OutRun stage, or one
-     of Super Hang-On's courses: *AFRICA* (Beginner, 6 stages), *ASIA* (Junior, 10), *AMERICA*
-     (Senior, 14) or *EUROPE* (Expert, 18), with either vehicle, or Hang-On's course, *HANG ON*,
-     with any of the three.
+   - **TRACK**: OutRun's full route (pick a road at each fork), any single OutRun stage (raced
+     with the time-trial rules; laps and traffic as set under GAME MODES > TIME TRIAL), or one
+     of Super Hang-On's courses: *SUPER HANG ON AFRICA* (Beginner, 6 stages), *ASIA* (Junior,
+     10), *AMERICA* (Senior, 14) or *EUROPE* (Expert, 18), with either vehicle, or Hang-On's
+     course, *HANG ON*, with any of the three.
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks, or Cool Riders'
      *HANG ON THEME OF LOVE* (it previews as you choose; Cool Riders' board takes about half a
-     second to start the first time), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen. On Super Hang-On's
-     courses, *CHOOSE ON THE RADIO* takes you to Super Hang-On's own music screen instead
-     (choose with the brake, confirm with START).
+     second to start the first time), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen.
+     On Super Hang-On's courses, *CHOOSE ON THE RADIO* takes you to Super Hang-On's own music
+     screen instead (choose with the brake, confirm with START); on Hang-On's course it plays
+     Hang-On's own race music. The music chosen here also plays in the ENHANCED, ORIGINAL and
+     CONTINUOUS game modes, which then skip the radio.
 3. Choose **START RACE**.
 
 Up/down moves through the menu and left/right changes a setting. Your choices are saved in
-`config.xml`. On Super Hang-On's and Hang-On's courses the game is that game's own, rankings
+`config.xml` (section `<crossover>`, which also holds the three ROM folders; the music is saved by
+its title, so it survives ROM sets coming and going). **CLEAR HISCORES** under SETTINGS clears
+Super Hang-On's and Hang-On's rankings along with OutRun's. On Super Hang-On's and Hang-On's courses the game is that game's own, rankings
 included; when it ends you're back in the menu. The menu key leaves at any time.
 
 ### Controls (default keyboard)

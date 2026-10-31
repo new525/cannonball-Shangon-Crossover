@@ -1,4 +1,4 @@
-// sbtest: run the virtual sound board on a logged command stream (drive.lua "soundlog": "<frame> <byte>")
+// sbtest: run the virtual sound board on a logged command stream (MAME Lua sound-latch log: "<frame> <byte>")
 // and write its YM2151 writes ("<frame> <reg> <val>") and a WAV.
 // usage: sbtest <z80 rom> <pcm rom region file> <commands> <ym log out> <wav out> <frames> [rate] [z80 reset frame]
 #include "crossover/soundboard.hpp"

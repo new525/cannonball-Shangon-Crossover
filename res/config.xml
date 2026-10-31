@@ -1,5 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 
+<!--
+    Crossover (OutRun / Super Hang-On / Hang-On)
+    Set in the menu (PLAY GAME): vehicle 0 = OutRun's Ferrari, 1 = Super Hang-On's bike,
+    2 = Hang-On's bike (Hang-On's course only); track 0 = OutRun's full route, 1-15 = one OutRun
+    stage, 16-19 = Super Hang-On's Africa, Asia, America, Europe, 20 = Hang-On's course;
+    music -1 = radio screen, else a track.
+    The Super Hang-On and Hang-On ROMs also add their games' race music to the music selection,
+    and the Cool Riders ROMs its cover of Hang-On's theme.
+-->
+<crossover>
+    <vehicle>1</vehicle>
+    <shangon_rompath>roms/shangon1/</shangon_rompath>
+    <hangon_rompath>roms/hangon/</hangon_rompath>
+    <coolriders_rompath>roms/coolridr/</coolriders_rompath>
+    <track>0</track>
+    <music>-1</music>
+    <bike_scale>80</bike_scale>
+</crossover>
+
 <!-- 
     External Data Required
 -->

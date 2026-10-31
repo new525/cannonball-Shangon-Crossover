@@ -1222,7 +1222,7 @@ void Menu::xover_cycle(int dir)
         if (!bike.ready && !homode.available())
         {
             config.crossover.vehicle = 0;
-            display_message("SUPER HANG-ON ROMS NOT FOUND");
+            display_message("NO SUPER HANG-ON OR HANG-ON ROMS");
             return;
         }
         int v = config.crossover.vehicle;

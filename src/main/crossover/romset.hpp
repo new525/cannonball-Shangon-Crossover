@@ -1,5 +1,5 @@
 /***************************************************************************
-    ROM sets for the other two games: Super Hang-On (shangon1) and Hang-On.
+    ROM sets for the other games: Super Hang-On (shangon1), Hang-On and Cool Riders (coolridr).
 
     Files are found in a folder by CRC32 first (any file name), then by MAME file name.
     Region layouts follow MAME 0.264 (segaorun.cpp ROM_START(shangon1),

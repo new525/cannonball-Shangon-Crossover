@@ -96,6 +96,7 @@ void Config::load()
     crossover.vehicle         = pt_config.get("crossover.vehicle", 0);
     crossover.track           = pt_config.get("crossover.track", 0);
     crossover.music           = pt_config.get("crossover.music", -1);
+    crossover.music_title     = pt_config.get("crossover.music_title", "");
     crossover.bike_scale      = pt_config.get("crossover.bike_scale", 80);
     if (crossover.bike_scale < 50 || crossover.bike_scale > 100) crossover.bike_scale = 80;
     crossover.shangon_rompath = pt_config.get("crossover.shangon_rompath", "roms/shangon1/");
@@ -330,6 +331,8 @@ bool Config::save()
     pt_config.put("crossover.vehicle",         crossover.vehicle);
     pt_config.put("crossover.track",           crossover.track);
     pt_config.put("crossover.music",           crossover.music);
+    pt_config.put("crossover.music_title",     crossover.music >= 0 && crossover.music < (int) sound.music.size()
+                                               ? sound.music.at(crossover.music).title : std::string());
     pt_config.put("crossover.bike_scale",      crossover.bike_scale);
     pt_config.put("crossover.shangon_rompath", crossover.shangon_rompath);
     pt_config.put("crossover.hangon_rompath",  crossover.hangon_rompath);
@@ -503,18 +506,17 @@ bool Config::clear_scores()
     // Init Default Hiscores
     ohiscore.init_def_scores();
 
-    int clear = 0;
+    int cleared = 0;
 
-    // Remove XML files if they exist
-    clear += remove(data.file_scores.c_str());
-    clear += remove(data.file_scores_jap.c_str());
-    clear += remove(data.file_ttrial.c_str());
-    clear += remove(data.file_ttrial_jap.c_str());
-    clear += remove(data.file_cont.c_str());
-    clear += remove(data.file_cont_jap.c_str());
+    // Remove the score files that exist (remove returns 0 on success); crossover: Super Hang-On's
+    // and Hang-On's rankings too
+    const std::string files[] = { data.file_scores, data.file_scores_jap, data.file_ttrial, data.file_ttrial_jap,
+                                  data.file_cont, data.file_cont_jap,
+                                  data.save_path + "hiscores_superhangon.bin", data.save_path + "hiscores_hangon.bin" };
+    for (const std::string& f : files)
+        if (remove(f.c_str()) == 0) cleared++;
 
-    // remove returns 0 on success
-    return clear == 6;
+    return cleared > 0;
 }
 
 void Config::set_fps(int fps)

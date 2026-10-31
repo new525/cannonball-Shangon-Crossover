@@ -29,11 +29,14 @@ Musashi's 68000 timing was brought to MAME 0.264's (`tools/m68ktiming`):
   (`m68k/m68kipl.h`, generated from MAME's microcode), the autovector acknowledge time and STOP.
   In a test program, 2,998 interrupts started their handlers at the same cycle as in MAME, and
   every one of 20,292,334 instructions started at the same cycle.
+- An instruction's length, which those rules need, is measured against the slice's starting
+  count, so a bus access in the middle of the instruction that ends the slice (the main CPU's
+  8255 writes here) does not distort it.
 
 ### Checked against MAME 0.264
 
 A scripted game (coin at frame 600, START at 700, full accelerator from 760), RAM dumped every
-frame by both (`tools/hotest`, MAME through `drive.lua`), stacks and the write-only `$20C460`
+frame by both (`tools/hotest`, MAME through a Lua script), stacks and the write-only `$20C460`
 excluded:
 
 - main work RAM `$20C000-$20FFFF`: identical in every frame up to 1,631 except frame 22;
@@ -134,7 +137,7 @@ Joins (design decisions):
 ## 4. Tools
 
 - `tools/hotest` (`build.sh <dir> [video]`): headless board runs with RAM dumps per frame, for
-  comparison with MAME (`drive.lua` dumps), and screenshots.
+  comparison with MAME (Lua RAM dumps of the same layout), and screenshots.
 - `tools/m68ktiming` (`run.sh <work dir> <MAME home>`): the 68000 instruction-timing comparison
   with MAME 0.264 (generated tests on Hang-On's sub CPU); `run_irq.sh` does the interrupt timing.
 - `tools/hotest/hoexp.cpp` (built alongside): exploration runs: executed-instruction maps of both

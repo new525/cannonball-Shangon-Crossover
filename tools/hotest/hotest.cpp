@@ -1,5 +1,5 @@
-// hotest: run the emulated Hang-On board headless and dump RAM per frame, in drive.lua's "dump"
-// format ([u32 frame][bytes], big-endian frame), for comparison with MAME 0.264.
+// hotest: run the emulated Hang-On board headless and dump RAM per frame ([u32 frame][bytes],
+// big-endian frame; the layout the MAME Lua dumps used), for comparison with MAME 0.264.
 // usage: hotest <hangon rom dir> <frames> <out prefix> [script]
 //   script lines: "<frame> <port> <value>" with port = service|coinage|dsw|adc0..adc2 (value hex),
 //                 "<frame> snap <file.ppm>" (when built with the video), "<frame> trace <file>" / "untrace"

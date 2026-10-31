@@ -1,7 +1,7 @@
 /*
  * verify_crash: checks sho_crash.c against MAME captures, frame by frame.
  *
- * Captures (drive.lua "dump", one record per frame: u32 frame + bytes):
+ * Captures (MAME Lua RAM dumps, one record per frame: u32 frame + bytes):
  *   <p>_slots.bin  $638C0-$639BF (slots 3-6)     <p>_vars.bin  $260000-$2600FF
  *   <p>_y.bin      $261200-$2613FF               <p>_tbl.bin   $61400-$616FF
  *   <p>_clip.bin   $260440-$26045F               <p>_buf.bin   $2607FC-$2607FF
