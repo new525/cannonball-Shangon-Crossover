@@ -373,6 +373,8 @@ int main(int argc, char* argv[])
         std::cout << "Hang-On ROMs not loaded: " << ho_roms.error << std::endl;
     if (!cr_roms.load(config.crossover.coolriders_rompath))
         std::cout << "Cool Riders ROMs not loaded: " << cr_roms.error << std::endl;
+    if (!or_roms.load(config.crossover.outrunners_rompath))
+        std::cout << "OutRunners ROMs not loaded: " << or_roms.error << std::endl;
     if (!xaudio.init(config.sound.rate))
         std::cout << "No crossover sound boards started" << std::endl;
     if (sh_roms.loaded() && !shmode.init())
@@ -409,6 +411,16 @@ int main(int argc, char* argv[])
     // (program ROM $4614B); the big font has no hyphen
     if (xaudio.coolriders_ready())
         add_track(music_t::IS_COOLRIDERS, 0x10, "HANG ON THEME OF LOVE");
+    // OutRunners' covers of OutRun's music: the numbers of its sound test (monitor A), which are
+    // the songs its in-race radio names (MAME 0.264, the radio cycled: $01 Magical Sound Shower,
+    // $02 Passing Breeze, $03 Splash Wave, $12 Last Wave)
+    if (xaudio.outrunners_ready())
+    {
+        add_track(music_t::IS_OUTRUNNERS, 0x01, "OUTRUNNERS MAGICAL SOUND SHOWER");
+        add_track(music_t::IS_OUTRUNNERS, 0x02, "OUTRUNNERS PASSING BREEZE");
+        add_track(music_t::IS_OUTRUNNERS, 0x03, "OUTRUNNERS SPLASH WAVE");
+        add_track(music_t::IS_OUTRUNNERS, 0x12, "OUTRUNNERS LAST WAVE");
+    }
 
     // The saved music choice is an index into that list, which changes with the ROM sets
     // present: the saved title decides. A title no longer in the list means the radio screen.

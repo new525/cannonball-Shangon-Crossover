@@ -781,6 +781,14 @@ void z80_debug_output(z80* const z) {
       rb(z, z->pc + 2), rb(z, z->pc + 3), z->cyc);
 }
 
+// Crossover: takes a pending interrupt now, between instructions, as MAME's Z80 does when an
+// input line changes between its time slices (z80_step services interrupts only after the next
+// instruction). Nothing happens inside an EI delay or with interrupts disabled.
+void z80_take_interrupt(z80* const z) {
+  if (z->iff_delay > 0) return;
+  if (z->nmi_pending || (z->int_pending && z->iff1)) process_interrupts(z);
+}
+
 // function to call when an NMI is to be serviced
 void z80_gen_nmi(z80* const z) {
   z->nmi_pending = 1;

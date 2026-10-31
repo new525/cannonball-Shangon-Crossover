@@ -4,6 +4,7 @@
 #include "crossover/romset.hpp"
 #include "crossover/fd1089.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -14,6 +15,7 @@ namespace fs = std::filesystem;
 SuperHangOnRoms sh_roms;
 HangOnRoms      ho_roms;
 CoolRidersRoms  cr_roms;
+OutRunnersRoms  or_roms;
 
 static uint32_t crc32_of(const std::vector<uint8_t>& d)
 {
@@ -183,32 +185,17 @@ bool HangOnRoms::load(const std::string& dir)
     return RomSet::load(dir, list, sizeof(list) / sizeof(list[0]));
 }
 
-// MAME 0.264 coolridr.cpp, ROM_START( coolridr ): the maincpu, gfx_data and sub regions.
-// ROM_LOAD32_WORD_SWAP / ROM_LOAD16_WORD_SWAP: the files hold byte-swapped 16-bit words.
-bool CoolRidersRoms::load(const std::string& dir)
+// Large-ROM sets (Cool Riders, OutRunners): files of the given sizes only are indexed by CRC (a
+// set's other big ROMs are skipped). step 4: every other word of a 32-bit bus
+// (ROM_LOAD32_WORD_SWAP); step 2: contiguous byte-swapped words (ROM_LOAD16_WORD_SWAP);
+// step 1: as the file is (ROM_LOAD).
+struct BigRomEntry { const char* name; const char* region; uint32_t region_size, offset, length, crc; int step; };
+
+static bool load_big(const std::string& dir, const BigRomEntry* list, int count,
+                     std::map<std::string, RomRegion>& regions, std::string& error)
 {
-    struct E { const char* name; const char* region; uint32_t region_size, offset, length, crc; int step; };
-    // step 4: every other word of a 32-bit bus (ROM_LOAD32_WORD_SWAP); step 2: contiguous words
-    static const E list[] =
-    {
-        { "ep17659.30", "maincpu",  0x200000,  0x000000, 0x080000, 0x473027b0, 4 },
-        { "ep17658.29", "maincpu",  0x200000,  0x000002, 0x080000, 0x7ecfdfcc, 4 },
-        { "ep17661.32", "maincpu",  0x200000,  0x100000, 0x080000, 0x81a7d90b, 4 },
-        { "ep17660.31", "maincpu",  0x200000,  0x100002, 0x080000, 0x27b7a507, 4 },
-        { "mp17650.11", "gfx_data", 0x1000000, 0x000002, 0x200000, 0x0ccc84a1, 4 },
-        { "mp17651.12", "gfx_data", 0x1000000, 0x000000, 0x200000, 0x25fd7dde, 4 },
-        { "mp17652.13", "gfx_data", 0x1000000, 0x400002, 0x200000, 0xbe9b4d05, 4 },
-        { "mp17653.14", "gfx_data", 0x1000000, 0x400000, 0x200000, 0x64d1406d, 4 },
-        { "mp17654.15", "gfx_data", 0x1000000, 0x800002, 0x200000, 0x5dee5cba, 4 },
-        { "mp17655.16", "gfx_data", 0x1000000, 0x800000, 0x200000, 0x02903cf2, 4 },
-        { "mp17656.17", "gfx_data", 0x1000000, 0xc00002, 0x200000, 0x945c89e3, 4 },
-        { "mp17657.18", "gfx_data", 0x1000000, 0xc00000, 0x200000, 0x74676b1f, 4 },
-        { "ep17662.12", "sub",      0x020000,  0x000000, 0x020000, 0x50d66b1f, 2 },
-    };
     regions.clear();
     error.clear();
-
-    // Index the folder by CRC32, files of the sizes above only (the set's 4 MB sprite ROMs are skipped)
     std::map<uint32_t, fs::path> by_crc;
     std::map<std::string, fs::path> by_name;
     std::error_code ec;
@@ -217,7 +204,9 @@ bool CoolRidersRoms::load(const std::string& dir)
         if (!e.is_regular_file(ec)) continue;
         uintmax_t sz = e.file_size(ec);
         by_name[e.path().filename().string()] = e.path();
-        if (sz != 0x80000 && sz != 0x200000 && sz != 0x20000) continue;
+        bool wanted = false;
+        for (int i = 0; i < count; i++) if (sz == list[i].length) wanted = true;
+        if (!wanted) continue;
         std::vector<uint8_t> d;
         if (!read_file(e.path(), d)) continue;
         by_crc[crc32_of(d)] = e.path();
@@ -225,8 +214,9 @@ bool CoolRidersRoms::load(const std::string& dir)
     if (ec) { error = "cannot read folder " + dir; return false; }
 
     std::map<std::string, RomRegion> out;
-    for (const E& r : list)
+    for (int i = 0; i < count; i++)
     {
+        const BigRomEntry& r = list[i];
         RomRegion& reg = out[r.region];
         if (reg.data.empty()) reg.data.assign(r.region_size, 0);
         fs::path p;
@@ -248,6 +238,7 @@ bool CoolRidersRoms::load(const std::string& dir)
         std::vector<uint8_t> d;
         read_file(p, d);
         if (d.size() < r.length) { error = std::string("short ROM file ") + r.name; return false; }
+        if (r.step == 1) { std::copy(d.begin(), d.begin() + r.length, reg.data.begin() + r.offset); continue; }
         for (uint32_t k = 0; k + 1 < r.length; k += 2)
         {
             uint32_t a = r.offset + (r.step == 4 ? k * 2 : k);
@@ -257,4 +248,39 @@ bool CoolRidersRoms::load(const std::string& dir)
     }
     regions = std::move(out);
     return true;
+}
+
+// MAME 0.264 coolridr.cpp, ROM_START( coolridr ): the maincpu, gfx_data and sub regions.
+bool CoolRidersRoms::load(const std::string& dir)
+{
+    static const BigRomEntry list[] =
+    {
+        { "ep17659.30", "maincpu",  0x200000,  0x000000, 0x080000, 0x473027b0, 4 },
+        { "ep17658.29", "maincpu",  0x200000,  0x000002, 0x080000, 0x7ecfdfcc, 4 },
+        { "ep17661.32", "maincpu",  0x200000,  0x100000, 0x080000, 0x81a7d90b, 4 },
+        { "ep17660.31", "maincpu",  0x200000,  0x100002, 0x080000, 0x27b7a507, 4 },
+        { "mp17650.11", "gfx_data", 0x1000000, 0x000002, 0x200000, 0x0ccc84a1, 4 },
+        { "mp17651.12", "gfx_data", 0x1000000, 0x000000, 0x200000, 0x25fd7dde, 4 },
+        { "mp17652.13", "gfx_data", 0x1000000, 0x400002, 0x200000, 0xbe9b4d05, 4 },
+        { "mp17653.14", "gfx_data", 0x1000000, 0x400000, 0x200000, 0x64d1406d, 4 },
+        { "mp17654.15", "gfx_data", 0x1000000, 0x800002, 0x200000, 0x5dee5cba, 4 },
+        { "mp17655.16", "gfx_data", 0x1000000, 0x800000, 0x200000, 0x02903cf2, 4 },
+        { "mp17656.17", "gfx_data", 0x1000000, 0xc00002, 0x200000, 0x945c89e3, 4 },
+        { "mp17657.18", "gfx_data", 0x1000000, 0xc00000, 0x200000, 0x74676b1f, 4 },
+        { "ep17662.12", "sub",      0x020000,  0x000000, 0x020000, 0x50d66b1f, 2 },
+    };
+    return load_big(dir, list, (int)(sizeof list / sizeof list[0]), regions, error);
+}
+
+// MAME 0.264 segas32.cpp, ROM_START( orunners ) (orunnersu, orunnersj have the same sound
+// ROMs): the sound CPU's program and the MultiPCM samples
+bool OutRunnersRoms::load(const std::string& dir)
+{
+    static const BigRomEntry list[] =
+    {
+        { "epr-15550.ic31", "soundcpu", 0x080000, 0x000000, 0x080000, 0x0205d2ed, 1 },
+        { "mpr-15551.ic1",  "sega",     0x400000, 0x000000, 0x200000, 0x4894bc73, 1 },
+        { "mpr-15552.ic2",  "sega",     0x400000, 0x200000, 0x200000, 0x1c4b5e73, 1 },
+    };
+    return load_big(dir, list, (int)(sizeof list / sizeof list[0]), regions, error);
 }

@@ -1,0 +1,10 @@
+-------------------------------------------------------------------------------
+Place the OutRunners ROMs in this folder: files of MAME set orunners,
+orunnersu or orunnersj, "OutRunners" (MAME 0.264). Only the sound side
+is used (the game's covers of OutRun's music), so only these 3 files are
+needed; they are the same in all three sets.
+Files are found by CRC32 first, then by name.
+-------------------------------------------------------------------------------
+epr-15550.ic31     CRC32 0205d2ed  (soundcpu, the sound Z80's program)
+mpr-15551.ic1      CRC32 4894bc73  (sega, MultiPCM samples)
+mpr-15552.ic2      CRC32 1c4b5e73  (sega, MultiPCM samples)

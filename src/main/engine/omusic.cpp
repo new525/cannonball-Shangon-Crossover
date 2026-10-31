@@ -295,6 +295,12 @@ void OMusic::play_music(int index)
             osoundint.queue_sound(sound::FM_RESET);
             xaudio.play_coolriders((uint8_t) next_track->cmd);
             break;
+
+        case music_t::IS_OUTRUNNERS:
+            cannonball::audio.clear_wav();
+            osoundint.queue_sound(sound::FM_RESET);
+            xaudio.play_outrunners((uint8_t) next_track->cmd);
+            break;
     }
 
     last_music_selected = index;

@@ -1,5 +1,6 @@
 /***************************************************************************
-    ROM sets for the other games: Super Hang-On (shangon1), Hang-On and Cool Riders (coolridr).
+    ROM sets for the other games: Super Hang-On (shangon1), Hang-On, Cool Riders (coolridr) and
+    OutRunners (orunners).
 
     Files are found in a folder by CRC32 first (any file name), then by MAME file name.
     Region layouts follow MAME 0.264 (segaorun.cpp ROM_START(shangon1),
@@ -71,6 +72,15 @@ public:
     bool load(const std::string& dir);
 };
 
+// OutRunners (MAME orunners, orunnersu or orunnersj), for its sound board only. Regions:
+// "soundcpu" (512 KB, the Z80 program), "sega" (4 MB, the MultiPCM samples).
+class OutRunnersRoms : public RomSet
+{
+public:
+    bool load(const std::string& dir);
+};
+
 extern SuperHangOnRoms sh_roms;
 extern HangOnRoms      ho_roms;
 extern CoolRidersRoms  cr_roms;
+extern OutRunnersRoms  or_roms;
