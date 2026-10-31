@@ -1,0 +1,40 @@
+NEC V60/V70 CPU core and disassembler (v60.hpp, v60.cpp, the am*.hxx / op*.hxx /
+optable.hxx files, v60d.hpp, v60d.cpp), transcribed from MAME 0.264
+src/devices/cpu/v60 (v60.cpp, v60.h, am.hxx, am1.hxx, am2.hxx, am3.hxx, op12.hxx,
+op2.hxx, op3.hxx, op4.hxx, op5.hxx, op6.hxx, op7a.hxx, optable.hxx, v60d.cpp, v60d.h).
+
+Copyright-holders: Farfetch'd, R. Belmont
+License: BSD-3-Clause
+
+v60mem.hpp contains memory_read_generic / memory_write_generic transcribed from
+MAME 0.264 src/emu/emumem.h.
+
+Copyright-holders: Aaron Giles, Olivier Galibert
+License: BSD-3-Clause
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
