@@ -79,11 +79,13 @@ void CRSound::power_on(const uint8_t* nv)
     basetime = CrTime(); target = CrTime();
     for (Exec& e : ex) { e.local = CrTime(); e.suspended = e.next_suspended = false; e.cycles_running = 0; }
     suspend_changes = false;
-    frame_no = 0; scanline = 0; frame_start = CrTime();
+    frame_no = 0; scanline = 0; vblank_start = CrTime();
+    in_callback = false;
     mainw.clear(); mainw_pos = 0;
     for (int& v : irq68) v = 0;
     for (int& v : sh_irq_state) v = 0;
     sh_cycles = m68k_cycles = 0;
+    m68k_debt = m68k_slice_debt = 0; m68k_in_access = false; m68k_access_cycles = 0;
 
     // SCSPs: chip 1 interrupts the 68000 (irq_cb set) and the SH-1; chip 2 only the SH-1
     for (int c = 0; c < 2; c++)
@@ -112,7 +114,10 @@ void CRSound::power_on(const uint8_t* nv)
     mixed = 0;
     out_l.clear(); out_r.clear();
 
-    timer_add(CrTime(), T_SCANLINE, 0);
+    // MAME's scanline timers count from the start of VBLANK (screen_device::time_until_pos), and
+    // the screen starts at VBLANK: line 0 is 128 lines (512 - 384 visible) after power-on, line
+    // 384 one frame after it
+    timer_add(scanline_time(0), T_SCANLINE, 0);
     timer_add(CrTime(0, CrTime::ATTO / 50), T_STREAM, 0);
 
     // CPUs: the SH-1 from its vectors; the 68000 held in reset (machine_reset asserts its RESET)
@@ -165,25 +170,44 @@ void CRSound::timer_remove(int kind, int param)
         if (it->kind == kind && it->param == param) { timers.erase(it); return; }
 }
 
+// device_scheduler::time(): in a timer callback the firing timer's expiry, else the executing
+// CPU's local time, else the base time
 CrTime CRSound::cur_time() const
 {
-    if (executing == 0) return ex[0].local + ex[0].cycles_to_time(m68k_cycles_run() + m68k_access_cycles);
+    if (in_callback) return callback_expire;
+    if (executing == 0) return ex[0].local + ex[0].cycles_to_time(m68k_slice_debt + m68k_cycles_run() + m68k_access_cycles);
     if (executing == 1) return ex[1].local + ex[1].cycles_to_time(ex[1].cycles_running - sh->icount());
     return basetime;
 }
 
+// when scanline s next fires: s + 128 lines after the start of a VBLANK period (lines 384-511
+// of a frame come first, from the VBLANK start, then lines 0-383)
+CrTime CRSound::scanline_time(int s) const
+{
+    return vblank_start + CrTime(0, (int64_t)((s + 128) % 512) * scan_attos);
+}
+
 void CRSound::abort_slice()
 {
-    if (executing == 0) m68k_end_timeslice();
+    if (executing == 0)
+    {
+        m68k_end_timeslice();
+        // MAME's 68000 stops right after the bus cycle that caused this (its microcode can stop
+        // between bus cycles); Musashi finishes the instruction. The cycles after that bus cycle
+        // are charged to the next slice instead (m68k_debt), so the other CPU's slice ends where
+        // MAME's does.
+        if (m68k_in_access) m68k_debt = std::max(0, m68k_instruction_cycles() - (m68k_access_cycles + 4));
+    }
     else if (executing == 1) sh->end_timeslice();
 }
 
+// Runs the board's own timeslices (as MAME's would come: up to the next timer or the 60 Hz
+// quantum) until its time reaches t; the last one may run past t, by at most a scanline. No
+// timer is set at t, so how the caller chooses its steps does not change the board's run.
 void CRSound::run_until(const CrTime& t)
 {
     if (!ready) return;
-    timer_add(t, T_MAINW, -1);              // a timer at t ends the run there
     while (basetime < t) timeslice();
-    timer_remove(T_MAINW, -1);
     scsp_catch_up_all();
     mix_out();
 }
@@ -203,30 +227,45 @@ void CRSound::timeslice()
             suspend_changes = false;
         }
 
-        for (int i = 0; i < 2; i++)
+        // MAME's execute list: the running CPUs in device order (68000, SH-1), then the suspended
+        // ones (rebuild_execute_list)
+        for (int k = 0; k < 4; k++)
         {
+            int i = k & 1;
             Exec& e = ex[i];
-            if (e.suspended) { if (e.local < target) e.local = target; continue; }
+            if (e.suspended != (k >= 2)) continue;
             if (target.s < e.local.s) continue;
             CrTime d = target - e.local;
             if (d.s < 0 || (d.s == 0 && d.a < e.atto_per_cycle)) continue;
             int64_t delta = d.s * CrTime::ATTO + d.a;
             int want = e.cycles_running = (int)(((uint64_t) delta >> e.divshift) / e.divisor);
-            int ran;
-            executing = i;
-            if (i == 0)
+            int ran = want;                     // a suspended CPU (held in reset) eats its cycles
+            if (!e.suspended)
             {
-                m68k_load();
-                ran = m68k_execute(want);
-                m68k_save();
-                m68k_cycles += (uint64_t) ran;
+                executing = i;
+                if (i == 0)
+                {
+                    // cycles of the last instruction that MAME's 68000 would run only now
+                    m68k_slice_debt = std::min(m68k_debt, want);
+                    m68k_debt -= m68k_slice_debt;
+                    ran = m68k_slice_debt;
+                    if (want > m68k_slice_debt)
+                    {
+                        m68k_load();
+                        ran += m68k_execute(want - m68k_slice_debt);
+                        m68k_save();
+                    }
+                    m68k_slice_debt = 0;
+                    if (m68k_debt) ran -= m68k_debt;    // the slice ends at that bus cycle
+                    m68k_cycles += (uint64_t) ran;
+                }
+                else
+                {
+                    ran = sh->run(want);
+                    sh_cycles += (uint64_t) ran;
+                }
+                executing = -1;
             }
-            else
-            {
-                ran = sh->run(want);
-                sh_cycles += (uint64_t) ran;
-            }
-            executing = -1;
             e.local = e.local + e.cycles_to_time(ran);
             if (e.local < target) target = std::max(e.local, basetime);
         }
@@ -237,7 +276,9 @@ void CRSound::timeslice()
     {
         Timer t = timers.front();
         timers.erase(timers.begin());
+        in_callback = true; callback_expire = t.expire;
         fire(t);
+        in_callback = false;
     }
 }
 
@@ -249,8 +290,9 @@ void CRSound::fire(const Timer& t)
         {
             // coolridr interrupt_sub: level 12 (HOLD_LINE) at scanline 384
             if (scanline == 384) set_sh_line(0xc, ShCpu::HOLD_LINE);
-            if (++scanline == 512) { scanline = 0; frame_no++; frame_start = frame_start + CrTime(0, frame_attos); }
-            timer_add(frame_start + CrTime(0, (int64_t) scanline * scan_attos), T_SCANLINE, 0);
+            if (++scanline == 512) scanline = 0;
+            if (scanline == 384) { frame_no++; vblank_start = vblank_start + CrTime(0, frame_attos); }
+            timer_add(scanline_time(scanline), T_SCANLINE, 0);
             break;
         }
         case T_STREAM:
@@ -284,8 +326,6 @@ void CRSound::fire(const Timer& t)
                 ex[0].next_suspended = false; suspend_changes = true;
             }
             break;
-        case T_MAINW:
-            break;
     }
 }
 
@@ -316,12 +356,18 @@ void CRSound::m68k_update_ipl()
     int level = 0;
     for (int l = 7; l >= 1; l--) if (irq68[l]) { level = l; break; }
     // From a timer: the 68000 may have run past the timer's time (its last instruction ended
-    // after it); MAME's core sees the new level that many cycles in the past.
+    // after it); MAME's core sees the new level that many cycles in the past. Musashi's current
+    // time is the end of that instruction, m68k_debt cycles after the 68000's local time.
     int ago = 0;
-    if (executing != 0 && basetime < ex[0].local)
+    if (executing != 0)
     {
-        CrTime d = ex[0].local - basetime;
-        ago = (int)((d.s * CrTime::ATTO + d.a) / ex[0].atto_per_cycle);
+        CrTime now = cur_time();
+        if (now < ex[0].local)
+        {
+            CrTime d = ex[0].local - now;
+            ago = (int)((d.s * CrTime::ATTO + d.a) / ex[0].atto_per_cycle);
+        }
+        ago += m68k_debt;
     }
     if (m68k_loaded) m68k_set_irq_ago((unsigned) level, ago);
     else
@@ -340,7 +386,7 @@ void CRSound::instr_hook(uint32_t pc)
     if (!m68k_trace) return;
     double t = cur_time().sec();
     if (t >= trace_from && t < trace_to)
-        fprintf(m68k_trace, "%llX %06X\n", (unsigned long long)(m68k_cycles + (uint64_t) m68k_cycles_run()), pc & 0xffffff);
+        fprintf(m68k_trace, "%llX %06X\n", (unsigned long long)(m68k_cycles + (uint64_t)(m68k_slice_debt + m68k_cycles_run())), pc & 0xffffff);
 }
 
 int CRSound::int_ack(int level)
@@ -367,7 +413,9 @@ void CRSound::bus_write(uint32_t a, int size, uint32_t v)
     a &= 0xffffff;
     int end = m68k_instruction_cycles();
     m68k_access_cycles = std::max(0, end - (size == 4 ? 12 : 8));
+    m68k_in_access = true;
     bus_write_at(a, size, v);
+    m68k_in_access = false;
     m68k_access_cycles = 0;
 }
 
@@ -584,7 +632,11 @@ uint16_t CRSound::main_read16(uint32_t a) const
 
 uint32_t CRSound::dma_r(int offset)
 {
-    if (offset == 8) return sound_data;
+    if (offset == 8)
+    {
+        if (r8_log) { CrTime t = cur_time(); fprintf(r8_log, "%lld %lld %08x\n", (long long) t.s, (long long) t.a, sound_data); }
+        return sound_data;
+    }
     if (offset == 2 || offset == 6) return 0;
     return sound_dma[offset];
 }

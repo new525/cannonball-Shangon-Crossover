@@ -217,9 +217,13 @@ void ShCpu::set_nmi_state(int state)
 
 void ShCpu::set_irq_state(int irqline, int state)
 {
-    // execute_set_input(irqline, state), interpreter path
+    // execute_set_input(irqline, state), interpreter path. MAME's device_input::empty_event_queue
+    // gives the core HOLD_LINE as ASSERT_LINE; the clear comes from standard_irq_callback (here
+    // the bus's irq_acknowledge).
     if (irqline < 0 || irqline > 15)
         return;
+    if (state == HOLD_LINE)
+        state = ASSERT_LINE;
 
     if (m_irq_line_state[irqline] == state)
         return;

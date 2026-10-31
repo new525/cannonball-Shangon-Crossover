@@ -13,10 +13,13 @@
     - the SH-1 also gets a level-12 interrupt at scanline 384 of the 57 Hz, 512-line screen, and
       reads the controls through a 315-5649 I/O chip.
 
-    Scheduling follows MAME's device_scheduler: the CPUs run in MAME's order (68000, then SH-1) in
-    timeslices that end at the next timer (scanlines, the SCSP timers, the 50 Hz stream update) or
-    when an input line changes (MAME's synchronised set_input_line), with MAME's attosecond time and
-    cycle arithmetic. The main SH-2 is not emulated: its writes to the shared RAM (the commands) are
+    Scheduling follows MAME's device_scheduler: the CPUs run in MAME's order (68000, then SH-1,
+    a CPU held in reset last) in timeslices that end at the next timer (scanlines counted from the
+    start of VBLANK as MAME's screen does, the SCSP timers, the 50 Hz stream update) or when an
+    input line changes (MAME's synchronised set_input_line), with MAME's attosecond time and cycle
+    arithmetic. Where MAME's 68000 stops between bus cycles at a slice's end (an input line changed
+    by its own write), Musashi finishes the instruction and the remaining cycles are charged to
+    the next slice. The main SH-2 is not emulated: its writes to the shared RAM (the commands) are
     given to the board with their times (main_write).
 
     Cores: SH-1 crossover/sh (from MAME, BSD-3-Clause), 68000 Musashi (shared, through xo_bus),
@@ -70,7 +73,7 @@ public:
     // A write by the main CPU to the shared communication RAM (main $03F00000 + offset), at time t
     void main_write(const CrTime& t, uint32_t offset, uint32_t data, uint32_t mask);
 
-    // Run the board up to time t
+    // Run the board up to time t (its time ends at or just after t)
     void run_until(const CrTime& t);
     CrTime now() const { return basetime; }
 
@@ -89,6 +92,7 @@ public:
     uint8_t  m68k_ram[0x10000];         // $800000
     ShCpu&   sh1() { return *sh; }
     FILE*    dma_log = nullptr;
+    FILE*    r8_log = nullptr;            // the SH-1's reads of DMA register 8 (the SCSP interrupt bits)
     FILE*    scsp_log = nullptr;          // the 68000's SCSP register writes: "<s> <atto> <addr> <data> <mask>"
     uint64_t sh_cycles = 0, m68k_cycles = 0;
 
@@ -119,7 +123,6 @@ private:
     std::vector<uint8_t> main_rom, gfx_rom, sub_rom;
     std::unique_ptr<ShCpu> sh;
     Scsp scsp[2];
-    uint32_t rng_seed = 0x9d14abd7;
     std::vector<uint8_t> m68k_ctx;
 
     // ---- scheduler (MAME's device_scheduler, reduced to this board) ----
@@ -139,11 +142,13 @@ private:
     int  executing = -1;
     CrTime basetime, target;
     bool suspend_changes = false;
+    bool in_callback = false;           // in fire(): cur_time() is the timer's expiry
+    CrTime callback_expire;
 
     struct Timer { CrTime expire; int kind; int param; uint64_t seq; };
     std::vector<Timer> timers;          // pending
     uint64_t timer_seq = 0;
-    enum { T_SCANLINE, T_STREAM, T_SCSP, T_SYNC_IRQ68, T_SYNC_IRQSH, T_SYNC_RESET68, T_MAINW };
+    enum { T_SCANLINE, T_STREAM, T_SCSP, T_SYNC_IRQ68, T_SYNC_IRQSH, T_SYNC_RESET68 };
     void timer_add(const CrTime& when, int kind, int param);
     void timer_remove(int kind, int param);
     CrTime cur_time() const;            // scheduler time(): the executing CPU's local time
@@ -151,10 +156,11 @@ private:
     void timeslice();                   // one pass: CPUs up to the next timer, then that timer
     void fire(const Timer& t);
 
-    // scanlines: 512 per frame of HZ_TO_ATTOSECONDS(57)
+    // scanlines: 512 per frame of HZ_TO_ATTOSECONDS(57); VBLANK is lines 384-511
     int64_t frame_attos = 0, scan_attos = 0;
     uint64_t frame_no = 0; int scanline = 0;
-    CrTime frame_start;
+    CrTime vblank_start;                // of the current VBLANK period (MAME's m_vblank_start_time)
+    CrTime scanline_time(int s) const;
 
     // main CPU writes waiting for their timeslice
     struct MainW { CrTime t; uint32_t off, data, mask; };
@@ -167,12 +173,12 @@ private:
     bool m68k_reset_line = true;        // held by machine_reset
     void m68k_update_ipl();
     int  m68k_access_cycles = 0;        // cycles from the instruction's start to the bus access being made
+    bool m68k_in_access = false;
+    int  m68k_debt = 0, m68k_slice_debt = 0;  // cycles of an instruction cut by abort_slice, run by the next slice
     int  sh_irq_state[16] = {};
     void set_68k_line(int line, int state);       // MAME set_input_line (synchronised)
     void set_sh_line(int line, int state);
     void set_68k_reset(bool asserted);
-    std::vector<std::pair<int,int>> pend68, pendsh;
-    int pend_reset = -1;
     bool m68k_loaded = false;
     void m68k_load();
     void m68k_save();
@@ -191,7 +197,6 @@ private:
     uint32_t sound_dma[16] = {};
     uint32_t dma_r(int offset);
     void dma_w(int offset, uint32_t data, uint32_t mask);
-    uint16_t ram_word(int chip, uint32_t byte_addr) const { return soundram[chip][(byte_addr >> 1) & 0x3ffff]; }
     uint16_t main_read16(uint32_t a) const;           // the main SH-2's space, for the DMA
     uint8_t  io_value[7] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }, io_config = 0xff, io_mode = 0, io_an = 0;
     uint8_t  io_read(int offset);

@@ -30,18 +30,32 @@ interpreter (BSD-3-Clause). The SCSPs are `crossover/scsp/*`, transcribed from M
 through `xo_bus`.
 
 Scheduling follows MAME's `device_scheduler`:
-- the CPUs run in MAME's order (68000, then SH-1);
+- the CPUs run in MAME's order (68000, then SH-1; a CPU held in reset runs last, as MAME's
+  `rebuild_execute_list` puts suspended CPUs at the end, and its time advances by whole cycles);
 - timeslices end at the next timer (scanlines, the SCSP timers, the 50 Hz stream update) or when
-  an input line changes (MAME's synchronised `set_input_line`);
+  an input line changes (MAME's synchronised `set_input_line`), or at the 60 Hz quantum;
+- in a timer callback the current time is the timer's expiry (`device_scheduler::time`);
+- the scanline timer counts from the start of VBLANK, as MAME's screen does
+  (`screen_device::time_until_pos`): line 0 is 128 lines after power-on and line 384, the SH-1's
+  level-12 interrupt, one frame after it;
 - time and cycle arithmetic is MAME's, in attoseconds.
+
+The board runs its own timeslices until its time reaches what the caller asks for, and may run
+past it by up to a scanline; no timer is set at the caller's time, so the caller's step (1/57 s
+in `crtest`, 1/60 s in the program) does not change the run. With both steps the SCSP writes are
+identical; the output differs in a few noise samples, since the two chips draw from one random
+generator in the order their samples are generated, as in MAME.
 
 The main SH-2 is not emulated.
 
-Musashi makes all of an instruction's bus accesses at its start; MAME's 68000 makes each at its
-own bus cycle. The board therefore times the 68000's writes from MAME's microcode pattern:
-- a word write starts 8 cycles before the instruction ends (it is followed by the final
-  prefetch), e.g. `move_w_imm16_dad_df` writes after 8 of its 16 cycles;
-- a long write's two words start 12 and 8 cycles before the end.
+Musashi makes all of an instruction's bus accesses at its start and finishes every instruction;
+MAME's 68000 makes each access at its own bus cycle and can stop between bus cycles. The board
+therefore:
+- times the 68000's writes from MAME's microcode pattern: a word write starts 8 cycles before the
+  instruction ends (it is followed by the final prefetch), e.g. `move_w_imm16_dad_df` writes
+  after 8 of its 16 cycles; a long write's two words start 12 and 8 cycles before the end;
+- when a write changes an input line (which ends the timeslice at that bus cycle in MAME), ends
+  the 68000's slice at that bus cycle and charges the rest of the instruction to its next slice.
 
 This matters for the tempo: the sound program re-arms SCSP timer A with
 `move.w #$ce,($418,A5)`, and the timer counts from that write.
@@ -74,7 +88,7 @@ Cool Riders' main program talks to the sound board only through the shared RAM (
   board here (RMS 989). This is a design decision; absolute levels between different boards have
   no arcade reference.
 - **Resampling:** from 44,099 Hz to the output rate, by linear interpolation, as for the other
-  boards.
+  boards (`crossover/resample.hpp`).
 
 The song kept playing over a 7-minute test run.
 
@@ -84,27 +98,36 @@ The song kept playing over a 7-minute test run.
 shared-RAM writes recorded. `tools/crtest` replays those writes into the board, and the outputs
 are compared.
 
-- **SCSP register writes:** the first 2,926 are identical (address, data, mask), with times
-  within 0.03 ms.
-  - At 1.066 s the 68000 makes a write (`$1003D4`) that MAME made at 0.738 s. From there the
-    order differs.
-- **The song (44-214 s):**
-  - key-ons: 5,541 in MAME, 5,542 here;
+- **SCSP register writes:** the first 3,120 are identical (address, data, mask), with times
+  within 1 µs. At 1.118 s the 68000 serves SCSP timer C's interrupt before timer B's, where MAME
+  served B first; from there the order differs.
+- **The song (43-224 s, 30,778 key-ons in MAME, 30,775 here, every one of MAME's matched to one
+  here on the same chip within 50 ms):**
+  - timing of each key-on against MAME's: median +0.03 ms, 10th percentile −0.10 ms, 90th
+    +0.25 ms, over the whole song, with no drift (the median of each 5 s stays within
+    ±0.05 ms);
   - loudness: within 0-4 % per 10 s;
-  - spectrogram correlation: 0.88-0.93;
-  - tempo: no drift. The lag stays between −3.7 and −4.2 ms from 44 s to 214 s. Before the
-    68000's writes were timed at their bus cycle, the song drifted from −19 ms to −80 ms over
-    the same span.
-  - Individual key-ons, against MAME's: median −2.5 ms, 10th percentile −4.2 ms, 90th +0.1 ms.
+  - spectrogram correlation: 0.88-0.93 per 2 s window (mean 0.907).
+  - History: with the 68000's writes timed at the instruction's start the song drifted from
+    −19 ms to −80 ms over 44-214 s; timed at the bus cycle, a steady −4 ms (key-ons median
+    −2.2 ms); with the scanline phase, callback time, reset order and bus-cycle slice end as
+    MAME's, the figures above.
 - **Known difference, cause not found:** the 68000 signals the SH-1 by pulsing an SCSP interrupt
-  (writes to `$10042C`, then `$10042E` 2 µs later) until the SH-1 answers.
-  - Here it needs more tries: 1,278 pulses in the second from 100 s, against MAME's 386; bursts
-    of 3-16 tries here, often 8 or more; in MAME mostly 3-6, at most 10.
-  - So the SH-1 here more often has the interrupt masked when a pulse arrives.
-  - MAME's SH-1 could not be traced to find out why: in MAME 0.264 here, the `trace` command and
-    read taps on the SH-1 crash MAME.
+  (writes to `$10042C`, then `$10042E` 2 µs later) until the SH-1's handler has answered.
+  - The bursts of pulses come at the same times as in MAME (16,788 bursts against 16,317 over
+    the run) but are longer: 280,604 pulses against MAME's 84,954; in MAME most bursts are 3-6
+    pulses, here 3-16.
+  - The first burst matches exactly (12 pulses, the SH-1's reads of the interrupt-status
+    register 2.1 and 5.1 µs after each pulse against MAME's 2.0 and 4.4 µs). Later ones differ
+    in length, so the SH-1 is elsewhere in its program when they come. MAME has the main SH-2
+    and its timers in the same scheduler, which end timeslices at times this board has no
+    knowledge of, and the 68000 and SH-1 interleave differently as a result.
+  - MAME's SH-1 could not be traced: in MAME 0.264 here, the `trace` command and read taps on
+    the SH-1's program ROM crash MAME. Read taps on its I/O registers work.
 - **In the program:** the board's output in the music selection matched `crtest`'s output for the
-  same command (correlation 0.9994 at 48 kHz, same RMS).
+  same command (correlation 0.9996 at 48 kHz from 1 s after the song starts; 0.987 over the
+  first 6 s, while the resampler builds up its 16-sample margin).
+  - At 30 fps the song's envelope matched the 60 fps run (correlation 0.944 over 8 s at 10 ms).
   - On Hang-On's course, frame 600 was pixel-identical with this track and with Hang-On's own
     music.
   - The Windows build under Wine gave the same output as the Linux build.

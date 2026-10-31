@@ -49,6 +49,7 @@ int main(int argc, char** argv)
     b.scsp_log = fopen((pre + ".scsp").c_str(), "w");
     if (getenv("CRT_TRACE68")) { b.m68k_trace = fopen((pre + ".tr68").c_str(), "w"); b.trace_from = atof(getenv("CRT_TRACE68")); b.trace_to = b.trace_from + 0.04; }
     if (getenv("CRT_DMALOG")) b.dma_log = fopen(getenv("CRT_DMALOG"), "w");
+    if (getenv("CRT_R8LOG")) b.r8_log = fopen(getenv("CRT_R8LOG"), "w");
 
     FILE* sl = fopen(argv[2], "r");
     char fr[32]; long long sec, att; unsigned addr, data, mask; int n = 0;
@@ -63,9 +64,10 @@ int main(int argc, char** argv)
     put32(w, 16); put16(w, 1); put16(w, 2); put32(w, b.sample_rate()); put32(w, b.sample_rate() * 4); put16(w, 4); put16(w, 16);
     fwrite("data\0\0\0\0", 1, 8, w);
     uint32_t frames = 0;
-    for (int step = 1; step <= (int)(total * 57); step++)
+    int hz = getenv("CRT_STEP_HZ") ? atoi(getenv("CRT_STEP_HZ")) : 57;     // run_until steps per second
+    for (int step = 1; step <= (int)(total * hz); step++)
     {
-        b.run_until(CrTime(step / 57, (int64_t)(step % 57) * (CrTime::ATTO / 57)));
+        b.run_until(CrTime(step / hz, (int64_t)(step % hz) * (CrTime::ATTO / hz)));
         for (size_t i = 0; i < b.out_l.size(); i++)
         {
             float l = std::max(-1.0f, std::min(1.0f, b.out_l[i])), r = std::max(-1.0f, std::min(1.0f, b.out_r[i]));
@@ -73,7 +75,7 @@ int main(int argc, char** argv)
             frames++;
         }
         b.out_l.clear(); b.out_r.clear();
-        if (step % 570 == 0) fprintf(stderr, "t %.1f s: sh %llu 68k %llu cycles, sh pc %08x\n", step / 57.0,
+        if (step % (hz * 10) == 0) fprintf(stderr, "t %.1f s: sh %llu 68k %llu cycles, sh pc %08x\n", (double) step / hz,
                                      (unsigned long long) b.sh_cycles, (unsigned long long) b.m68k_cycles, b.sh1().pc());
     }
     fseek(w, 4, SEEK_SET); put32(w, 36 + frames * 4);
