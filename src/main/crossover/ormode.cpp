@@ -20,6 +20,7 @@
 #include "engine/oinputs.hpp"
 #include "engine/audio/osoundint.hpp"
 #include "crossover/xaudio.hpp"
+#include "crossover/orferrari.hpp"
 
 ORMode ormode;
 
@@ -31,12 +32,31 @@ static const uint32_t A_CAR_SEL  = 0x209060;    // the car select's cursor (set 
 static const uint32_t A_TRANS    = 0x209061;    // transmission: 0 automatic, 1 manual
 static const uint32_t A_ROUTE    = 0x2080A0;    // route node / stage bytes $2080A0-$2080A6
 static const uint32_t A_ENTRY_P1 = 0x20FB1A, A_ENTRY_P2 = 0x20FC1A;  // entry countdowns (16-bit, 1/30 s)
+static const uint32_t A_GOAL     = 0x209181;    // $FF: the car has reached the goal ($CB51)
 
 // Sound: MAME's routing of the left speaker (YM3438 output 1 x 0.40, MultiPCM output 1 x 1.0) and
 // the program's level for a race on OutRunners' board: x 0.17 brings a race (music and the car's
 // sounds, RMS 4,500 at x 0.26 on Kenya, 16-bit) to OutRun's own races in the program (about 3,000).
 // A design decision, as for the music player (crossover/ormusic.cpp).
 static const float YM_ROUTE = 0.40f, PCM_ROUTE = 1.0f, GAIN_OR = 0.17f;
+
+// Kenya alone: the checkpoint bookkeeping of normal play on reaching Kenya by the West and the lower
+// branches (tools/ortrace, e15 at frame 16420 against the start), written when the car reaches the
+// goal ($209181 set, the frame before the goal run starts and counts the goal as the sixth marker).
+// Without it the goal is counted as the first marker, its finish time is never written and the goal
+// run waits for it for ever ($74AE); written at the start instead, it shows EXTEND TIME. The
+// checkpoint times stay 0. $208330 the player's markers passed, $208338-$20833C the cars past each
+// marker, $208342 the markers processed, $208344-$208348 the route's nodes, $208349 the decisions,
+// $20834A-$20834E the choices (1 = left), $20835A-$20835E markers per car, $208480 the player's
+// markers; in the player's record $20FB60 markers passed, $20FB61/$20FB63 processed, $20FB65 the last
+// marker's index, $20FB67 its choice (docs/CROSSOVER-OUTRUNNERS.md section 6)
+static const std::pair<uint32_t, uint8_t> KENYA_BOOKKEEPING[] = {
+    { 0x208330, 5 }, { 0x208338, 1 }, { 0x208339, 1 }, { 0x20833A, 1 }, { 0x20833B, 1 }, { 0x20833C, 1 },
+    { 0x208342, 5 }, { 0x208344, 2 }, { 0x208345, 6 }, { 0x208346, 12 }, { 0x208347, 20 }, { 0x208348, 30 },
+    { 0x208349, 5 }, { 0x20834A, 1 }, { 0x20834B, 1 }, { 0x20834C, 1 }, { 0x20834D, 1 }, { 0x20834E, 1 },
+    { 0x20835A, 1 }, { 0x20835B, 1 }, { 0x20835C, 1 }, { 0x20835D, 1 }, { 0x20835E, 1 }, { 0x208480, 5 },
+    { 0x20FB60, 5 }, { 0x20FB61, 5 }, { 0x20FB63, 5 }, { 0x20FB65, 4 }, { 0x20FB67, 1 },
+};
 
 // A run-up that has not reached the race by this frame has gone wrong
 static const int RUNUP_LIMIT = 6000;
@@ -157,14 +177,21 @@ void ORMode::run_up(int course, int car, bool manual)
     b.draw_mask = 1;                                    // the left screen (player 1)
 }
 
-void ORMode::start(int course, int car, bool manual)
+void ORMode::start(int course, Vehicle v, bool manual)
 {
     if (!ok || !load_board()) return;
     std::vector<uint8_t> e;
     load_eeprom(e);
     board->power_on(e.empty() ? nullptr : e.data());
-    manual_box = manual;
-    run_up(course, car, manual);
+    vehicle = v;
+    course_ = course;
+    kenya_goal = false;
+    // OutRun's Ferrari: the run-up chooses MAD POWER with its automatic box (its collision box and
+    // off-road width are the Ferrari's at the conversion's scale, docs/CROSSOVER-OUTRUNNERS.md 7)
+    manual_box = v == MAD_POWER && manual;
+    run_up(course, CAR_MAD_POWER, manual_box);
+    orferrari.enabled = v == FERRARI;
+    orferrari.begin(board.get());
     ym.clear(); pcm.clear();
     feeding = true;
     acc = 0;
@@ -180,6 +207,7 @@ void ORMode::stop()
     if (!active) return;
     active = false;
     feeding = false;
+    orferrari.end();
     save_eeprom();
     ym.clear(); pcm.clear();
     osoundint.queue_sound(sound::FM_RESET);
@@ -200,6 +228,13 @@ void ORMode::set_inputs()
     int k = std::max(0, std::min((int) oinputs.brake_adjust, 0x100));
     b.set_accelerator(0, (uint8_t) std::min(255, a));
     b.set_brake(0, (uint8_t) std::min(255, k));
+    // The Ferrari drives itself (crossover/orferrari): in a race OutRunners' car sees the wheel centred
+    // and no accelerator; the brake is passed on, so that its camera dips as the car brakes ($7B74)
+    if (orferrari.driving())
+    {
+        b.set_steering(0, 0x80);
+        b.set_accelerator(0, 0);
+    }
     // a manual box: GEAR1 shifts down, GEAR2 up (the program's separate-buttons gear setting)
     b.set_shift_up(0, manual_box && input.is_pressed(Input::GEAR2));
     b.set_shift_down(0, manual_box && input.is_pressed(Input::GEAR1));
@@ -220,6 +255,8 @@ void ORMode::take_sound()
 void ORMode::mix(int32_t* out, int samples, int out_rate)
 {
     if (!active || !feeding || out_rate <= 0) return;
+    static const bool mute = getenv("CB_OR_MUTE_BOARD") != nullptr;    // testing: the other sounds alone
+    if (mute) return;
     if (ym.available())  ym.pull((double) board->sound().ym_rate() / out_rate, out, samples);
     if (pcm.available()) pcm.pull((double) board->sound().pcm_rate() / out_rate, out, samples);
 }
@@ -266,6 +303,14 @@ void ORMode::tick()
         board->run_frame();
         take_sound();
         if (board->read8(A_STATE) != 6) finished = true;
+        // testing: the cars' sounds alone (the music stopped, $1F, at this board frame)
+        static const int stop_music = getenv("CB_OR_STOP_MUSIC") ? atoi(getenv("CB_OR_STOP_MUSIC")) : 0;
+        if (stop_music && board->frame() == (uint64_t) stop_music) board->write8(0x700700, 0x1F);
+        if (course_ == KENYA && !kenya_goal && board->read8(A_GOAL) == 0xFF)
+        {
+            for (const auto& w : KENYA_BOOKKEEPING) board->write8(w.first, w.second);
+            kenya_goal = true;
+        }
     }
     show_frame();
 }

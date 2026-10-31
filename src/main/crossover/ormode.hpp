@@ -19,7 +19,8 @@
 
     Courses: the full course (the game's own map: West/East and each branch chosen by the car's
     side of the road at the checkpoint) or the Kenya stage (course 41, route node 30, stage 5).
-    Vehicles: OutRunners' own cars (MAD POWER for now).
+    Vehicles: OutRunners' own car MAD POWER, or OutRun's Ferrari (crossover/orferrari: MAD POWER,
+    automatic, is chosen in the run-up and the Ferrari takes its place at the start line).
 
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
@@ -39,11 +40,13 @@ class ORMode
 public:
     enum Course { FULL_COURSE = 0, KENYA = 1 };
     static const int CAR_MAD_POWER = 0;     // OutRunners' car index (name table at $1F38)
+    enum Vehicle { MAD_POWER = 0, FERRARI = 1 };
 
     bool init();                            // after or_roms is loaded: needs the full orunnersj set
     bool available() const { return ok; }
 
-    void start(int course, int car, bool manual);
+    // MAD_POWER: OutRunners' own car (a manual box if manual); FERRARI: OutRun's Ferrari
+    void start(int course, Vehicle vehicle, bool manual);
     void tick();
     void stop();
     bool active = false;
@@ -60,6 +63,9 @@ private:
 
     int  acc = 0;
     bool manual_box = false;
+    Vehicle vehicle = MAD_POWER;
+    int  course_ = FULL_COURSE;
+    bool kenya_goal = false;                // Kenya: the checkpoint bookkeeping written at the goal
     FrameResampler ym, pcm;
     bool feeding = false;
 

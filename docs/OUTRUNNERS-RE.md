@@ -626,7 +626,7 @@ What the experiments support:
   their addresses and where they are read.
 - The meaning of parameters `+4` and `+18`, the response table's columns beyond those named, the
   objects marked "not identified", course script commands other than −2 and −4.
-- Traffic: in a single-player race no other car was met; kind 1 collisions were not provoked.
+- Traffic: in a single-player race no other car was met (kind 2); kind 1 is Kenya's elephants (section 11).
 - The draw priority of the car in the sprite list is read from the code, not checked.
 - How the attract demo chooses its course (substate 9, `$32D4`, table `$3740`).
 - Linked cabinets (more cars through the comm board): not looked at.
@@ -645,3 +645,61 @@ Found while shortening the program's run-up (tools/ortrace, frames from power-on
   frame 1250 started the race at 1451 instead of about 2010.
 - With these, a race (car chosen, transmission confirmed) starts at frame 1389 (1381 from a used
   EEPROM), against 2581 with the time-outs.
+
+## 11. Found while putting OutRun's Ferrari on the course (crossover/orferrari)
+
+Read from the code and checked on the board with `tools/ortrace` (and in the program) unless marked
+Read. Used by `docs/CROSSOVER-OUTRUNNERS.md` section 7.
+
+**Heading and world units** (Read, `$104F6`): the rotation used for world positions takes the heading h
+and pitch p (12-bit) to a forward vector (sin h, cos h) with x to the right, so the heading grows in a
+right turn. Segments are 128 world units long (`+8` z grows `$80` a segment on the level); world units
+are those of the lateral position. A course's road half-width (`+$12`) varies: 264, 271, 282, 289, 314,
+324, 352, 412 and 440 on the full course, with transitions.
+
+**The car's handling, state by state** (`$715C`): state 1 (start line, `$72F4`) forces the brake `$FF`
+and the wheel `$80` until the countdown `10[R20]` ends; state 3 (time up, `$73A0`, flag `$209180` set at
+`$CA0F`) forces the accelerator to 0 and the brake to `$979C[2 x car + transmission]` and runs the
+handling until the speed is 0; state 4 (goal run, `$746C`, entered when `$209181` is set at `$CB51`)
+is a script: `$7602` brings the speed to a target `F4[R20]` by 1/16 a tick and steers to a lateral
+target `F2[R20]`, until the segment `F0[R20]`; then the target is 0 and, once stopped, it waits for the
+finish time (`$74AE`: `$208410` + 2 x car, written by `$DFD1` when the goal is the sixth marker). All of
+states 1-4 call the handling at `$A39C` (state 4's later substates directly at `$75AA`/`$75BB`).
+
+**Checkpoint bookkeeping** (`$DDD9`-`$E013`): a marker passed increments the record's `$20FB60`; the
+main loop compares it with the per-car count `$208330` and processes the marker: index `65[R11]` =
+count - 1, cars past it `$208338 + n`, time extension unless it is the sixth (the goal), times at
+`3C0[R25]` / `420[R25]` tables (the goal's at `$208410`), decisions `$208349` / `$20834A + n` and nodes
+`$208344 + n` for markers 1-5. A race started on Kenya directly sees the goal as marker 1: see
+`docs/CROSSOVER-OUTRUNNERS.md` section 6 (Kenya's goal).
+
+**Collision kinds 1 and 3** (kind 1 met on Kenya; kind 3 Read): kind 1 objects are Kenya's elephants (objects at `$201A00`, `$201C00`..);
+`$8029` uses their lateral `20[obj]` + half-width x `3F[obj]`, lateral velocity `2E[obj]` and speed
+`2C[obj]` << 8 in the car's speed units (about 220 km/h for the elephants met). Kind 3 (`$7FA4`):
+OutRunners clears the flag, sets `$209147` = 15 and drives on; `$B79B` then applies the off-road drag
+(parameter `+8`) for those 15 ticks (`$B7F0`).
+
+**The camera** (Read; the lag and the hill index seen in the program, `$2004D9` 0-5 on Kenya's hills) (`$A89E`, `$7B74`): it looks along the road (its heading is the road's at its position);
+its lateral position is the car's plus `$209106`, which follows -2 x the car's lateral velocity
+`$20042E` (limited to +-`$40`), so it lags the car's sideways moves; its pitch adds `$209102`, from the
+speed's change (a dip when braking, `$2004B0` the brake value, above `$120` a tick; a squat when
+accelerating, unless wheelspin `$209065`), and its height `$209104` follows the car's jumps. The car's
+hill frame (`$7B3F`) is (camera pitch - `$B0` - the road's pitch at the car) x 16 / `$300`, 0-5, in
+`$2004D9`: 1 on a level road.
+
+**The car's sprites** (`$99B8`): the object's address varies (`$201800`, `$202000`); it is the one whose
+`80[obj]` is the player's entry in the car array. Its parts are written from 10[`$2080C0`] (the body
+first, `$9B29`; then the wheels, smoke and effects), each entry twice (+`$3000`), and the group is linked
+into its depth bucket at `$9E48`. `30/32[obj]` are the car's projected point, `34[obj]` its scale (8.8:
+`$100` on the start line, smaller while the camera flies in and as it pulls back at speed). At GAME OVER
+(`94[R25]` bit 4, `$99F3`) the object becomes `$14900` (`$A230`), which splits the car into objects
+(`$14960`: the body `$149A1`, wheels `$149E3`/`$149EE`, ...) that a script animates and the generic
+object draw `$ED50` draws (group linked at `$ED6F`).
+
+**The car's sounds:** the engine and tyres are parameters in shared RAM, not commands: `$1219C` (start)
+writes `$700713` (car), `$700714` (`$10` automatic, `$30` manual), `$700710` = 1, `$700712` = `$A0`;
+`$121E8` (every tick) `$700710` = engine speed `$209070` >> 8, `$700712` = `$20`; `$1222F` (wheelspin,
+sliding, a shift) `$700718` = 1 or 3. With `$700712` = 0 the engine is silent. Commands go through a
+queue (`$12124`: filtered by `$1229A`, the queue at `$208800`; the frame interrupt's `$3F8DA` writes one
+a frame to `$700700`, a second queue `$208840` to `$700708`); the car's own are the bounce's (`$8166`,
+`$81C5`, `$8250`: `$34`, `$27`, `$31`), and `$7744` queues `$37`/`$3A` relative to the car ahead (Read).

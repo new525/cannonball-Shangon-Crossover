@@ -792,6 +792,22 @@ uint8_t ORBoard::read8(uint32_t a) const
     return 0xff;
 }
 
+void ORBoard::set_pc_hooks(const uint32_t* pcs, int n, PcHook fn, void* ctx)
+{
+    hook_map.assign(0x100000, 0);
+    hook_fn = (fn && n > 0) ? fn : nullptr;
+    hook_ctx = ctx;
+    if (hook_fn)
+        for (int i = 0; i < n; i++)
+            if (pcs[i] < 0x100000) hook_map[pcs[i]] = 1;
+    cpu->set_instruction_hook(hook_fn != nullptr);
+}
+
+void ORBoard::debug_instruction_hook(uint32_t pc)
+{
+    if (hook_fn && pc < 0x100000 && hook_map[pc]) hook_fn(hook_ctx, pc);
+}
+
 void ORBoard::write8(uint32_t a, uint8_t v)
 {
     a &= 0xffffff;

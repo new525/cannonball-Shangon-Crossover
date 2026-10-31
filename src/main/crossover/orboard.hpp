@@ -154,6 +154,18 @@ public:
     std::function<void(bool write, uint32_t addr, uint32_t data, uint32_t mask, const OrTime& t)> io_tap;
     uint64_t rand_calls = 0;
     V60Cpu& maincpu() { return *cpu; }
+
+    // ---- instruction hooks (the crossover's vehicles, crossover/orferrari) --------------------
+    // fn(ctx, pc) is called before the V70 executes the instruction at one of these addresses; it
+    // may change the registers (the PC too: execution continues there) and memory. With no hooks
+    // set (the default) the V70's instruction hook is off and the board runs exactly as checked
+    // against MAME. A class derived from the board that overrides debug_instruction_hook (the
+    // tools) replaces this.
+    typedef void (*PcHook)(void* ctx, uint32_t pc);
+    void set_pc_hooks(const uint32_t* pcs, int n, PcHook fn, void* ctx);
+    uint32_t main_reg(int n) const { return cpu->reg(n); }            // V60Cpu::reg numbering (PC 32)
+    void set_main_reg(int n, uint32_t v) { cpu->set_reg(n, v); }
+    void debug_instruction_hook(uint32_t pc) override;
     OrTime time() const;                    // device_scheduler::time()
 
     // ---- V60Bus ---------------------------------------------------------------------------------
@@ -182,6 +194,10 @@ private:
     uint8_t analog_bank = 0;
     uint32_t rand_seed = 0x9d14abd7;       // running_machine::m_rand_seed
     uint32_t machine_rand();
+
+    std::vector<uint8_t> hook_map;          // one byte per program address below $100000: 1 = hooked
+    PcHook hook_fn = nullptr;
+    void*  hook_ctx = nullptr;
 
     // ---- segas32.cpp ----
     enum { MAIN_IRQ_VBSTART = 0, MAIN_IRQ_VBSTOP = 1, MAIN_IRQ_SOUND = 2, MAIN_IRQ_TIMER0 = 3, MAIN_IRQ_TIMER1 = 4 };

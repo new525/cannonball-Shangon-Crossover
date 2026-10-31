@@ -18,6 +18,7 @@ class OTraffic
 {
     friend class SHFerrari;      // crossover: the Ferrari on Super Hang-On's courses
     friend class HOVehicle;       // crossover: the Ferrari on Hang-On's course
+    friend class ORFerrari;       // crossover: the Ferrari on OutRunners' courses
 public:
     // AI: Set to denote enemy traffic is close to car.
     uint8_t ai_traffic;

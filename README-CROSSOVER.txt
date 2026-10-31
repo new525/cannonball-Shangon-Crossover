@@ -28,6 +28,20 @@ Changes since 0.7.0 (not yet released)
 - Starting one of OutRunners' races skips its attract mode and car select
   (the board plays them unseen, as fast as the game allows: about two
   seconds from START RACE to the start line).
+- OutRun's Ferrari on OutRunners' courses (VEHICLE: OUTRUN FERRARI with
+  OUTRUNNERS FULL COURSE or OUTRUNNERS KENYA). OutRunners' program runs the
+  world: road, camera, scenery and wildlife, checkpoints (your side of the
+  road picks WEST/EAST and the branches), timer, goal, game over.
+  Cannonball's own OutRun code drives the car: speed and gears, steering,
+  curve push, off-road, skids and spins, the crash with its flips and thrown
+  passengers, smoke and shadow, and the engine and tyre sounds from OutRun's
+  sound program (MAD POWER's engine is silenced). The car is drawn with
+  OutRun's sprites and colours at MAD POWER's place in OutRunners' sprite
+  list. Top speed 293 km/h, which OutRunners' speedometer shows; the
+  acceleration is OutRun's own to the 1/30 s.
+- OUTRUNNERS KENYA: reaching the goal now ends the race with the goal run,
+  results and name entry, as at the end of the full course (the race used to
+  go on at the goal run's speed for ever).
 
 
 Changes in 0.7.0
@@ -249,8 +263,8 @@ Main menu > PLAY GAME opens the race setup:
               set under GAME MODES > TIME TRIAL. Or one of Super Hang-On's
               courses: AFRICA, ASIA, AMERICA, EUROPE (either vehicle), or
               Hang-On's course: HANG ON (any of the three vehicles), or
-              OUTRUNNERS FULL COURSE / OUTRUNNERS KENYA (MAD POWER only,
-              for now).
+              OUTRUNNERS FULL COURSE / OUTRUNNERS KENYA (MAD POWER or the
+              Ferrari; not the bikes yet).
     MUSIC     any of the tracks below (Music), previewed as you choose, or
               "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
 Up/down moves, left/right (or select) changes a setting. Your choices are
@@ -316,12 +330,33 @@ Design choices (not original behaviour of either game):
   Ferrari's crash, smoke and incline frames stand on OutRun's own flat-road
   heights (Hang-On's road is flat). The addresses and hooks are listed in
   docs\CROSSOVER-HANGON.md in the source.
+- The Ferrari on OutRunners' courses: MAD POWER (automatic) is chosen in the
+  run-up and the Ferrari takes its place. Speed: OutRun's km/h x 136
+  (OutRunners' unit; its speedometer shows OutRun's km/h). Lateral position:
+  OutRun's x 11/6, the ratio of the two cars' half-widths (24 and 44), so
+  MAD POWER's collision box and off-road width are the Ferrari's; OutRun's
+  wheel rules at OutRunners' road edge. Curve push: OutRun's road builder
+  over a path made from OutRunners' segment headings, one OutRun path
+  position being 272/303 of a segment (the distance both games cover per
+  km/h). Incline frames from OutRunners' own hill frame for its car.
+  Scenery hits start OutRun's crash; Kenya's elephants (and other cars) give
+  OutRun's car contact (skid, speed cut, spin chance of cars); a minor
+  contact OutRun's off-road for the 15 ticks OutRunners uses. The Ferrari is
+  drawn at OutRun's size scaled as OutRunners' camera scales MAD POWER (it
+  flies in at the start and pulls back with speed). After the goal,
+  OutRunners' scripted goal run carries the Ferrari. Details in
+  docs\CROSSOVER-OUTRUNNERS.md (section 7) in the source.
 
 
 Not done yet
 ------------
-- The Ferrari and the bikes on OutRunners' courses, and MAD POWER on the
-  other games' courses.
+- The bikes on OutRunners' courses, and MAD POWER on the other games'
+  courses.
+- With the Ferrari on OutRunners' courses: OutRunners' own pictures of the
+  car stay MAD POWER (the ending's picture, the map's and HUD's car icons);
+  the HUD's gearbox shows AUTO; the flying wreck and passengers are drawn at
+  the car's depth and on OutRun's flat-road heights, not OutRunners' hills.
+- OUTRUNNERS KENYA: the results show 0 for the four checkpoints before Kenya.
 - On OutRunners' courses the MUSIC choice is not used: OutRunners plays its
   own radio.
 - Bike versions of OutRun's start and ending scenes (the ending shows the

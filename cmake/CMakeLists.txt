@@ -259,6 +259,8 @@ set(src_crossover
     "${main_cpp_base}/crossover/multipcm/multipcm.cpp"
     "${main_cpp_base}/crossover/ormode.hpp"
     "${main_cpp_base}/crossover/ormode.cpp"
+    "${main_cpp_base}/crossover/orferrari.hpp"
+    "${main_cpp_base}/crossover/orferrari.cpp"
     "${main_cpp_base}/crossover/orboard.hpp"
     "${main_cpp_base}/crossover/orboard.cpp"
     "${main_cpp_base}/crossover/s32io.hpp"

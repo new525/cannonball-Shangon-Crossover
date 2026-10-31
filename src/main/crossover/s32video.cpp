@@ -1417,6 +1417,10 @@ void S32Video::sprite_erase_buffer()
 
     /* for multi32, erase the other buffer as well */
     std::fill(m_layer_data[MIXER_LAYER_MULTISPR].bitmap.begin(), m_layer_data[MIXER_LAYER_MULTISPR].bitmap.end(), 0xffff);
+
+    // PORT: crossover overlay, erased with its buffer
+    if (m_ovl_on)
+        std::fill(m_ovl_front.begin(), m_ovl_front.end(), 0);
 }
 
 
@@ -1431,6 +1435,9 @@ void S32Video::sprite_swap_buffers()
     std::swap(m_layer_data[MIXER_LAYER_MULTISPR].bitmap, m_layer_data[MIXER_LAYER_MULTISPR_2].bitmap);
     std::swap(m_layer_data[MIXER_LAYER_MULTISPR].transparent, m_layer_data[MIXER_LAYER_MULTISPR_2].transparent);
     std::swap(m_layer_data[MIXER_LAYER_MULTISPR].num, m_layer_data[MIXER_LAYER_MULTISPR_2].num);
+
+    // PORT: crossover overlay, swapped with its buffer
+    std::swap(m_ovl_front, m_ovl_back);
 
     /* latch any pending info */
     memcpy(m_sprite_control_latched, m_sprite_control, sizeof(m_sprite_control_latched));
@@ -1486,7 +1493,7 @@ void S32Video::sprite_swap_buffers()
             if (pix != 0)                                                   \
             {                                                               \
                 if (!shadow)                                                \
-                    dest[x] = color | pix;                                  \
+                    { dest[x] = color | pix; if (odest) odest[x] = 0; }     \
                 else                                                        \
                     dest[x] &= 0x7fff;                                      \
             }                                                               \
@@ -1497,7 +1504,7 @@ void S32Video::sprite_swap_buffers()
             if ((indpix & transmask) != transmask)                          \
             {                                                               \
                 if (!shadow)                                                \
-                    dest[x] = indpix;                                       \
+                    { dest[x] = indpix; if (odest) odest[x] = 0; }          \
                 else                                                        \
                     dest[x] &= 0x7fff;                                      \
             }                                                               \
@@ -1515,7 +1522,7 @@ void S32Video::sprite_swap_buffers()
             if (pix != 0)                                                   \
             {                                                               \
                 if (!shadow)                                                \
-                    dest[x] = color | pix;                                  \
+                    { dest[x] = color | pix; if (odest) odest[x] = 0; }     \
                 else                                                        \
                     dest[x] &= 0x7fff;                                      \
             }                                                               \
@@ -1526,7 +1533,7 @@ void S32Video::sprite_swap_buffers()
             if ((indpix & transmask) != transmask)                          \
             {                                                               \
                 if (!shadow)                                                \
-                    dest[x] = indpix;                                       \
+                    { dest[x] = indpix; if (odest) odest[x] = 0; }          \
                 else                                                        \
                     dest[x] &= 0x7fff;                                      \
             }                                                               \
@@ -1670,6 +1677,8 @@ int S32Video::draw_one_sprite(uint16_t const* data, int xoffs, int yoffs, const 
         {
             int do_clipout = (y >= clipout.min_y && y <= clipout.max_y);
             uint16_t* const dest = bitmap.pix(y);
+            // PORT: crossover overlay: a sprite pixel drawn over an overlay pixel replaces it
+            uint16_t* const odest = (m_ovl_on && &bitmap == &m_layer_data[MIXER_LAYER_SPRITES_2]) ? &m_ovl_back[(size_t) y * SCREEN_W_MAX] : nullptr;
             int xacc = 0;
 
             /* 4bpp case */
@@ -1734,6 +1743,62 @@ bail:
 #undef sprite_draw_pixel_256
 
 
+// PORT: crossover overlay (see s32video.hpp): the image drawn at a tagged entry of the list into
+// monitor A's back sprite buffer, as a sprite there: clipped by the list's clip rectangles, each
+// pixel with the entry's palette word (so its priority group) and pen 1, the image pixel kept
+// alongside for the mixer. Shadow pixels are System 32 shadows (the pixel below loses bit 15)
+// when the game has sprite shadows on (sprite control $0A bit 0 and mixer register $4C bit 2);
+// otherwise they are drawn as shadow pixels of the entry's group.
+void S32Video::draw_overlay(uint16_t const* data, int xoffs, int yoffs, const rectangle& clipin, const rectangle& clipout)
+{
+    if (data[3] & 0x0800 || !overlay_source) return;          // monitor B: no overlay buffer
+    OverlayImage img;
+    if (!overlay_source(data[2] & 0x000f, img) || !img.px) return;
+    layer_info& bitmap = m_layer_data[MIXER_LAYER_SPRITES_2];
+    // the reference point on the screen, the zoom (16.16, screen to image), the screen rectangle covered
+    const int ax = sext16(data[5], 12) + ((data[0] & 0x0010) ? xoffs : 0);
+    const int ay = sext16(data[4], 12) + ((data[0] & 0x0020) ? yoffs : 0);
+    const int scale = (data[2] >> 4) ? (data[2] >> 4) : 1024;
+    const int64_t step = ((int64_t) 1024 << 16) / scale;
+    const int x0 = ax - (int)(((int64_t) img.ref_x * scale + 1023) / 1024), x1 = ax + (int)(((int64_t)(img.w - img.ref_x) * scale + 1023) / 1024);
+    const int y0 = ay - (int)(((int64_t) img.ref_y * scale + 1023) / 1024), y1 = ay + (int)(((int64_t)(img.h - img.ref_y) * scale + 1023) / 1024);
+    const uint16_t color = (uint16_t)(0x8000 | (data[7] & 0x7ff0));
+    const bool sys_shadow = (m_sprite_control_latched[0x0a / 2] & 1) && (m_mixer_control[0][0x4c / 2] & 0x04);
+    for (int y = std::max(y0, clipin.min_y); y <= std::min(y1, clipin.max_y); y++)
+    {
+        const int iy = img.ref_y + (int)(((int64_t)(y - ay) * step) >> 16);
+        if (iy < 0 || iy >= img.h) continue;
+        const bool do_clipout = (y >= clipout.min_y && y <= clipout.max_y);
+        uint16_t* const dest = bitmap.pix(y);
+        uint16_t* const odest = &m_ovl_back[(size_t) y * SCREEN_W_MAX];
+        const uint16_t* src = &img.px[(size_t) iy * img.w];
+        for (int x = std::max(x0, clipin.min_x); x <= std::min(x1, clipin.max_x); x++)
+        {
+            const int ix = img.ref_x + (int)(((int64_t)(x - ax) * step) >> 16);
+            if (ix < 0 || ix >= img.w) continue;
+            const uint16_t v = src[ix];
+            if (!v) continue;
+            if (do_clipout && x >= clipout.min_x && x <= clipout.max_x) continue;
+            if (v == OVL_SHADOW && sys_shadow)
+                dest[x] &= 0x7fff;
+            else
+            {
+                dest[x] = (uint16_t)(color | 1);
+                odest[x] = v;
+            }
+        }
+    }
+}
+
+void S32Video::set_overlay(std::function<bool(uint16_t, OverlayImage&)> src)
+{
+    overlay_source = std::move(src);
+    m_ovl_on = (bool) overlay_source;
+    const size_t n = (size_t) SCREEN_W_MAX * SCREEN_H;
+    m_ovl_front.assign(m_ovl_on ? n : 0, 0);
+    m_ovl_back.assign(m_ovl_on ? n : 0, 0);
+}
+
 void S32Video::sprite_render_list()
 {
     rectangle outerclip, clipin, clipout;
@@ -1760,6 +1825,9 @@ void S32Video::sprite_render_list()
         {
             /* command 0 = draw sprite */
             case 0:
+                // PORT: crossover overlay at a tagged entry (which MAME's draw_one_sprite skips: no source data)
+                if (m_ovl_on && sprite[6] == OVL_TAG && sprite[1] == 0)
+                    draw_overlay(sprite, xoffs, yoffs, clipin, clipout);
                 spritenum += 1 + draw_one_sprite(sprite, xoffs, yoffs, clipin, clipout);
                 break;
 
@@ -2027,6 +2095,8 @@ void S32Video::mix_all_layers(int which, int xoffs, uint32_t* bitmap, int rowpix
     {
         uint32_t* const dest = &bitmap[(size_t) y * rowpixels + xoffs];
         uint16_t* layerbase[8];
+        // PORT: crossover overlay pixels of this row of monitor A's sprite layer
+        const uint16_t* const ovlrow = (m_ovl_on && which == 0) ? &m_ovl_front[(size_t) spry * SCREEN_W_MAX] : nullptr;
 
         /* get the starting address for each layer */
         layerbase[MIXER_LAYER_TEXT] = get_layer_scanline(MIXER_LAYER_TEXT, y);
@@ -2044,6 +2114,7 @@ void S32Video::mix_all_layers(int which, int xoffs, uint32_t* bitmap, int rowpix
             mixer_layer_info const* first;
             int laynum, firstpix;
             int shadow = 0;
+            int ovlpix = 0;     // PORT: crossover overlay colour of the sprite pixel found
 
             /* first grab the current sprite pixel and determine the group */
             int sprpix = layerbase[MIXER_LAYER_SPRITES][sprx];
@@ -2069,15 +2140,24 @@ void S32Video::mix_all_layers(int which, int xoffs, uint32_t* bitmap, int rowpix
                     shadow = ~firstpix & sprshadowmask;
                     if ((firstpix & 0x7fff) != 0x7fff)
                     {
+                        // PORT: crossover overlay: a colour as the sprite's, or a shadow as a shadow pixel's
+                        int o = ovlrow ? ovlrow[sprx] : 0;
+                        if (o == OVL_SHADOW) { shadow = 1; continue; }
                         firstpix &= sprpixmask;
                         if ((firstpix & 0x7ffe) != sprshadow)
+                        {
+                            ovlpix = o;
                             break;
+                        }
                         shadow = 1;
                     }
                 }
             }
 
             /* adjust the first pixel */
+            if (ovlpix && laynum == MIXER_LAYER_SPRITES)
+                firstpix = ovlpix & 0x7fff;     // PORT: crossover overlay colour
+            else
             firstpix = m_paletteram[which][(first->palbase + ((firstpix >> first->mixshift) & 0xfff0) + (firstpix & 0x0f)) & 0x3fff];
 
             /* compute R, G, B */
@@ -2112,9 +2192,15 @@ void S32Video::mix_all_layers(int which, int xoffs, uint32_t* bitmap, int rowpix
                         shadow = ~secondpix & sprshadowmask;
                         if ((secondpix & 0x7fff) != 0x7fff)
                         {
+                            // PORT: crossover overlay (as for the first pixel)
+                            int o = ovlrow ? ovlrow[sprx] : 0;
+                            if (o == OVL_SHADOW) { shadow = 1; continue; }
                             secondpix &= sprpixmask;
                             if ((secondpix & 0x7ffe) != sprshadow)
+                            {
+                                ovlpix = o;
                                 break;
+                            }
                             shadow = 1;
                         }
                     }
@@ -2125,6 +2211,9 @@ void S32Video::mix_all_layers(int which, int xoffs, uint32_t* bitmap, int rowpix
                     (laynum != MIXER_LAYER_SPRITES || (first->sprblendmask & (1 << sprgroup))))
                 {
                     /* adjust the second pixel */
+                    if (ovlpix && laynum == MIXER_LAYER_SPRITES)
+                        secondpix = ovlpix & 0x7fff;    // PORT: crossover overlay colour
+                    else
                     secondpix = m_paletteram[which][(second->palbase + ((secondpix >> second->mixshift) & 0xfff0) + (secondpix & 0x0f)) & 0x3fff];
 
                     /* compute first RGB */

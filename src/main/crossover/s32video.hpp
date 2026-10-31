@@ -78,6 +78,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -187,6 +188,24 @@ public:
     uint16_t m_system32_tilebank_external = 0;
     void state_loaded();                       // rebuild spriteram_32bit, mark all tilemaps dirty
 
+    // ---- crossover: another game's sprites in monitor A's sprite layer (PORT: not in MAME) -----
+    // An entry of the sprite list with word 6 = OVL_TAG and word 1 = 0 (no source data, so MAME
+    // draws nothing for it) marks the place in the list where an image from overlay_source (asked
+    // for with the entry's word 2) is drawn into monitor A's sprite layer: in list order, clipped
+    // as a sprite there would be, with the entry's palette word (word 7: its priority group). The
+    // entry's X/Y (words 5/4, with word 0's X/Y offset flags, as for a sprite) is where the image's
+    // reference point goes. Word 2: bits 0-3 the image asked for, bits 4-15 its scale x 1024 (the
+    // image is zoomed about its reference point, nearest pixel). Image pixels: 0 transparent;
+    // OVL_SHADOW a shadow; otherwise $8000 | the colour as palette RAM holds it (xBBBBBGGGGGRRRRR),
+    // which then goes through the mixer as the sprite pixel's palette colour would (layer
+    // priority, colour offsets, blending, shadows).
+    // A later sprite drawn over an image pixel replaces it, as it would replace a sprite pixel.
+    // While overlay_source is empty nothing of this runs and the video is MAME's.
+    struct OverlayImage { const uint16_t* px = nullptr; int w = 0, h = 0, ref_x = 0, ref_y = 0; };
+    std::function<bool(uint16_t id, OverlayImage& img)> overlay_source;
+    static const uint16_t OVL_TAG = 0x0C5E, OVL_SHADOW = 0x0001;
+    void set_overlay(std::function<bool(uint16_t, OverlayImage&)> src);   // sets or (empty) clears it
+
 private:
     struct extents_list
     {
@@ -238,6 +257,12 @@ private:
     int m_curtexture[2] = { 0, 0 };
 
     bool m_ok = false;
+
+    // crossover overlay (see above): per pixel of monitor A's two sprite buffers, 0 or the image
+    // pixel drawn there; front = MIXER_LAYER_SPRITES (shown), back = MIXER_LAYER_SPRITES_2 (drawn)
+    std::vector<uint16_t> m_ovl_front, m_ovl_back;
+    bool m_ovl_on = false;
+    void draw_overlay(uint16_t const* data, int xoffs, int yoffs, const rectangle& clipin, const rectangle& clipout);
 
     void pixmap_update(tilemap& tm);
     const uint16_t* tilemap_pixmap(tilemap* tm) { pixmap_update(*tm); return tm->pixmap.data(); }
