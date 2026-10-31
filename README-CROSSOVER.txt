@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.6.1 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.7.0 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -15,8 +15,8 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
-Changes in the next version
----------------------------
+Changes in 0.7.0
+----------------
 - OutRunners' covers of Magical Sound Shower, Passing Breeze, Splash Wave
   and Last Wave join the music selection, played by OutRunners' own sound
   program on an emulated copy of its sound board (Z80, YM3438, MultiPCM).
@@ -323,7 +323,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.6.1-src.zip     this program (git tag v0.6.1,
+  superscaler-crossover-0.7.0-src.zip     this program (git tag v0.7.0,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in
