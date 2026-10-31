@@ -737,3 +737,190 @@ wheelspin (`$AB28`, R0 = `AE2F[car]`), the off-road code (`$B95D`, R0 = `B968[ca
 2 and 4), and OutRunners' board played a gravel sound (RMS 2,811 with the music stopped); with
 `$12235` skipped, 0.
 
+
+## 13. The car's handling reconstructed (crossover/orcar)
+
+MAD POWER's handling (and the other seven cars', from their parameter tables) transcribed from the
+V70 code as C++, and proven identical to the original on the emulated board tick by tick
+(`tools/orcartest`). Everything here is Confirmed by that comparison unless marked Read.
+
+### 13.1 Files
+
+- `src/main/crossover/orcar/orcar.hpp`, `orcar.cpp`: `orcar::ORCar` (the model), `orcar::State` (its
+  variables), `orcar::TickInput` (what a tick reads besides the road), `orcar::Road` / `orcar::Segment`
+  (the road). Each step is commented with the address of the instruction it transcribes. Not in the
+  program's build yet (nothing uses it until the model is put on other games' roads).
+- `tools/orcartest/orcartest.cpp`, `build.sh`, `run_all.sh`: the proof (13.5).
+
+### 13.2 What is transcribed
+
+Per tick of the player's car object (`$715C`, 30 Hz), in the original's order:
+
+| Routine | What |
+|---|---|
+| `$715C`-`$7182` | the shaker byte (`$20E0D0` + player := 0), the inputs (`$A304`, the game's path), the state dispatch |
+| `$719C`-`$72F1` (state 0) | the grid position (`$9438`/`$9318` by player count and rank), `$A278` (parameter, gear table and torque curve pointers), `$A2B6` (the torque table `$209300`, 256 entries per gear interpolated from the curve's points), `$B764` (the node's surface zones), `$7A10` (world position and heading through `$A7A3`), `$7F5D` (crash parameters `$209126`-`$209130`), the start countdown `10[R20]` |
+| `$72F4` (state 1) | the start line: brake `$FF`, wheel `$80` until the countdown ends; then state 2 in the same tick |
+| `$7325`-`$734F` (state 2) | time up / goal checks, the grace count `6F[R20]` after a crash and flag bit 3, the contact flag at `$7348` |
+| `$7358`-`$7398` | the handling `$A39C`, `140[R23]` := 0 in state 5, and with flag bit 2 set the animation step `$F579` |
+| `$73A0`-`$7464` (state 3) | time up: accelerator 0, brake `$979C[2 x car + transmission]`, 180 ticks, `$209182` (GAME OVER), 60 ticks, `$208094` bit 4 |
+| `$746C`-`$75B2`, `$7602` (state 4) | the goal run: `F8[R20]`, the record's markers +1, the finish-time wait (`$208410`), the per-rank script `$97AC` (segments, lateral, speed targets), `$7602` (speed by 1/16, steering towards the lateral target), the stop, `$208094` bit 4 |
+| `$7F87`-`$8197` | the contact responses: kind 3 (`$209147` := 15), kind 0 (scenery, by the car's speed `$2004C0`), kind 1 (an object with its own position, `20/2E/2C/3F/6A[obj]`), kind 2 (a car of the array, `44/4E/4C/49[rec]`, weights `$82A4`), the response table row (`$209130` + `$8292[rank]`), state 5, the crash frame by side and hill index |
+| `$819D`-`$828F` (state 5) | the crash: inputs 0/0/`$80`, the push and speed change decayed by `$209128`/`$20912C`, the jump (gravity `$20912A`, bounce `$209126`), shaker `$10`; it ends when the animation's rate `41[R20]` is 0 (`$8263`: state 2, grace 15, accelerator 0) |
+| `$7A4B` | clears the contact's push, speed change, jump, flag bit 2, `$209067`, `$209065` |
+| `$7B3F` | the hill index 0-5 of the crash frame: (camera pitch − `$B0` − the road's pitch) × 16 / `$300` |
+| `$F579` | the animation step (commands: 0 stop, −1 loop, −2 another frame) |
+| `$A39C`-`$A89D` | the handling: wheel kinds, drag (speed² >> 16, off-road and minor contact × parameter `+8` >> 4, + `$1800`), slope (sin(pitch) / 2), brake map `$AF37` × `+1C`, accelerator map `$AE37` × torque >> 6, `$AAC9`, the steering angle (table `+0` at steering >> 3, × 20 / 16, scaled by the speed), the push out of the curve ((heading − previous heading) × `$20` / `$100`, / 16 in a crash, << 8 / (`$20906A` + `$100`)), the grip limit `+20` and slide `+24`, the lateral velocity, the advance (speed × cos(atan2(lateral velocity << 8, speed)) >> 14, `$12318`), the catch-up `$A620`, the segment crossing (length `$8000` + sin(heading change) × lateral >> 6, with the shift's carry), the lateral limits (half-width + `$60`), `$A7CC` world position (`$104F6`) and heading interpolation |
+| `$AAC9`-`$AD27` | force = (slope − drag + engine + brake) >> 6; wheelspin (from a force ≥ `+C` until it is below `+10`; the force is then `+14`) and locked wheels (moving, from a force ≤ −`$380` until it is above −`$480`); the speed approaches speed + `$2004C4` + force by 1/2, or the gear's top speed (ratio × `$FFFF` >> 8) by 1/30 from above; the engine speed by 1/3 (1/10 spinning), the accelerator × 256 at a standstill |
+| `$B764`, `$B79B`-`$B967` | the surface zones per course node (`$B9F8`; `$208700` segments per node, `$20873E`), the wheel kinds `$209140`-`$209142`, off-road `$20907C`, the shaker `$B970[car]` |
+| `$C3C4`-`$C43A` | the gear box (object `$200C00`, run later in the frame): shifts on new presses (`$208118` bits 4, 5), `$209144` := 30 ticks on an up-shift at engine speed ≥ `$F000` or a down-shift that would pass `$FFFF` (the handling then sets the wheel kinds `$B`, `$B`, 3) |
+
+Found while transcribing (Read from the code; their effects are in the compared state):
+- **Catch-up** (`$A620`): unless the goal run has begun, `$209068` := min(the gap in segments to the car
+  that `$76AF` puts at `68[$208000]`, `$20`) − 1 (not below 0); `$20906A` follows it by 1 a tick, and
+  the advance grows by advance × `$20906A` >> 7 (up to 31/128). `68[$208000]` is the car one place
+  ahead in the race order, the player's own car when leading or alone (Read): 0 in a race alone.
+  `$20906A` also divides the curve push. Exercised in the two-player race.
+- `$A5A3`-`$A5C8` (lateral velocity towards its target by 1/12, section 2.4) is dead code: no
+  instruction refers to it in a linear disassembly of the program. The 1/4 approach (`$A57C`) applies
+  after the goal (`$20FB5E`, published) and in the demo.
+- `test1 #8, 90[R25]` tests bit 8 of the dword at `$208090` (`$208091` bit 0): the attract demo (set at
+  `$1790`, cleared by the race init `$31B9`).
+- Parameters (6.1): the handling reads `+0`, `+8`, `+C`, `+10`, `+14`, `+1A`, `+1C`, `+20`, `+24`; `+8`,
+  `+C`, `+10`, `+14`, `+24` are read as 32-bit; `+4` and `+18` are not read by it.
+- The segment record's `+4`/`+8`/`+C` are in world units (3.1 says × 256): the car's world x is
+  (x << 8 + its rotated lateral offset) >> 8, i.e. x + the offset; z grows `$80` a level segment; the
+  car's world y is interpolated between the segment's and the next one's y.
+- The crash's length (2.7 "until `$200441` runs out") is the crash frame's animation (`$F579` until its
+  rate byte is 0). Read from the tables (the animation stepped through for every response row, side
+  and hill index): 16, 24 or 39-44 ticks by the row, the same for every hill index but one (car 2's
+  frame 1276 + 5: 41 instead of 40).
+- `$8140 movt.wh R0, CE[R20]` is followed by `brk` taken on an overflow (a trap on the V70; MAME 0.264
+  skips BRK): the model keeps MAME's behaviour (the low 16 bits). Never met in the tests.
+
+Not transcribed (not the car's motion, or refused): the camera (`$A89E`, `$7B74`, `$79A0`), the car
+record's publishing (`$77BD`), the road generator and projection (`$FF8E`, `$102CE`), race order
+(`$76AF`), the contact tests (`$124A4`, `$127DB` and the roadside objects': their result is an input),
+the sprite frames (`$7A7A`; the animation only while bit 2 of the flags is set), the sounds (`$1222F`,
+`$12235`, `$12124`, `$209134`-`$209136`), the GAME OVER and HUD objects. `ORCar::unsupported()`
+returns the address when a tick meets a path that is not transcribed: the demo driver (`$A325`, bit 8
+of `$208090`), the linked-cabinet mode (`$20E623` set: the car is then driven from its record), a car
+state outside 0-5, a contact kind above 3, an animation command outside 0 to −2.
+
+### 13.3 The interface
+
+`ORCar(rom)`: `rom` is the main CPU's 2 MB region (`ORBoard::Roms::maincpu`). The ROM tables are read
+at their addresses: sine `$100C00` / cosine `$101400` (one table, 16384 = 1.0), arc tangent `$103400`
+and its octant tables `$12444`/`$12454`, the parameter records `$B038`, gear tables `$B2B8`, torque
+curves `$B32C`, accelerator `$AE37` and brake `$AF37` maps, steering tables (parameter `+0`), shaker
+`$B970`, surface tests' jump tables `$B978`/`$B9B8`, grid `$9438`/`$9318`, crash parameters `$82B6`,
+weights `$82A4`, rank offsets `$8292`, animation `$34138` / `$F5B8`, time-up brake `$979C`, goal
+scripts `$97AC`.
+
+`State s`: every variable the transcribed code writes, named and commented with its address (player
+1's; player 2's are `+$10000`): the car object `$200400` (flags, state `C`-`F` written as one dword,
+timer `10`, world position `20`-`28`, speed copy `2C`, lateral velocity `2E`, animation `38`/`40`-`42`,
+grace `6F`, headings `8E`/`90`, force `94`, steering angle `96`, brake `B0`, previous y `B4`, slide
+`B8`, `C0`-`CE` (speed, collision speed change, jump, vertical speed, push), inputs `D0`-`D2`, hill
+`D9`, goal run `F0`-`F8`), the car's variables `$209000` (`32`-`44`, `A4`, `4C`/`4E`, pointers `50`-`58`,
+car and transmission `60`/`61`, gear `62`-`64`, `65`-`6A`, rpm `70`, speed `74`, `7C`, `7E`,
+`126`-`130`, `140`-`14C`, `182`, the torque table `$209300`), the shaker `$20E0D0` + player, the
+gear-box object's state `$200C0C` and gear `$200C40`, `$208094`, and the record's `+54` (the road's
+pitch), `+60`, `+5E`, `+16`.
+
+`tick(in, road)`: one car tick; `gearbox_tick(in)`: the gear box's tick (later in the same frame).
+
+`TickInput` (the values the code reads besides the road and its own state, with where they come from):
+- controls `$208100`-`$208102` (steering `$FF` full left, `$7F` centre, `$00` full right; accelerator,
+  brake 0-`$FF`; the brake byte is also read raw by `$AB0F`), shift presses `$208118` (gear box);
+- the race: player `$208000`, car number `$208001`, rank `$208320` + car number, `1F[$208308]` − 1
+  (grid table, state 0), time up `$209180`, goal `$209181`, finish time `$208410` + 2 × car number;
+- the car array as copied at the frame's start (`$E88C`): own entry `+42` (`$209044` published), `+5E`,
+  `+54` (pitch published), `+42` of the entry at `68[$208000]`; the record's markers `+60` and
+  `$208094` at the tick's start (also written by others: the road generator counts checkpoints in the
+  car's tick, the game's ending clears bit 4); the gear-box object's state when it runs;
+- the camera's pitch `$20902C` (the previous tick's camera; the crash frame's hill index only);
+- a contact: flag bit 2 at the tick's start and at `$7348`, kind `$20046E`, argument `$200468`, and for
+  kind 1 the object's `20`, `3F`, `2E`, `2C`, `6A`, for kind 2 the car entry's `44`, `4E`, `4C`, `49`;
+- `demo`, `link`: must be 0.
+
+`Road` (an adapter can give another game's road here):
+- `segment(off)`: the ring record at offset `off` (`$209040`, `$20` per segment, wrapping at `$1000`):
+  the car's segment and the next one, and one more each time the car crosses a segment in the tick. Fields read: `+0` heading (12-bit, 4096 a turn, grows in
+  a right turn), `+2` pitch (12-bit; the slope force is sin(pitch) / 2, 16384 = 1.0), `+4`/`+8`/`+C`
+  world x, z, y (world units: those of the lateral position; a level segment is `$80` long in z),
+  `+12` half-width (lateral units). A segment's length along the course is `$8000` (position units:
+  the speed is the advance per tick in them, km/h × 136) at the centre line, ± sin(the heading change
+  to the next segment) × lateral >> 6;
+- `node()` `$2080A3`, `node_length(n)` `$208700` + 2n, `node_extra()` `$20873E`, `zone_list(n, side)` (the
+  ROM's `$B9F8` + 8n + 4 side) and `zone16`/`zone8` (8-byte entries: `+0` segment from the node's start,
+  negative ends the list; `+2`/`+4` lateral bounds + `$8000`; `+6`/`+7` wheel kinds). The zones only set
+  the wheel kinds (smoke, sounds); a road with no zones gives lists that end at once.
+
+The model reads no other world value: the camera's outputs, the projected road and the scenery are not
+read by the handling (the camera pitch only for the crash frame).
+
+### 13.4 Units kept
+
+As the original: speed `$209074` in position units per tick (km/h × 136), position in the segment
+`$209034` (`$8000` a segment on the centre line), lateral `$209038` in world units (road half-width 440
+on width code 5), lateral velocity `$20042E` per tick, angles 12-bit, rpm `$209070` 0-`$FFFF`, world
+position `$200420`-`$200428`. Conversion to another game's units is left to the next step (the
+boundary).
+
+### 13.5 The proof (`tools/orcartest`)
+
+`build.sh <dir>` builds it; `orcartest <romdir> <scenario> [options]`; `run_all.sh <binary> <romdir>
+<dir>` runs the set below (2 runs at a time, about 3 minutes on a 2-core machine). The board runs from
+power-on (fresh EEPROM) with the run-up of crossover/ormode (car, transmission, Kenya's route bytes,
+the entry countdowns shortened); a driver gives only inputs (steering by the car's lateral position
+towards a scripted target: waves, off the road on both sides, braking, lifting; the manual box shifted
+by the engine speed). The countdown `$20FB6A` is held at 40 s (not in `time_up`).
+
+Instruction hooks (`ORBoard::set_pc_hooks`) take each input where the code reads it: `$715C` (controls,
+race values, flag bit 2), `$71F0` / `$A39C` (the ring, 4 KB, and the node table; `68[$208000]` after
+`$76AF`), `$7348` (the contact), `$11F3E`/`$11F41` with `R20` the car or the gear box (entry and
+return). At each return the model's tick runs and every variable of `State` is compared with the
+board's RAM (the animation only in state 5, `D9` when a crash starts, `$208094` bit 4, the record's `+60`
+in the goal run, the gear-box object's own fields at its ticks):
+- **mode a** (re-synced): the model's state is loaded from the board before each tick;
+- **mode b** (free-running): loaded once, before the car's first tick of the race (state 0, so the
+  set-up is the model's own); then only the inputs and the road come from the board.
+Both run on the same board run. Ticks of the attract demo after a race are not checked (counted).
+Coverage: every instruction of the transcribed routines (1,304, jump tables excluded) is counted when
+the board executes it.
+
+Results (`run_all.sh`, 26 runs; "ticks" are car ticks of the player compared, the gear box's ticks are
+one fewer; every run: 0 ticks with differences, 0 unsupported, in both modes):
+
+| Run | Car, box | Course | Ticks (a = b) | Met |
+|---|---|---|---|---|
+| `full_auto` | MAD POWER, auto | pre-stage to the goal, nodes 1R 4L 9L 16L 24R | 12,098 | 21 scenery crashes, 7 elephant (kind 1), 40 minor contacts, the whole goal run (4.1-4.5) |
+| `full_manual` | MAD POWER, manual | pre-stage to Kenya's goal, nodes 2L 6L 12L 20L 30L | 11,407 | 19 + 6 crashes, 74 minor, goal run; then 145 demo ticks (not checked) |
+| `full_overrev` | MAD POWER, manual (late up-shifts, down-shifts at speed) | 12,000 frames | 6,006 | over-rev smoke 995 ticks, above the gear's top speed |
+| `kenya_auto`, `kenya_manual`, `kenya_overrev` | MAD POWER | Kenya alone | 4,506 each | crashes on elephants (kind 1), the goal (waits at 4.1 for the finish time, as without the earlier stages' bookkeeping) |
+| `time_up` | MAD POWER, auto | pre-stage, countdown running | 2,663 | time up: states 3.1, 3.2, 3.3 (GAME OVER) |
+| `two_players` | P1 MAD POWER, P2 car 2 (both checked) | pre-stage | 3,006 + 3,005 | car-to-car contacts (kind 2): 3 for P1, 2 for P2; the catch-up |
+| `car0_auto` .. `car7_manual` | each car, auto and manual | pre-stage, 3,000 frames | 1,506 each (16 runs) | crashes, off-road, slides, wheelspin with every car's tables |
+| `forced`, `forced_car4` | MAD POWER, car 4 | pre-stage | 4,006 each (mode a; mode b 150) | rare paths forced by RAM writes at the tick's entry (13.6) |
+
+In all: mode a 83,811 car ticks and 83,784 gear-box ticks, mode b 76,099 and 76,072, without a
+difference; 98 scenery crashes, 17 on objects (kind 1), 5 car contacts (kind 2), 226 minor contacts.
+Coverage: 1,241 of the 1,304 instructions executed. Not executed: the linked mode's paths (`$71BB`,
+`$A470`, `$A5E5`-`$A5EA`, `$A6F2`-`$A77A`, `$A7A9`-`$A7CA`: 41, refused), the dead `$A5A3`-`$A5C8` (13),
+`$1232A`-`$1232D` (atan2 of a negative speed: unreachable from `$A5FB`), `$7414`-`$7423` (the GAME OVER
+object for more players: not transcribed), `$8147`/`$8148` (the BRK), `$80F6` (a response row above
+`$1F0` for kinds 1/2) and `$F5CD` (the animation command "another frame").
+
+### 13.6 Not verified
+
+- `$80F6` and `$F5CD` (13.5) are transcribed but were not executed; the movt overflow's BRK neither.
+- The forced runs (`-force`) reach four paths by writing the board's RAM at the tick's entry: the
+  collision speed change `$2004C4` large for one tick (the speed above `$FFFF`: `$ACA0`, and with the
+  wheelspin flag and the brake byte `$208102` the locked wheels' `$ABC6`), negative with the wheelspin
+  flag (`$AB8B`), and `$2004C0` above `$FFFF` for a scenery crash (`$7FC6`). Mode a compares them; mode
+  b does not apply there.
+- The demo driver and the linked mode are refused, not transcribed.
+- The meaning of `68[$208000]` (the car ahead) and of the sounds' parameters are Read.
+- The comparison is with the emulated board, itself checked against MAME 0.264 (`orboard.hpp`), not
+  directly with MAME.
