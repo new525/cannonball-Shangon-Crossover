@@ -76,14 +76,13 @@ void SegaSoundBoard::reset()
     cpu.port_in = io_r;
     cpu.port_out = io_w;
     cpu.userdata = this;
-    now = 0; frame_frac = 0; ym_clock = 0; pcm_clock = 0;
+    now = 0; frame_end = 0; frame_frac = 0; ym_clock = 0; pcm_clock = 0;
     timer_end[0] = timer_end[1] = -1;
     busy_end = 0;
     irq = false;
     pending.clear();
     latch = 0;
-    ym_buf.clear(); pcm_buf.clear();
-    ym_pos = pcm_pos = 0;
+    ym_out.clear(); pcm_out.clear();
     frames_run = 0;
     if (opm) opm->reset();
     if (opn) opn->reset();
@@ -116,16 +115,14 @@ void SegaSoundBoard::ym_catch_up()
         {
             ymfm::ym2151::output_data out;
             opm->generate(&out, 1);
-            ym_buf.push_back((float)(out.data[0] * OPM_GAIN));
-            ym_buf.push_back((float)(out.data[1] * OPM_GAIN));
+            ym_out.push((float)(out.data[0] * OPM_GAIN), (float)(out.data[1] * OPM_GAIN));
         }
         else
         {
             ymfm::ym2203::output_data out;                      // [0] FM, [1..3] SSG A-C
             opn->generate(&out, 1);
             float v = (float)(out.data[0] * OPN_FM_GAIN + (out.data[1] + out.data[2] + out.data[3]) * OPN_SSG_GAIN);
-            ym_buf.push_back(v);
-            ym_buf.push_back(v);
+            ym_out.push(v, v);
         }
         ym_clock += ym_period;
     }
@@ -182,8 +179,7 @@ void SegaSoundBoard::pcm_catch_up()
     {
         int32_t l, r;
         pcm_sample(l, r);
-        pcm_buf.push_back((float)(l * PCM_GAIN));
-        pcm_buf.push_back((float)(r * PCM_GAIN));
+        pcm_out.push((float)(l * PCM_GAIN), (float)(r * PCM_GAIN));
         pcm_clock += pcm_div;
     }
 }
@@ -280,33 +276,16 @@ void SegaSoundBoard::run(int64_t cycles)
     }
 }
 
-void SegaSoundBoard::resample(std::vector<float>& buf, double& pos, double step, int32_t* mix, int samples)
-{
-    size_t n = buf.size() / 2;
-    for (int i = 0; i < samples; i++)
-    {
-        size_t k = (size_t) pos;
-        double f = pos - (double) k;
-        for (int c = 0; c < 2; c++)
-        {
-            double a = k < n ? buf[2 * k + c] : (n ? buf[2 * (n - 1) + c] : 0);
-            double b = k + 1 < n ? buf[2 * (k + 1) + c] : a;
-            mix[2 * i + c] += (int32_t)(a + (b - a) * f);
-        }
-        pos += step;
-    }
-    size_t used = std::min((size_t) pos, n);
-    buf.erase(buf.begin(), buf.begin() + 2 * used);
-    pos -= (double) used;
-}
-
 void SegaSoundBoard::frame(int32_t* mix, int samples)
 {
     if (!ready) return;
+    // The frame ends CLOCK / fps cycles after the last one ended, not after where the Z80's last
+    // instruction left now: an instruction's overshoot would otherwise add up frame by frame
     double cyc = (double) CLOCK / fps + frame_frac;
     int64_t total = (int64_t) cyc;
     frame_frac = cyc - (double) total;
-    int64_t end = now + total;
+    frame_end += total;
+    int64_t end = frame_end;
 
     while (!pending.empty() && now < end)
     {
@@ -326,6 +305,6 @@ void SegaSoundBoard::drain(int32_t* mix, int samples)
     ym_catch_up();
     pcm_catch_up();
     // native -> output rate; ymfm and MAME's PCM both produce 16-bit-scale values
-    resample(ym_buf,  ym_pos,  (double) CLOCK / ym_period / out_rate, mix, samples);
-    resample(pcm_buf, pcm_pos, (double) CLOCK / pcm_div / out_rate, mix, samples);
+    ym_out.pull((double) CLOCK / ym_period / out_rate, mix, samples);
+    pcm_out.pull((double) CLOCK / pcm_div / out_rate, mix, samples);
 }

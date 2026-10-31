@@ -20,10 +20,9 @@
 
 #include <cstdint>
 #include <memory>
-#include <vector>
+#include "crossover/resample.hpp"
 
-class CRSound;
-struct CrTime;
+#include "crossover/crsound.hpp"
 
 class CoolRidersMusic
 {
@@ -31,31 +30,28 @@ public:
     CoolRidersMusic();
     ~CoolRidersMusic();
 
-    bool init(int out_rate, int fps);       // after cr_roms is loaded
+    bool init(int out_rate);                // after cr_roms is loaded
     bool ready = false;
 
     void play(uint8_t song);                // song number (the sound test's; HANG ON = $10)
     void stop();
-    bool playing() const { return state == BOOTING ? pending_song >= 0 : state == RUNNING; }
 
     // One frame (1/fps s): adds the board's output to mix (interleaved stereo, 16-bit scale)
-    void mix(int32_t* mix, int samples);
+    void mix(int32_t* mix, int samples, int fps);
 
 private:
     enum State { OFF, BOOTING, RUNNING, STOPPING, PAUSED };
     State state = OFF;
     std::unique_ptr<CRSound> board;
-    int out_rate = 44100, fps = 60;
-    uint64_t frames = 0;                    // board frames run since power-on (1/fps s each)
+    int out_rate = 44100;
+    CrTime next_time;                       // the board's time at the end of the next frame
+    CrTime stop_until;                      // STOPPING: when the fade is over
     int  pending_song = -1;                 // asked for during the boot
-    int  stop_frames = 0;                   // frames left of the fade after a stop
     uint8_t ring = 8;                       // next command ring entry (8 after the boot writes)
-    std::vector<float> buf;                 // board output at its rate, interleaved stereo
-    double pos = 0;
+    FrameResampler out;                     // board output at its rate
 
-    CrTime board_time(uint64_t f) const;
     void send(const uint32_t* cmds, int n); // ring entries, written at the board's current time
     void send_play(uint8_t song);
     void send_stop();
-    void run_frame(bool output);
+    void run_frame(int fps, bool output);
 };

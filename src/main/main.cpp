@@ -373,16 +373,26 @@ int main(int argc, char* argv[])
         std::cout << "Hang-On ROMs not loaded: " << ho_roms.error << std::endl;
     if (!cr_roms.load(config.crossover.coolriders_rompath))
         std::cout << "Cool Riders ROMs not loaded: " << cr_roms.error << std::endl;
-    if (!xaudio.init(config.sound.rate, config.fps))
+    if (!xaudio.init(config.sound.rate))
         std::cout << "No crossover sound boards started" << std::endl;
     if (sh_roms.loaded() && !shmode.init())
         std::cout << "Super Hang-On board not started" << std::endl;
     if (ho_roms.loaded() && !homode.init())
         std::cout << "Hang-On board not started" << std::endl;
+    // A saved vehicle or track whose ROM set is no longer there: back to the Ferrari / OutRun's
+    // route (the menu's numbering: tracks 16-19 Super Hang-On's courses, 20 Hang-On's)
+    if ((config.crossover.vehicle == 1 && !bike.ready) || (config.crossover.vehicle == 2 && !homode.available()))
+        config.crossover.vehicle = 0;
+    if (config.crossover.track < 0 || config.crossover.track > 20 ||
+        (config.crossover.track >= 16 && config.crossover.track < 20 && !shmode.available()) ||
+        (config.crossover.track == 20 && !homode.available()))
+        config.crossover.track = 0;
+    if (config.crossover.vehicle == 2 && config.crossover.track != 20) config.crossover.vehicle = 0;
+    bike.enabled = config.crossover.vehicle == 1 && bike.ready;
     xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
 
-    // The other games' race music joins the music selection (titles from the games' own data;
-    // see FINDINGS_physics_track_sound.md: Super Hang-On's sound test list, Hang-On's race music $9D)
+    // The other games' race music joins the music selection (titles from the games' own data:
+    // Super Hang-On's sound test list, Hang-On's race music $9D)
     auto add_track = [](int type, int cmd, const char* title) {
         music_t m; m.type = type; m.cmd = cmd; m.title = title; config.sound.music.push_back(m);
     };
@@ -399,6 +409,17 @@ int main(int argc, char* argv[])
     // (program ROM $4614B); the big font has no hyphen
     if (xaudio.coolriders_ready())
         add_track(music_t::IS_COOLRIDERS, 0x10, "HANG ON THEME OF LOVE");
+
+    // The saved music choice is an index into that list, which changes with the ROM sets
+    // present: the saved title decides. A title no longer in the list means the radio screen.
+    if (!config.crossover.music_title.empty())
+    {
+        config.crossover.music = -1;
+        for (size_t i = 0; i < config.sound.music.size(); i++)
+            if (config.sound.music[i].title == config.crossover.music_title) { config.crossover.music = (int) i; break; }
+    }
+    else if (config.crossover.music >= (int) config.sound.music.size())
+        config.crossover.music = -1;
 
     // Initialize SDL Audio
     audio.init();

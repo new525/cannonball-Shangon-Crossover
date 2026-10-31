@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <vector>
+#include "crossover/resample.hpp"
 #include <deque>
 #include <memory>
 
@@ -104,6 +105,7 @@ private:
 
     int out_rate = 44100, fps = 60;
     int64_t now = 0;                // Z80 / chip clock cycles since reset
+    int64_t frame_end = 0;          // where the last frame ended (now may have run past it)
     double  frame_frac = 0;
     double  ym_clock = 0;
     int64_t pcm_clock = 0;
@@ -115,9 +117,8 @@ private:
     uint8_t latch = 0;
     uint8_t ym_addr = 0;
 
-    // native-rate output not yet converted: stereo pairs
-    std::vector<float> ym_buf, pcm_buf;   // final-gain stereo pairs
-    double ym_pos = 0, pcm_pos = 0;     // read position (in native samples) into the buffers
+    // native-rate output not yet converted (final-gain stereo pairs)
+    FrameResampler ym_out, pcm_out;
 
     FILE* ym_log = nullptr;
     FILE* pcm_log = nullptr;
@@ -126,7 +127,6 @@ private:
     void ym_catch_up();
     void pcm_catch_up();
     void pcm_sample(int32_t& l, int32_t& r);
-    void resample(std::vector<float>& buf, double& pos, double step, int32_t* mix, int samples);
 
     static uint8_t mem_r(void* ud, uint16_t a);
     static void    mem_w(void* ud, uint16_t a, uint8_t v);

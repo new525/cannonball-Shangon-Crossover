@@ -14,16 +14,15 @@ CrossoverAudio xaudio;
 // 11 is followed by its first command at frame 13), so: no packets for this many frames.
 static const int BOOT_FRAMES = 10;
 
-bool CrossoverAudio::init(int rate, int fps_)
+bool CrossoverAudio::init(int rate)
 {
-    fps = fps_;
     bool any = false;
     if (sh_roms.loaded())
         any |= ch[SHANGON].board.init(SegaSoundBoard::Kind::OUTRUN, sh_roms["soundcpu"].data, sh_roms["pcm"].data, rate, 60);
     if (ho_roms.loaded())
         any |= ch[HANGON].board.init(SegaSoundBoard::Kind::HANGON, ho_roms["soundcpu"].data, ho_roms["pcm"].data, rate, 60);
     if (cr_roms.loaded())
-        any |= cr.init(rate, fps);
+        any |= cr.init(rate);
     return any;
 }
 
@@ -100,12 +99,12 @@ void CrossoverAudio::raw_end(Board b)
     stop(b);
 }
 
-void CrossoverAudio::mix(int32_t* out, int samples)
+void CrossoverAudio::mix(int32_t* out, int samples, int fps)
 {
     ch[SHANGON].active = ch[SHANGON].raw_mode || sh_vehicle || ch[SHANGON].music;
     ch[HANGON].active  = ch[HANGON].raw_mode || ch[HANGON].music;
     // the boards run in 60 Hz frames; at 30 fps two of them make one audio tick
-    int sub = fps >= 60 ? 1 : 60 / fps;
+    int sub = fps >= 60 || fps <= 0 ? 1 : 60 / fps;
     int per = samples / sub;
     for (int b = 0; b < BOARDS; b++)
     {
@@ -142,7 +141,7 @@ void CrossoverAudio::mix(int32_t* out, int samples)
             c.board.frame(out + 2 * per * s, per);
         }
     }
-    cr.mix(out, samples);
+    cr.mix(out, samples, fps);
 
     // Debug: the boards' own output (env CB_XAUDIO_RAW=<file>: raw stereo int32)
     static FILE* raw = nullptr;

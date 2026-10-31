@@ -7,6 +7,13 @@
 
 cmake_minimum_required (VERSION 3.3.2) # Might compile lower, but untested
 project (cannonball C CXX)
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)   # find_package honours SDL2_ROOT
+endif()
+
+# The crossover code uses C++17 (std::filesystem in crossover/romset.cpp)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # -----------------------------------------------------------------------------
 # Directory Setup
@@ -217,6 +224,7 @@ set(src_crossover
     "${main_cpp_base}/crossover/shophys/sho_crash.c"
     "${main_cpp_base}/crossover/shophys/sho_sound.h"
     "${main_cpp_base}/crossover/shophys/sho_sound.c"
+    "${main_cpp_base}/crossover/resample.hpp"
     "${main_cpp_base}/crossover/soundboard.hpp"
     "${main_cpp_base}/crossover/soundboard.cpp"
     "${main_cpp_base}/crossover/xaudio.hpp"

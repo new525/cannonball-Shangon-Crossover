@@ -26,7 +26,7 @@ class CrossoverAudio
 public:
     enum Board { SHANGON = 0, HANGON = 1, BOARDS = 2 };
 
-    bool init(int rate, int fps);              // after the ROM sets are loaded
+    bool init(int rate);                       // after the ROM sets are loaded
     bool ready(Board b) const { return ch[b].board.ready; }
 
     void command(Board b, uint8_t c) { if (ch[b].cmds.size() < 32) ch[b].cmds.push_back(c); }
@@ -52,8 +52,8 @@ public:
     void sh_raw_frame(const std::vector<uint8_t>& bytes) { raw_frame(SHANGON, bytes); }
     void sh_raw_end() { raw_end(SHANGON); }
 
-    // Called once per audio tick: adds the boards' output to mix (interleaved stereo)
-    void mix(int32_t* mix, int samples);
+    // Called once per audio tick (a frame at fps): adds the boards' output to mix (interleaved stereo)
+    void mix(int32_t* mix, int samples, int fps);
 
 private:
     struct Channel
@@ -70,7 +70,6 @@ private:
     };
     Channel ch[BOARDS];
     CoolRidersMusic cr;
-    int fps = 60;
     void stop(Board b);
 };
 

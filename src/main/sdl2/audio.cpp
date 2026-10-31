@@ -228,7 +228,7 @@ void Audio::tick()
     // Crossover: the other games' sound boards (Super Hang-On's when the bike is the vehicle)
     static std::vector<int32_t> xmix;
     xmix.assign(samples_written, 0);
-    xaudio.mix(xmix.data(), samples_written / 2);
+    xaudio.mix(xmix.data(), samples_written / 2, config.fps);
 
     // And mix them into the mix_buffer
     for (int i = 0; i < samples_written; i++)

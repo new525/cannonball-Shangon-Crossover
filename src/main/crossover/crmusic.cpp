@@ -165,7 +165,7 @@ static const uint32_t STOP_SEQ[4] = { 0xbe1a2800, 0xae720000, 0xae700000, 0xbe50
 // Measured with tools/crtest: a command written at 1.1 s after power-on starts the song at
 // about 1.2 s; 1.25 s leaves a margin. The fade after the stop sequence is down to the board's
 // idle level about 1.5 s after it.
-static const double CMD_TIME = 1.25, FADE_TIME = 1.5;
+static const double CMD_TIME = 1.25, FADE_TIME = 1.5;   // seconds
 static const int    BOOT_SPEED = 3;           // board frames per output frame while booting
 
 // Level: MAME's mix (+-1.0 full scale) to 16-bit, times 2: the cover's average level then
@@ -176,21 +176,16 @@ static const float GAIN = 32767.0f * 2.0f;
 CoolRidersMusic::CoolRidersMusic() {}
 CoolRidersMusic::~CoolRidersMusic() {}
 
-bool CoolRidersMusic::init(int rate, int fps_)
+bool CoolRidersMusic::init(int rate)
 {
     ready = false;
     if (!cr_roms.loaded()) return false;
-    out_rate = rate; fps = fps_ > 0 ? fps_ : 60;
+    out_rate = rate;
     board.reset(new CRSound());
     if (!board->init(cr_roms["maincpu"].data, cr_roms["gfx_data"].data, cr_roms["sub"].data)) { board.reset(); return false; }
     state = OFF;
     ready = true;
     return true;
-}
-
-CrTime CoolRidersMusic::board_time(uint64_t f) const
-{
-    return CrTime((int64_t)(f / (uint64_t) fps), (int64_t)(f % (uint64_t) fps) * (CrTime::ATTO / fps));
 }
 
 void CoolRidersMusic::send(const uint32_t* cmds, int n)
@@ -226,7 +221,7 @@ void CoolRidersMusic::play(uint8_t song)
         case OFF:
             board->power_on(nullptr);
             for (const auto& w : BOOT_WRITES) board->main_write(CrTime(0, w.atto), w.off, w.data, w.mask);
-            frames = 0; ring = 8; buf.clear(); pos = 0;
+            next_time = CrTime(); ring = 8; out.clear();
             pending_song = song;
             state = BOOTING;
             break;
@@ -252,35 +247,35 @@ void CoolRidersMusic::stop()
             if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "crmusic: stop\n");
             send_stop();
             state = STOPPING;
-            stop_frames = (int)(FADE_TIME * fps + 0.5);
+            stop_until = board->now() + CrTime(0, (int64_t)(FADE_TIME * 1e18));
             break;
         default:
             break;
     }
 }
 
-void CoolRidersMusic::run_frame(bool output)
+// One frame of the board: 1/fps s on from where it stopped (the frame rate can change between
+// frames: the menu's FRAME RATE setting)
+void CoolRidersMusic::run_frame(int fps, bool output)
 {
-    frames++;
-    board->run_until(board_time(frames));
+    next_time = next_time + CrTime(0, CrTime::ATTO / fps);
+    board->run_until(next_time);
     if (output)
         for (size_t i = 0; i < board->out_l.size(); i++)
-        {
-            buf.push_back(board->out_l[i] * GAIN);
-            buf.push_back(board->out_r[i] * GAIN);
-        }
+            out.push(board->out_l[i] * GAIN, board->out_r[i] * GAIN);
     board->out_l.clear(); board->out_r.clear();
 }
 
-void CoolRidersMusic::mix(int32_t* out, int samples)
+void CoolRidersMusic::mix(int32_t* mix, int samples, int fps)
 {
     if (!ready) return;
+    if (fps <= 0) fps = 60;
     if (state == BOOTING)
     {
         // muted (the board is silent until a song starts), at BOOT_SPEED x
         for (int k = 0; k < BOOT_SPEED && state == BOOTING; k++)
         {
-            run_frame(false);
+            run_frame(fps, false);
             if (board->now().sec() >= CMD_TIME)
             {
                 if (pending_song >= 0) { send_play((uint8_t) pending_song); state = RUNNING; }
@@ -290,27 +285,12 @@ void CoolRidersMusic::mix(int32_t* out, int samples)
         }
         return;
     }
-    if (state != RUNNING && state != STOPPING) return;
-
-    run_frame(true);
-    if (state == STOPPING && --stop_frames <= 0) { state = PAUSED; buf.clear(); pos = 0; }
-
-    // board rate (44099 Hz) -> output rate, linear interpolation as the other boards (soundboard.cpp)
-    const double step = (double) board->sample_rate() / out_rate;
-    size_t n = buf.size() / 2;
-    for (int i = 0; i < samples; i++)
+    if (state == RUNNING || state == STOPPING)
     {
-        size_t k = (size_t) pos;
-        double f = pos - (double) k;
-        for (int c = 0; c < 2; c++)
-        {
-            double a = k < n ? buf[2 * k + c] : (n ? buf[2 * (n - 1) + c] : 0);
-            double b = k + 1 < n ? buf[2 * (k + 1) + c] : a;
-            out[2 * i + c] += (int32_t)(a + (b - a) * f);
-        }
-        pos += step;
+        run_frame(fps, true);
+        if (state == STOPPING && stop_until <= board->now()) state = PAUSED;   // the fade is over
     }
-    size_t used = std::min((size_t) pos, n);
-    buf.erase(buf.begin(), buf.begin() + 2 * (long) used);
-    pos -= (double) used;
+    // board rate (44099 Hz) -> output rate; what is left after a stop drains at the same rate
+    if (out.available())
+        out.pull((double) board->sample_rate() / out_rate, mix, samples);
 }
