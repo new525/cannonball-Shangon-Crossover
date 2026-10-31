@@ -4,7 +4,8 @@
     Crossover (OutRun / Super Hang-On / Hang-On)
     Set in the menu (PLAY GAME): vehicle 0 = OutRun's Ferrari, 1 = Super Hang-On's bike,
     2 = Hang-On's bike (Hang-On's course only); track 0 = OutRun's full route, 1-15 = one OutRun
-    stage, 16-19 = Super Hang-On's Africa, Asia, America, Europe, 20 = Hang-On's course;
+    stage, 16-19 = Super Hang-On's Africa, Asia, America, Europe, 20 = Hang-On's course,
+    21 = OutRunners' full course, 22 = OutRunners' Kenya stage (vehicle 3 = OutRunners' MAD POWER);
     music -1 = radio screen, else a track.
     The Super Hang-On and Hang-On ROMs also add their games' race music to the music selection,
     the Cool Riders ROMs its cover of Hang-On's theme, and the OutRunners ROMs its covers of

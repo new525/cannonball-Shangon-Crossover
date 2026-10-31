@@ -1,10 +1,28 @@
 -------------------------------------------------------------------------------
-Place the OutRunners ROMs in this folder: files of MAME set orunners,
-orunnersu or orunnersj, "OutRunners" (MAME 0.264). Only the sound side
-is used (the game's covers of OutRun's music), so only these 3 files are
-needed; they are the same in all three sets.
+Place the OutRunners ROMs in this folder: files of MAME set orunnersj,
+"OutRunners (Japan)" (MAME 0.264).
+- Its music (the covers of OutRun's music) needs only the first 3 files
+  below; they are the same in orunners and orunnersu, so those sets work
+  for the music too.
+- Its courses and car (OUTRUNNERS FULL COURSE, OUTRUNNERS KENYA, MAD
+  POWER) need every file, of orunnersj: the program's hooks were read from
+  the Japanese version's code.
 Files are found by CRC32 first, then by name.
 -------------------------------------------------------------------------------
 epr-15550.ic31     CRC32 0205d2ed  (soundcpu, the sound Z80's program)
 mpr-15551.ic1      CRC32 4894bc73  (sega, MultiPCM samples)
 mpr-15552.ic2      CRC32 1c4b5e73  (sega, MultiPCM samples)
+epr-15616.ic37     CRC32 fb550545  (maincpu)
+epr-15617.ic40     CRC32 6bb741e0  (maincpu)
+mpr-15538.ic36     CRC32 93958820  (maincpu)
+mpr-15539.ic39     CRC32 219760fa  (maincpu)
+mpr-15548.ic3      CRC32 b6470a66  (gfx1, tiles)
+mpr-15549.ic11     CRC32 81d12520  (gfx1, tiles)
+mpr-15540.ic14     CRC32 a10d72b4  (sprites)
+mpr-15541.ic22     CRC32 a2003c2d  (sprites)
+mpr-15542.ic15     CRC32 40952374  (sprites)
+mpr-15543.ic23     CRC32 933e8e7b  (sprites)
+mpr-15544.ic10     CRC32 39e3df45  (sprites)
+mpr-15545.ic18     CRC32 53dd0235  (sprites)
+mpr-15546.ic38     CRC32 e3fcc12c  (sprites)
+mpr-15547.ic41     CRC32 edcb2a43  (sprites)

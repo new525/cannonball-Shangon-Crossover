@@ -72,12 +72,17 @@ public:
     bool load(const std::string& dir);
 };
 
-// OutRunners (MAME orunners, orunnersu or orunnersj), for its sound board only. Regions:
-// "soundcpu" (512 KB, the Z80 program), "sega" (4 MB, the MultiPCM samples).
+// OutRunners (MAME orunners, orunnersu or orunnersj). Regions for its sound board: "soundcpu"
+// (512 KB, the Z80 program), "sega" (4 MB, the MultiPCM samples); these are the same in all three
+// sets. The whole board (crossover/orboard, for OutRunners' courses) needs every file of
+// orunnersj, whose program the crossover's hooks were read from: load() then also finds those
+// files by CRC (then by name) and registers them for the board's loaders (crossover/rompath.hpp).
 class OutRunnersRoms : public RomSet
 {
 public:
     bool load(const std::string& dir);
+    bool full = false;                      // every orunnersj file found
+    std::string full_error;                 // why not
 };
 
 extern SuperHangOnRoms sh_roms;

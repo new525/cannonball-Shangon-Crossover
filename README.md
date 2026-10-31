@@ -61,6 +61,8 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 | Hang-On's course on an emulated Hang-On board, with the Ferrari, either game's bike | Done |
 | Cool Riders' cover of Hang-On's theme, on an emulated Cool Riders sound board | Done |
 | OutRunners' covers of OutRun's music, on an emulated System Multi 32 sound board | Done |
+| OutRunners' full course and Kenya stage with its MAD POWER, on an emulated System Multi 32 board | Done |
+| OutRun's Ferrari and the bikes on OutRunners' courses; MAD POWER on the other courses | Planned |
 | Bike versions of OutRun's start and ending scenes | Planned |
 
 ---
@@ -167,8 +169,14 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   YM3438 and the MultiPCM (`crossover/multipcm`, from MAME). Fed the same main-CPU writes as MAME
   0.264, all 6,989 MultiPCM notes of Magical Sound Shower start at the same microsecond as
   MAME's; with only the sound-test commands, as the program sends them, within 1.6 ms.
-  The details are in [`docs/CROSSOVER-OUTRUNNERS.md`](docs/CROSSOVER-OUTRUNNERS.md), together
-  with what adding OutRunners' courses and cars would take.
+  The details are in [`docs/CROSSOVER-OUTRUNNERS.md`](docs/CROSSOVER-OUTRUNNERS.md).
+- **OutRunners' courses** (`crossover/orboard.*`, `crossover/ormode.*`): the whole System Multi
+  32 board emulated (the V70 from MAME's V60/V70 core, System 32 video, I/O chips, ADC, EEPROM,
+  the sound board), running OutRunners itself: *OUTRUNNERS FULL COURSE* (its map, your way chosen
+  at each checkpoint) and *OUTRUNNERS KENYA* (the Kenya stage alone), with its car *MAD POWER*.
+  Against MAME 0.264 over two scripted sessions of 8,000 and 7,000 frames, work RAM is identical
+  at every frame and every I/O access to the attosecond. The game's code that the program relies
+  on is documented in [`docs/OUTRUNNERS-RE.md`](docs/OUTRUNNERS-RE.md).
 - **68000 timing**: Musashi now takes the same number of cycles as MAME 0.264's 68000 on every
   instruction tested (104,854 cases) and takes interrupts at the same points. This brought the
   emulated Hang-On board much closer to MAME (see *Hang-On's course* above).
@@ -198,7 +206,7 @@ No game ROMs are included. You need your own copies, as zip-extracted files from
 | Super Hang-On | `shangon1` (mini ride-on, FD1089B 317-0034), including `317-0034.key` | `roms\shangon1\` |
 | Hang-On | `hangon` (Rev A) | `roms\hangon\` |
 | Cool Riders (music only) | `coolridr`: 13 of its files, without the ten 4 MB `mpr-176xx` sprite ROMs | `roms\coolridr\` |
-| OutRunners (music only) | `orunners`, `orunnersu` or `orunnersj`: the 3 sound ROMs `epr-15550.ic31`, `mpr-15551.ic1`, `mpr-15552.ic2` | `roms\orunners\` |
+| OutRunners | music: the 3 sound ROMs `epr-15550.ic31`, `mpr-15551.ic1`, `mpr-15552.ic2` of `orunners`, `orunnersu` or `orunnersj`; courses and MAD POWER: every file of `orunnersj` | `roms\orunners\` |
 
 Each folder has a `roms.txt` listing the exact files and their CRC32s. Files are recognised by
 CRC32 first and by name second, so they don't need to be renamed.

@@ -40,6 +40,7 @@
 #include "crossover/xaudio.hpp"
 #include "crossover/shmode.hpp"
 #include "crossover/homode.hpp"
+#include "crossover/ormode.hpp"
 
 // ------------------------------------------------------------------------------------------------
 // Initialize Shared Variables
@@ -217,6 +218,17 @@ static void tick()
             osoundint.tick();
             break;
 
+        case STATE_OUTRUNNERS:
+            ormode.tick();
+            if (input.has_pressed(Input::MENU) || ormode.finished || !ormode.active)
+            {
+                ormode.stop();
+                state = STATE_INIT_MENU;
+            }
+            if (tick_frame) input.frame_done();
+            osoundint.tick();
+            break;
+
         case STATE_MENU:
             menu->tick();
             input.frame_done();
@@ -381,15 +393,23 @@ int main(int argc, char* argv[])
         std::cout << "Super Hang-On board not started" << std::endl;
     if (ho_roms.loaded() && !homode.init())
         std::cout << "Hang-On board not started" << std::endl;
+    if (or_roms.loaded() && !ormode.init())
+        std::cout << "OutRunners' courses need every file of MAME's orunnersj set: " << or_roms.full_error << std::endl;
     // A saved vehicle or track whose ROM set is no longer there: back to the Ferrari / OutRun's
-    // route (the menu's numbering: tracks 16-19 Super Hang-On's courses, 20 Hang-On's)
-    if ((config.crossover.vehicle == 1 && !bike.ready) || (config.crossover.vehicle == 2 && !homode.available()))
+    // route (the menu's numbering: tracks 16-19 Super Hang-On's courses, 20 Hang-On's, 21-22
+    // OutRunners'; vehicles 0 Ferrari, 1 Super Hang-On's bike, 2 Hang-On's, 3 MAD POWER)
+    if ((config.crossover.vehicle == 1 && !bike.ready) || (config.crossover.vehicle == 2 && !homode.available()) ||
+        (config.crossover.vehicle == 3 && !ormode.available()) || config.crossover.vehicle < 0 || config.crossover.vehicle > 3)
         config.crossover.vehicle = 0;
-    if (config.crossover.track < 0 || config.crossover.track > 20 ||
+    if (config.crossover.track < 0 || config.crossover.track > 22 ||
         (config.crossover.track >= 16 && config.crossover.track < 20 && !shmode.available()) ||
-        (config.crossover.track == 20 && !homode.available()))
+        (config.crossover.track == 20 && !homode.available()) ||
+        (config.crossover.track >= 21 && !ormode.available()))
         config.crossover.track = 0;
     if (config.crossover.vehicle == 2 && config.crossover.track != 20) config.crossover.vehicle = 0;
+    // OutRunners' courses take its own car only, and MAD POWER only them (for now)
+    if (config.crossover.vehicle == 3 && config.crossover.track < 21) config.crossover.vehicle = 0;
+    if (config.crossover.track >= 21) config.crossover.vehicle = 3;
     bike.enabled = config.crossover.vehicle == 1 && bike.ready;
     xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
 

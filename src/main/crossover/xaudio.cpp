@@ -2,6 +2,7 @@
     Crossover audio. See xaudio.hpp.
 ***************************************************************************/
 #include "crossover/xaudio.hpp"
+#include "crossover/ormode.hpp"
 #include "crossover/romset.hpp"
 #include <cstdio>
 #include <cstdlib>
@@ -16,6 +17,7 @@ static const int BOOT_FRAMES = 10;
 
 bool CrossoverAudio::init(int rate)
 {
+    out_rate = rate;
     bool any = false;
     if (sh_roms.loaded())
         any |= ch[SHANGON].board.init(SegaSoundBoard::Kind::OUTRUN, sh_roms["soundcpu"].data, sh_roms["pcm"].data, rate, 60);
@@ -156,6 +158,7 @@ void CrossoverAudio::mix(int32_t* out, int samples, int fps)
     }
     cr.mix(out, samples, fps);
     orun.mix(out, samples, fps);
+    ormode.mix(out, samples, out_rate);       // OutRunners' board while one of its courses is raced
 
     // Debug: the boards' own output (env CB_XAUDIO_RAW=<file>: raw stereo int32)
     static FILE* raw = nullptr;

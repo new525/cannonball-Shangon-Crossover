@@ -29,6 +29,7 @@
 #include "crossover/xaudio.hpp"
 #include "crossover/shmode.hpp"
 #include "crossover/homode.hpp"
+#include "crossover/ormode.hpp"
 #include "crossover/hovehicle.hpp"
 #include "crossover/shferrari.hpp"
 
@@ -989,7 +990,8 @@ void Menu::refresh_menu()
         else if (menu_selected == &menu_xover)
         {
             if (SELECTED(ENTRY_X_VEHICLE))          set_menu_text(ENTRY_X_VEHICLE, config.crossover.vehicle == 1 ? "SUPER HANG ON BIKE" :
-                                                                       config.crossover.vehicle == 2 ? "HANG ON BIKE" : "OUTRUN FERRARI");
+                                                                       config.crossover.vehicle == 2 ? "HANG ON BIKE" :
+                                                                       config.crossover.vehicle == 3 ? "OUTRUNNERS MAD POWER" : "OUTRUN FERRARI");
             else if (SELECTED(ENTRY_X_BIKESIZE))    set_menu_text(ENTRY_X_BIKESIZE, config.crossover.bike_scale >= 100 ? "FULL SIZE" : Utils::to_string(config.crossover.bike_scale) + " PERCENT");
             else if (SELECTED(ENTRY_X_TRACK))       set_menu_text(ENTRY_X_TRACK, xover_track_label(config.crossover.track));
             else if (SELECTED(ENTRY_X_MUSIC))
@@ -1202,14 +1204,18 @@ void Menu::start_game(int mode, int settings)
 // Then Super Hang-On's four courses (on its emulated board, crossover/shmode), in the order of its
 // class screen.
 // Then Hang-On's course (on its emulated board, crossover/homode).
+// Then OutRunners' full course and its Kenya stage (on its emulated board, crossover/ormode).
 static const int XOVER_OR_TRACKS = 16;
 static const int XOVER_HO_TRACK = XOVER_OR_TRACKS + 4;
+static const int XOVER_ORR_FULL = XOVER_HO_TRACK + 1, XOVER_ORR_KENYA = XOVER_HO_TRACK + 2;
 static const char* SH_COURSES[4] = { "AFRICA", "ASIA", "AMERICA", "EUROPE" };
-static int xover_tracks() { return XOVER_HO_TRACK + 1; }
+static int xover_tracks() { return XOVER_ORR_KENYA + 1; }
+static bool is_orr_track(int t) { return t == XOVER_ORR_FULL || t == XOVER_ORR_KENYA; }
 static bool xover_track_ok(int t)
 {
     if (t >= XOVER_OR_TRACKS && t < XOVER_HO_TRACK) return shmode.available();
     if (t == XOVER_HO_TRACK) return homode.available();
+    if (is_orr_track(t)) return ormode.available();
     return t >= 0 && t < XOVER_OR_TRACKS;
 }
 
@@ -1219,6 +1225,10 @@ std::string Menu::xover_track_label(int track)
         return std::string("SUPER HANG ON ") + SH_COURSES[track - XOVER_OR_TRACKS];
     if (track == XOVER_HO_TRACK && xover_track_ok(track))
         return "HANG ON";
+    if (track == XOVER_ORR_FULL && xover_track_ok(track))
+        return "OUTRUNNERS FULL COURSE";
+    if (track == XOVER_ORR_KENYA && xover_track_ok(track))
+        return "OUTRUNNERS KENYA";
     if (track <= 0 || track >= XOVER_OR_TRACKS) return "OUTRUN FULL ROUTE";
     int n = track - 1, stage = 1;
     while (n >= stage) { n -= stage; stage++; }
@@ -1232,17 +1242,21 @@ void Menu::xover_cycle(int dir)
     const char* OPTION = menu_selected->at(cursor).c_str();
     if (SELECTED(ENTRY_X_VEHICLE))
     {
-        // OutRun's Ferrari, Super Hang-On's bike (its ROMs), Hang-On's bike (its ROMs; Hang-On's course only)
-        if (!bike.ready && !homode.available())
+        // OutRun's Ferrari, Super Hang-On's bike (its ROMs), Hang-On's bike (its ROMs; Hang-On's course
+        // only), OutRunners' MAD POWER (the full orunnersj set; OutRunners' courses only for now)
+        if (!bike.ready && !homode.available() && !ormode.available())
         {
             config.crossover.vehicle = 0;
-            display_message("NO SUPER HANG-ON OR HANG-ON ROMS");
+            display_message("NO ROMS FOR OTHER VEHICLES");
             return;
         }
         int v = config.crossover.vehicle;
-        do v = ((v + dir) % 3 + 3) % 3; while ((v == 1 && !bike.ready) || (v == 2 && !homode.available()));
+        do v = ((v + dir) % 4 + 4) % 4;
+        while ((v == 1 && !bike.ready) || (v == 2 && !homode.available()) || (v == 3 && !ormode.available()));
         config.crossover.vehicle = v;
         if (v == 2) config.crossover.track = XOVER_HO_TRACK;            // its own course
+        if (v == 3 && !is_orr_track(config.crossover.track)) config.crossover.track = XOVER_ORR_FULL;
+        if (v != 3 && is_orr_track(config.crossover.track)) config.crossover.track = 0;   // the others: not on OutRunners' yet
     }
     else if (SELECTED(ENTRY_X_BIKESIZE))
     {
@@ -1256,6 +1270,8 @@ void Menu::xover_cycle(int dir)
         do t = ((t + dir) % n + n) % n; while (!xover_track_ok(t));
         config.crossover.track = t;
         if (t != XOVER_HO_TRACK && config.crossover.vehicle == 2) config.crossover.vehicle = 0;   // Hang-On's bike: its course only
+        if (!is_orr_track(t) && config.crossover.vehicle == 3) config.crossover.vehicle = 0;      // MAD POWER: OutRunners' only for now
+        if (is_orr_track(t)) config.crossover.vehicle = 3;                                        // OutRunners' courses: its own car for now
     }
     else if (SELECTED(ENTRY_X_MUSIC))
     {
@@ -1284,6 +1300,14 @@ void Menu::xover_start()
     if (config.crossover.track >= XOVER_OR_TRACKS && !xover_track_ok(config.crossover.track))
     {
         config.crossover.track = 0;
+        return;
+    }
+    if (is_orr_track(config.crossover.track))
+    {
+        // OutRunners' own car on its courses; a manual box with the separate gear buttons
+        ormode.start(config.crossover.track == XOVER_ORR_KENYA ? ORMode::KENYA : ORMode::FULL_COURSE,
+                     ORMode::CAR_MAD_POWER, config.controls.gear == config.controls.GEAR_SEPARATE);
+        if (ormode.active) cannonball::state = cannonball::STATE_OUTRUNNERS;
         return;
     }
     if (config.crossover.track == XOVER_HO_TRACK)

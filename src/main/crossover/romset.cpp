@@ -2,6 +2,7 @@
     ROM sets for Super Hang-On (shangon1) and Hang-On. See romset.hpp.
 ***************************************************************************/
 #include "crossover/romset.hpp"
+#include "crossover/rompath.hpp"
 #include "crossover/fd1089.hpp"
 
 #include <algorithm>
@@ -274,8 +275,59 @@ bool CoolRidersRoms::load(const std::string& dir)
 
 // MAME 0.264 segas32.cpp, ROM_START( orunners ) (orunnersu, orunnersj have the same sound
 // ROMs): the sound CPU's program and the MultiPCM samples
+// The rest of orunnersj (MAME 0.264 ROM_START( orunnersj )), for the whole board
+static const struct { const char* name; uint32_t length, crc; } OR_BOARD_FILES[] =
+{
+    { "epr-15616.ic37", 0x020000, 0xfb550545 }, { "epr-15617.ic40", 0x020000, 0x6bb741e0 },
+    { "mpr-15538.ic36", 0x080000, 0x93958820 }, { "mpr-15539.ic39", 0x080000, 0x219760fa },
+    { "mpr-15548.ic3",  0x200000, 0xb6470a66 }, { "mpr-15549.ic11", 0x200000, 0x81d12520 },
+    { "mpr-15540.ic14", 0x200000, 0xa10d72b4 }, { "mpr-15542.ic15", 0x200000, 0x40952374 },
+    { "mpr-15544.ic10", 0x200000, 0x39e3df45 }, { "mpr-15546.ic38", 0x200000, 0xe3fcc12c },
+    { "mpr-15541.ic22", 0x200000, 0xa2003c2d }, { "mpr-15543.ic23", 0x200000, 0x933e8e7b },
+    { "mpr-15545.ic18", 0x200000, 0x53dd0235 }, { "mpr-15547.ic41", 0x200000, 0xedcb2a43 },
+    { "epr-15550.ic31", 0x080000, 0x0205d2ed }, { "mpr-15551.ic1",  0x200000, 0x4894bc73 },
+    { "mpr-15552.ic2",  0x200000, 0x1c4b5e73 },
+};
+
+static bool find_board_files(const std::string& dir, std::string& error)
+{
+    std::map<uint32_t, fs::path> by_crc;
+    std::map<std::string, fs::path> by_name;
+    std::error_code ec;
+    for (auto& e : fs::directory_iterator(dir, ec))
+    {
+        if (!e.is_regular_file(ec)) continue;
+        uintmax_t sz = e.file_size(ec);
+        by_name[e.path().filename().string()] = e.path();
+        bool wanted = false;
+        for (auto& f : OR_BOARD_FILES) if (sz == f.length) wanted = true;
+        if (!wanted) continue;
+        std::vector<uint8_t> d;
+        if (read_file(e.path(), d)) by_crc[crc32_of(d)] = e.path();
+    }
+    if (ec) { error = "cannot read folder " + dir; return false; }
+    std::map<std::string, std::string> found;
+    for (auto& f : OR_BOARD_FILES)
+    {
+        auto c = by_crc.find(f.crc);
+        if (c != by_crc.end()) { found[f.name] = c->second.string(); continue; }
+        auto n = by_name.find(f.name);
+        if (n == by_name.end())
+        {
+            std::ostringstream s;
+            s << "missing " << f.name << " (crc " << std::hex << f.crc << ")";
+            error = s.str();
+            return false;
+        }
+        found[f.name] = n->second.string();
+    }
+    for (auto& kv : found) rom_paths()[kv.first] = kv.second;
+    return true;
+}
+
 bool OutRunnersRoms::load(const std::string& dir)
 {
+    full = find_board_files(dir, full_error);
     static const BigRomEntry list[] =
     {
         { "epr-15550.ic31", "soundcpu", 0x080000, 0x000000, 0x080000, 0x0205d2ed, 1 },

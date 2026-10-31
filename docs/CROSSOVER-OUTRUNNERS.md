@@ -12,10 +12,15 @@ side:
 | OUTRUNNERS LAST WAVE | `$12` |
 
 These are the numbers its in-race radio uses for those songs (MAME 0.264, the radio cycled through
-in a race). Only OutRunners' sound is used; its courses and cars are not in the program (section 5).
+in a race).
 
-Sets: MAME `orunners`, `orunnersu`, `orunnersj`. Reference: MAME 0.264. Only the three sound ROMs are
-needed (`roms/orunners/roms.txt`); they are the same in all three sets.
+OutRunners' courses are in the program too, on an emulated copy of the whole board (section 6):
+**OUTRUNNERS FULL COURSE** (the game's own map, your choice at each checkpoint) and **OUTRUNNERS
+KENYA** (its Kenya stage alone), with OutRunners' car **MAD POWER**.
+
+Sets: MAME `orunners`, `orunnersu`, `orunnersj`. Reference: MAME 0.264. The music needs only the three
+sound ROMs, which are the same in all three sets; the courses need every file of `orunnersj`
+(`roms/orunners/roms.txt`).
 
 ## 1. The board (`crossover/orsound.*`)
 
@@ -117,9 +122,9 @@ output.
   - `ORT_OPLOG` logs the opcode of each chip access.
   - `ORT_BOTH` puts MAME's right speaker on the right channel.
 
-## 5. OutRunners' courses and cars
+## 5. OutRunners' courses and cars: the first investigation
 
-Investigated, not done. What was established (MAME 0.264):
+This was the first look, before the board in section 6 was built. What was established (MAME 0.264):
 
 - **The hardware:** a V70 at 20 MHz (40 MHz / 2) runs the game. There is no road chip: Multi 32 has
   System 32's video (four tilemap layers NBG0-NBG3 with zoom, row scroll and row select, a text
@@ -155,3 +160,60 @@ Investigated, not done. What was established (MAME 0.264):
   to be found in a program with no prior documentation.
 - **Converting OutRunners' courses into OutRun's road format** (the route considered for Cool Riders' courses) would
   first need the course data found and decoded in the V70 program's ROMs; it was not looked for.
+
+## 6. OutRunners' courses on the emulated board (`crossover/orboard.*`, `crossover/ormode.*`)
+
+**The board.** The whole System Multi 32, as MAME 0.264's `segas32.cpp` (sega_multi32_analog)
+describes it:
+- the V70 (`crossover/v60`, MAME's V60/V70 interpreter and disassembler: Farfetch'd, R. Belmont);
+- System 32 video for both screens (`crossover/s32video`, from `segas32_v.cpp`, Aaron Giles);
+- the two 315-5296 I/O chips, the MSM6253 ADC, the 93C46 EEPROM and the comm board
+  (`crossover/s32io`);
+- the interrupt controller and its timers, and the sound board of section 1;
+- MAME's scheduler for this machine (`crossover/orboard.cpp` lists each rule with the MAME code it
+  comes from).
+
+**Checked against MAME 0.264** (`tools/v60test`, `tools/s32vtest`, `tools/orbtest`):
+- The V70: a 1.25-million-instruction trace from power-on is identical (PC, cycles, disassembly,
+  every I/O access, 432 interrupts).
+- The video: 214 screens replayed from MAME's own video writes are pixel-identical.
+- The board, over two scripted sessions (8,000 and 7,000 frames: coin, START, car select, races
+  with steering, shifts and brake, a checkpoint, player 2, test mode):
+  - work RAM and shared RAM are identical at every frame;
+  - every I/O access is identical to the attosecond (3.6 million);
+  - all 30 snapshots are pixel-identical, and the EEPROM ends byte-identical;
+  - the sound correlates 0.998 with MAME's WAV, at the same 12-sample lag as section 3.
+- Speed: 5.2× real time drawing both screens, 11× drawing none.
+
+**The game's code.** `docs/OUTRUNNERS-RE.md` documents the player car, road, course loading,
+collisions, sprites and car models of `orunnersj`, each address confirmed by an experiment on the
+board (`tools/ortrace`, `run_all.sh` reruns them).
+
+**The mode** (`crossover/ormode`), with OutRunners' own car:
+- The board is powered on and run unseen and unheard through a coin, START, the car select and the
+  transmission screen. The run-up follows the game's own state rather than fixed frames:
+  - START once there is a credit (`$208080` = 2);
+  - the wheel turned left at the car select until its cursor (`$209060`) is on MAD POWER (car 0);
+  - for a manual box (the program's separate-gear-buttons setting), the wheel held right on the
+    transmission screen;
+  - for OUTRUNNERS KENYA, the route node and stage bytes `$2080A0-$2080A6` written before the race
+    setup, so the race starts on the Kenya stage (course 41).
+  - The player takes over at the start line (substate `$208082` = 6). The run-up takes a few
+    seconds on the test machine.
+- The player is player 1: the left screen and the left speaker. The race ends when the game leaves
+  its game state (`$208080` no longer 6); the program then returns to its menu.
+- Controls: OutRun's steering range onto the wheel's full travel, the pedals onto 0-255; GEAR1/GEAR2
+  shift down/up with a manual box.
+- The EEPROM (settings, "OutRunner of OutRunners" records) is kept in `orunners_eeprom.bin` in the
+  save folder. The run-up works from a fresh and from a used EEPROM.
+- Level: × 0.17 of MAME's scale, which brings a race (music and the car's sounds) to OutRun's own
+  races in the program. A design decision.
+- Checked in the program: Kenya and the full course start with MAD POWER, automatic and manual
+  (three upshifts reach 4th of 6), a race reaches 324 km/h, the timer runs out to GAME OVER and the
+  program returns to its menu.
+
+**Not done yet:**
+- OutRun's Ferrari and the bikes on OutRunners' courses, and MAD POWER on the other games' courses.
+  `docs/OUTRUNNERS-RE.md` has the hooks (speed `$A477`, lateral position `$A66E`, the car sprite
+  object `$201800`) and the handling routines to transcribe.
+- The menu's MUSIC choice: OutRunners' courses play OutRunners' own radio.

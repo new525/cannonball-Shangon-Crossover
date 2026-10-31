@@ -59,6 +59,7 @@ public:
 
     // Called once per audio tick (a frame at fps): adds the boards' output to mix (interleaved stereo)
     void mix(int32_t* mix, int samples, int fps);
+    int out_rate = 44100;
 
 private:
     struct Channel

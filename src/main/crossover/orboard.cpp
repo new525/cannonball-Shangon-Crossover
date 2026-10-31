@@ -9,6 +9,7 @@
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
 #include "crossover/orboard.hpp"
+#include "crossover/rompath.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -54,7 +55,7 @@ bool ORBoard::load_roms(const std::string& dir, Roms& r, std::string& error)
     for (auto& f : files)
     {
         std::vector<uint8_t> d;
-        if (!read_file(dir + "/" + f.name, d) || d.size() != f.length) { error = std::string("cannot read ") + f.name; return false; }
+        if (!read_file(rom_path(dir, f.name), d) || d.size() != f.length) { error = std::string("cannot read ") + f.name; return false; }
         for (int k = 0; k < f.reloads; k++)
             for (uint32_t i = 0; i < f.length; i += 2)
             {
@@ -63,10 +64,10 @@ bool ORBoard::load_roms(const std::string& dir, Roms& r, std::string& error)
                 r.maincpu[dst + 1] = d[i + 1];
             }
     }
-    if (!read_file(dir + "/epr-15550.ic31", r.soundcpu) || r.soundcpu.size() != 0x80000) { error = "cannot read epr-15550.ic31"; return false; }
+    if (!read_file(rom_path(dir, "epr-15550.ic31"), r.soundcpu) || r.soundcpu.size() != 0x80000) { error = "cannot read epr-15550.ic31"; return false; }
     std::vector<uint8_t> p1, p2;
-    if (!read_file(dir + "/mpr-15551.ic1", p1) || p1.size() != 0x200000) { error = "cannot read mpr-15551.ic1"; return false; }
-    if (!read_file(dir + "/mpr-15552.ic2", p2) || p2.size() != 0x200000) { error = "cannot read mpr-15552.ic2"; return false; }
+    if (!read_file(rom_path(dir, "mpr-15551.ic1"), p1) || p1.size() != 0x200000) { error = "cannot read mpr-15551.ic1"; return false; }
+    if (!read_file(rom_path(dir, "mpr-15552.ic2"), p2) || p2.size() != 0x200000) { error = "cannot read mpr-15552.ic2"; return false; }
     r.sega = p1;
     r.sega.insert(r.sega.end(), p2.begin(), p2.end());
     return S32Video::load_orunnersj_regions(dir, r.gfx1, r.sprites, error);

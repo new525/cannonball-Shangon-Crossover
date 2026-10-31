@@ -15,6 +15,18 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
+Changes since 0.7.0 (not yet released)
+--------------------------------------
+- OutRunners' courses, on an emulated copy of its whole board (System Multi
+  32), with OutRunners' car MAD POWER: OUTRUNNERS FULL COURSE (the game's
+  own map; at each checkpoint, the side of the road you are on picks the
+  way) and OUTRUNNERS KENYA (the Kenya stage alone). The board matches MAME
+  exactly in long test sessions. They need every file of MAME's orunnersj
+  set (roms\orunners\roms.txt).
+- With the separate gear buttons setting, MAD POWER has its 6-speed manual
+  box (GEAR1 down, GEAR2 up); otherwise its automatic.
+
+
 Changes in 0.7.0
 ----------------
 - OutRunners' covers of Magical Sound Shower, Passing Breeze, Splash Wave
@@ -207,8 +219,8 @@ Setting up
 4. Put the Cool Riders ROMs in         roms\coolridr\     (list: roms\coolridr\roms.txt)
    13 files of MAME's "coolridr" set; only its music is used.
 5. Put the OutRunners ROMs in          roms\orunners\     (list: roms\orunners\roms.txt)
-   3 files of MAME's "orunners" set (or orunnersu, orunnersj); only its
-   music is used.
+   For its music, 3 files of MAME's "orunners" set (or orunnersu,
+   orunnersj). For its courses and MAD POWER, every file of "orunnersj".
 6. Run cannonball.exe.
 
 The crossover ROM sets are optional: without Super Hang-On's ROMs you drive
@@ -222,8 +234,9 @@ Race setup menu
 ---------------
 Main menu > PLAY GAME opens the race setup:
     START RACE
-    VEHICLE   OutRun's Ferrari, Super Hang-On's bike, or Hang-On's bike
-              (HANG ON BIKE: Hang-On's course only)
+    VEHICLE   OutRun's Ferrari, Super Hang-On's bike, Hang-On's bike
+              (HANG ON BIKE: Hang-On's course only), or OutRunners' MAD
+              POWER (OutRunners' courses only, for now)
     BIKE SIZE 80 percent (default), 50 to 90 percent, or FULL SIZE
               (OutRun's courses; the bike is full size on the others)
     TRACK     OutRun's full route (you choose at each fork), or any single
@@ -232,7 +245,9 @@ Main menu > PLAY GAME opens the race setup:
               stage is raced with the time-trial rules; laps and traffic are
               set under GAME MODES > TIME TRIAL. Or one of Super Hang-On's
               courses: AFRICA, ASIA, AMERICA, EUROPE (either vehicle), or
-              Hang-On's course: HANG ON (any of the three vehicles).
+              Hang-On's course: HANG ON (any of the three vehicles), or
+              OUTRUNNERS FULL COURSE / OUTRUNNERS KENYA (MAD POWER only,
+              for now).
     MUSIC     any of the tracks below (Music), previewed as you choose, or
               "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
 Up/down moves, left/right (or select) changes a setting. Your choices are
@@ -302,6 +317,11 @@ Design choices (not original behaviour of either game):
 
 Not done yet
 ------------
+- The Ferrari and the bikes on OutRunners' courses, and MAD POWER on the
+  other games' courses.
+- On OutRunners' courses the MUSIC choice is not used: OutRunners plays its
+  own radio. Starting one of its races takes a few seconds (its board is
+  run unseen through the coin, START and the car select).
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
 - In widescreen mode, crash objects near the screen edges are hidden early.
@@ -337,8 +357,12 @@ Karl Stenerud (MIT; it bundles John R. Hauser's SoftFloat), ymfm by Aaron Giles
 Super Hang-On and Hang-On boards' video (tilemaps, road, sprites and
 mixing, transcribed from MAME's drivers), the SH-1 core (MAME's SH-2 family
 interpreter), the SCSP sound chip, the MultiPCM sound chip (Miguel Angel
-Horna) and the System Multi 32 sound board's wiring (MAME's segas32 driver,
-Aaron Giles).
+Horna), and OutRunners' System Multi 32 board: the V60/V70 core (Farfetch'd,
+R. Belmont), the System 32 video and the board (Aaron Giles), the 315-5296
+I/O chip (hap), the MSM6253 ADC (AJR), the serial EEPROM (Aaron Giles), the
+comm board (Ariane Fugmann) and parts of MAME's memory and scheduling code
+(Aaron Giles, Olivier Galibert, Nicola Salmoria, Alex W. Jackson, Paul
+Priest, Vas Crabb).
 Licence texts are in the licenses folder.
 
 OutRun, Super Hang-On, Hang-On, Cool Riders and OutRunners are trademarks of

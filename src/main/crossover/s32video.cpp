@@ -10,6 +10,7 @@
     with MAME's comments. Deviations are marked "PORT:".
 ***************************************************************************/
 #include "crossover/s32video.hpp"
+#include "crossover/rompath.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -54,7 +55,7 @@ static uint32_t crc32_of(const std::vector<uint8_t>& d)
 static bool read_rom(const std::string& dir, const char* name, uint32_t length, uint32_t crc,
                      std::vector<uint8_t>& out, std::string& error)
 {
-    std::string path = dir + "/" + name;
+    std::string path = rom_path(dir, name);
     FILE* f = fopen(path.c_str(), "rb");
     if (!f) { error = "missing " + path; return false; }
     out.assign(length, 0);
