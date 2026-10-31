@@ -11,6 +11,11 @@
       1 MB direct, two 512 KB windows selected by port $B0-$BF.
     The main V60 talks to the sound program only through the shared RAM (the program polls it).
 
+    Standalone (the music player), the board runs itself: main_write() queues the main CPU's
+    writes, run_until() runs its own timeslices. On the whole emulated board (crossover/orboard)
+    it runs in board mode (attach()): the board's scheduler runs the Z80 and owns the YM3438's
+    timers and the synchronised events, and the main CPU and the Z80 share one RAM.
+
     MAME's outputs: the YM3438's output 1 and the MultiPCM's output 1 go to the left speaker
     (x 0.40 and x 1.0), output 0 of each to the right. In a race the game puts each player's
     sound on one side: player 1 (monitor A) on the left.
@@ -73,6 +78,47 @@ public:
     int64_t trace_from = 0, trace_to = 0;       // in board cycles
 
     uint8_t shared[0x2000];
+
+    // ---- On the emulated board (ORBoard) --------------------------------------------------------
+    // In board mode the board's scheduler (MAME's device_scheduler) runs the Z80 in its
+    // timeslices, owns the YM3438's two timers and the synchronised events, and the main CPU
+    // reads and writes `shared` directly (one RAM, as in MAME). main_write(), run_until() and
+    // release_cpu() are not used then; the standalone behaviour is unchanged.
+    struct Host
+    {
+        virtual ~Host() {}
+        // ymfm_set_timer: arm YM3438 timer tnum to expire at Z80 cycle `expire` (< 0: disable)
+        virtual void ym_timer(int tnum, int64_t expire) = 0;
+        // scheduler().synchronize() at the current time: kind 0 = fm_mode_write(data),
+        // 1 = fm_check_interrupts
+        virtual void ym_sync(int kind, uint8_t data) = 0;
+        virtual bool executing() = 0;                       // scheduler().currently_executing()
+        // update_sound_irq_state: the Z80's set_input_line_and_vector(0, state, vector)
+        // (synchronised by the board, as MAME's input-line event queue)
+        virtual void irq_line(int state, int vector) = 0;
+        virtual void main_irq() = 0;                        // sound_int_control_lo_w: signal_v60_irq(MAIN_IRQ_SOUND)
+    };
+    void attach(Host* h) { host = h; }                      // then power_on()
+    // Z80 execute_run for one timeslice of `cycles`, from Z80 cycle now(); returns the cycles run
+    // (every instruction is finished: MAME's 0.264 Z80 only stops between instructions)
+    int  execute(int cycles);
+    void abort_execute() { icount = 0; }                    // device_execute_interface::abort_timeslice
+    void advance(int cycles) { cyc += cycles; }             // suspended (RESET held): its time passes
+    void reset_cpu();                                       // the RESET line released: z80_device::device_reset
+    void set_irq_line(int state) { irq_state = state; }     // execute_set_input(INPUT_LINE_IRQ0, state)
+    void timer_expired(int tnum, int64_t at);               // YM3438 timer callback at Z80 cycle `at`
+    void sync_event(int kind, uint8_t data, int64_t at);    // a Host::ym_sync event firing at `at`
+    void main_signal_irq() { signal_irq(1); }               // int_control_w offsets 12-15: signal_sound_irq(SOUND_IRQ_V60)
+    int64_t now_cycles() const { return time(); }           // the Z80-side time (cycles; inside an access: its cycle)
+    void flush_streams() { ym_catch_up(); pcm_catch_up(); } // generate the streams up to now_cycles()
+
+private:
+    Host* host = nullptr;
+    int  icount = 0;
+    int  irq_state = 0;                                     // z80_device::m_irq_state
+    bool after_ei = false;                                  // z80_device::m_after_ei
+    bool in_cb = false;
+    int64_t cb_at = 0;
 
 private:
     std::vector<uint8_t> rom, pcm_rom;

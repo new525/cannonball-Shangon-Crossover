@@ -17,6 +17,7 @@ struct ORSound::Iface : public ymfm::ymfm_interface
     // ymfm_device_base: timers at the chip's clock (the Z80's) from now
     void ymfm_set_timer(uint32_t tnum, int32_t clocks) override
     {
+        if (b->host) { if (tnum < 2) b->host->ym_timer((int) tnum, clocks >= 0 ? b->time() + clocks : -1); return; }
         if (tnum < 2) b->timer_end[tnum] = clocks >= 0 ? b->time() + clocks : -1;
     }
     void ymfm_set_busy_end(uint32_t clocks) override { b->busy_end = b->time() + clocks; }
@@ -31,11 +32,13 @@ struct ORSound::Iface : public ymfm::ymfm_interface
     // write's time, but after any timer that expired earlier in the instruction that made them
     void ymfm_sync_mode_write(uint8_t data) override
     {
+        if (b->host) { b->host->ym_sync(0, data); return; }     // MAME: always synchronize()
         if (b->in_step) b->sync.push_back({ b->time(), 0, data });
         else m_engine->engine_mode_write(data);
     }
     void ymfm_sync_check_interrupts() override
     {
+        if (b->host) { if (b->host->executing()) b->host->ym_sync(1, 0); else m_engine->engine_check_interrupts(); return; }
         if (b->in_step) b->sync.push_back({ b->time(), 1, 0 });
         else m_engine->engine_check_interrupts();
     }
@@ -90,6 +93,10 @@ void ORSound::power_on()
     mainw.clear(); mainw_pos = 0;
     visible_until = 0;
     sync.clear();
+    icount = 0;
+    irq_state = 0;
+    after_ei = false;
+    in_cb = false;
 }
 
 void ORSound::release_cpu()
@@ -116,6 +123,7 @@ void ORSound::main_write(int64_t t, uint32_t offset, uint8_t data)
 // 4 + 3 + 3). Other accesses are taken at the end of the instruction.
 int64_t ORSound::time() const
 {
+    if (in_cb) return cb_at;                            // board mode: in a timer callback, the timer's expiry
     if (!in_step) return cyc;
     uint8_t op = rom_byte(step_pc);
     if (op == 0xd3) return cyc + 7;
@@ -169,6 +177,7 @@ void ORSound::update_irq()
     int vector;
     for (vector = 0; vector < 3; vector++)
         if (effirq & (1 << vector)) break;
+    if (host) { host->irq_line(vector < 3 ? 1 : 0, vector < 3 ? 2 * vector : 0); return; }
     cpu.int_pending = vector < 3;
     cpu.int_data = (uint8_t)(vector < 3 ? 2 * vector : 0);
 }
@@ -317,7 +326,8 @@ void ORSound::io_w(z80* z, uint8_t port, uint8_t v)
             break;
         case 0xc0:                                      // sound_int_control_lo_w
             if (port & 1) { b->irq_input &= v; b->update_irq(); }
-            break;                                      // (port & 4: an IRQ to the V60, not emulated)
+            if ((port & 4) && b->host) b->host->main_irq();    // standalone: the V60 is not emulated
+            break;
         case 0xd0:
             if ((port & 0x0f) < 8) { b->irq_control[port & 3] = v; b->update_irq(); }
             break;
@@ -325,4 +335,71 @@ void ORSound::io_w(z80* z, uint8_t port, uint8_t v)
             if (port == 0xf1) b->dummy = v;
             break;
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+// Board mode (ORBoard): the board's scheduler runs the Z80
+// ------------------------------------------------------------------------------------------------
+// z80_device::execute_run (MAME 0.264): before each instruction the IRQ line is checked
+// (m_irq_state, IFF1, and not right after EI), then one instruction runs; until icount <= 0.
+// The core's own interrupt check after each step is kept off (int_pending is only raised
+// here), so it only advances the EI delay.
+int ORSound::execute(int cycles)
+{
+    icount = cycles;
+    int ran = 0;
+    do
+    {
+        // check_interrupts
+        if (irq_state != 0 && cpu.iff1 && !after_ei && cpu.iff_delay == 0)
+        {
+            unsigned long before = cpu.cyc;
+            cpu.int_pending = 1;
+            z80_take_interrupt(&cpu);                   // IM 1: 13 cycles, RST $38
+            cpu.int_pending = 0;
+            int n = (int)(cpu.cyc - before);
+            cyc += n; icount -= n; ran += n;
+        }
+        after_ei = false;
+
+        if (trace && cyc >= trace_from && cyc < trace_to)
+            fprintf(trace, "%llX %04X\n", (unsigned long long)(cyc - released_at), cpu.pc);
+        bool ei = !cpu.halted && rom_byte(cpu.pc) == 0xfb;
+        step_base = cpu.cyc; in_step = true; step_pc = cpu.pc;
+        z80_step(&cpu);
+        in_step = false;
+        int n = (int)(cpu.cyc - step_base);
+        cyc += n; icount -= n; ran += n;
+        if (ei) after_ei = true;                        // EI: m_after_ei
+    } while (icount > 0);
+    return ran;
+}
+
+// z80_device::device_reset: PC, I, R, the interrupt flip-flops, HALT, the NMI latch and the EI
+// delay; the other registers keep their values. The first release after power-on starts from
+// the core's power-on state (z80_init), as release_cpu() does.
+void ORSound::reset_cpu()
+{
+    cpu.pc = 0; cpu.i = 0; cpu.r = 0;
+    cpu.iff1 = 0; cpu.iff2 = 0; cpu.iff_delay = 0;
+    cpu.halted = 0; cpu.nmi_pending = 0; cpu.int_pending = 0;
+    cpu.mem_ptr = 0;
+    after_ei = false;
+    released_at = cyc;
+}
+
+void ORSound::timer_expired(int tnum, int64_t at)
+{
+    in_cb = true; cb_at = at;
+    ym_catch_up();
+    iface->expire((uint32_t) tnum);
+    in_cb = false;
+}
+
+void ORSound::sync_event(int kind, uint8_t data, int64_t at)
+{
+    in_cb = true; cb_at = at;
+    ym_catch_up();
+    if (kind == 0) iface->mode_write(data); else iface->check_interrupts();
+    in_cb = false;
 }
