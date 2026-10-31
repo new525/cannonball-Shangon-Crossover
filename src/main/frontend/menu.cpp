@@ -416,6 +416,20 @@ void Menu::draw_menu_options()
     {
         std::string s = menu_selected->at(i);
 
+        // The minicar is drawn 3 columns left of the text, so a row may be 35 columns at most
+        // (centred, it starts at column 3). A longer one, such as "MUSIC  " with a long title, is
+        // drawn as its value alone (after the label's "  " or " - "), cut to 35 if need be.
+        // Only the drawing changes: the row keeps its label, by which the menu finds it.
+        if (s.length() > 35)
+        {
+            size_t p = s.find("  ");
+            size_t skip = 2;
+            if (p == std::string::npos) { p = s.find(" - "); skip = 3; }
+            if (p != std::string::npos) s = s.substr(p + skip);
+            while (!s.empty() && s[0] == ' ') s.erase(0, 1);
+            if (s.length() > 35) s.resize(35);
+        }
+
         // Centre the menu option
         x = 20 - ((int)s.length() >> 1);
         ohud.blit_text_new(x, y, s.c_str(), ohud.GREEN);

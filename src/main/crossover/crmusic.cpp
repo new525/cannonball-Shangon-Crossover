@@ -168,10 +168,12 @@ static const uint32_t STOP_SEQ[4] = { 0xbe1a2800, 0xae720000, 0xae700000, 0xbe50
 static const double CMD_TIME = 1.25, FADE_TIME = 1.5;   // seconds
 static const int    BOOT_SPEED = 3;           // board frames per output frame while booting
 
-// Level: MAME's mix (+-1.0 full scale) to 16-bit, times 2: the cover's average level then
-// matches Hang-On's own theme on Hang-On's board in this program (RMS 507 and 989 measured,
-// 16-bit scale, over the whole song in MAME and over the race music in tools/sbtest).
-static const float GAIN = 32767.0f * 2.0f;
+// Level: MAME's mix (+-1.0 full scale) to 16-bit, times 5.7: the cover's average level then
+// matches OutRun's own three tracks as the program plays them (RMS 2,494 on average, 16-bit
+// scale, measured at the radio screen: Magical Sound Shower 2,843, Passing Breeze 2,162, Splash
+// Wave 2,478; the cover measured 872 at x 2, so x 5.7). A design decision: there is no arcade
+// reference for levels between different games' boards.
+static const float GAIN = 32767.0f * 5.7f;
 
 CoolRidersMusic::CoolRidersMusic() {}
 CoolRidersMusic::~CoolRidersMusic() {}
