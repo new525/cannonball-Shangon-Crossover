@@ -1,0 +1,8 @@
+# 10. Car parameters: $A278 loads the record pointer $B038[car] into $209058, the torque curve
+#     $B32C[2*car+transmission] into $209050, the gear table $B2B8[2*car+transmission] into $209054
+#     (gears-1 -> $209063, first ratio -> $209064).
+include race_mp.inc
+2500 bp $a2ac 1
+2600 p8 $209060 $209061 $209062 $209063 $209064
+2600 p32 $209050 $209054 $209058
+2600 exit

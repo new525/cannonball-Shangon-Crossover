@@ -1,0 +1,11 @@
+# 14. The countdown: the master is the car record's $20FB6A (1/30 s; decremented at $DECA, extended at
+#     $DEB2 at checkpoints); $209012 is a copy. Holding $209012 does not stop the countdown (game over at
+#     the end of the first stage, frame ~10000); holding $20FB6A does.
+include race_mp.inc
+2600-9000 w16 $20fb6a 1200
+2600-9000 w16 $209038 0
+3000 aset ANALOG1 ff 96
+4000 p16 $209012 $20fb6a $208080
+9000 p16 $209012 $20fb6a $208080 $20040c
+9000 snap e14_9000.png
+9000 exit

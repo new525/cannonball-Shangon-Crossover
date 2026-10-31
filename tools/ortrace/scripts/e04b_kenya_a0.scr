@@ -1,0 +1,7 @@
+# 4b. Only the route node $2080A0 = 30 written: Kenya (course 41) is loaded all the same, but the
+#     HUD keeps "PRE-STAGE" (its stage name follows $2080A6).
+include race_mp.inc
+2500 w8 $2080a0 30
+2600 p8 $20060f $2080a0 $2080a1 $2080a2 $2080a3 $2080a4 $2080a5 $2080a6
+3100 snap e04b_3100.png
+3100 exit

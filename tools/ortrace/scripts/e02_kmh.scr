@@ -1,0 +1,7 @@
+# 2. Speed units: km/h shown = speed / 136 ($C2E9 divu.h #88); the HUD value is kept at $208F50.
+#    Screenshot: 317 km/h shown at frame 3400 (drawn from the previous tick's value).
+include race_mp.inc
+3398 p16 $209074 $208f50
+3400 p16 $209074 $208f50
+3400 snap e02_3400.png
+3401 exit

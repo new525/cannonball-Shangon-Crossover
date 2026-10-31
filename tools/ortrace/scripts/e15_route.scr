@@ -1,0 +1,12 @@
+# 15. Normal play to Kenya for comparison with e04: the car kept left of centre (lateral -150 written
+#     each frame), the countdown held ($20FB6A); the left/lower branch at every checkpoint gives the
+#     nodes 2, 6, 12, 20, 30 ($2080A1) and the courses 1, 5, 13, 25, 41 ($20060F). On Kenya the bytes
+#     $2080A1/A3/A6 = 30 and $2080A2/A4/A5 = 5, as e04 writes them; the goal is reached at ~22000.
+include race_mp.inc
+2600-23000 w16 $20fb6a 1200
+2600-23000 w16 $209038 -150
+1 watch $2080a0 7
+1 watch $20060f 1
+18000 snap e15_18000.png
+22000 snap e15_22000.png
+23000 exit

@@ -1,0 +1,7 @@
+# 8. The player car's sprites come from object $201800 (routine $99B8): with its active bit cleared
+#    the car is not drawn and nothing else changes on screen (compare e08_ref.png / e08_off.png).
+include race_mp.inc
+3290 snap e08_ref.png
+3290-3310 w8 $201800 0
+3310 snap e08_off.png
+3310 exit

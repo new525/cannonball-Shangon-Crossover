@@ -1,0 +1,10 @@
+# 6. Off-road and scenery collision on Kenya with no steering: $20907C = $FF off-road; at frame 3367
+#    the box test at $126DB sets bit 2 of the car's flags ($200400) and the kind 0 in $20046E; the
+#    response ($7FB3 -> $8149) puts the car in state 5 ($20040C) for 40 ticks with flag bit 3.
+include race_mp.inc
+2500 w8 $2080a0 30
+1 watch $20040c 1
+2600 watch $200400 2
+2600 watch $20046e 1
+3340-3380 p16 $209074 $209038 $20907c
+3460 exit

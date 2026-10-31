@@ -1,0 +1,33 @@
+# 12. Off-road threshold on the pre-stage (road half-width 440 in the segment records, +$12):
+#     lateral held at 380, 385, ... ; $20907C becomes $FF between 395 and 400 (= 440 - 44, MAD POWER's
+#     half-width, param record +$1A).
+include race_mp.inc
+2900 aset ANALOG2 ff 0
+3100 pcw16 $a477 $209074 $4000
+3100 pcw16 $a66e $20042e 0
+3100 pcw16 $a66e $2004ce 0
+3100 pcw16 $a66e $209038 390
+3108 s16 $209038 $20a012
+3108 p8 $20907c
+3110 unpcw
+3110 pcw16 $a477 $209074 $4000
+3110 pcw16 $a66e $20042e 0
+3110 pcw16 $a66e $2004ce 0
+3110 pcw16 $a66e $209038 395
+3118 s16 $209038 $20a012
+3118 p8 $20907c
+3120 unpcw
+3120 pcw16 $a477 $209074 $4000
+3120 pcw16 $a66e $20042e 0
+3120 pcw16 $a66e $2004ce 0
+3120 pcw16 $a66e $209038 397
+3128 s16 $209038 $20a012
+3128 p8 $20907c
+3130 unpcw
+3130 pcw16 $a477 $209074 $4000
+3130 pcw16 $a66e $20042e 0
+3130 pcw16 $a66e $2004ce 0
+3130 pcw16 $a66e $209038 400
+3138 s16 $209038 $20a012
+3138 p8 $20907c
+3140 exit

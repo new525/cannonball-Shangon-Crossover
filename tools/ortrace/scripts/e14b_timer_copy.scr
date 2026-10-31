@@ -1,0 +1,12 @@
+# 14b. The same as e14 with the copy $209012 held instead: the countdown $20FB6A runs out regardless
+#      and the game ends: the car's state $20040C goes to 3 (time up) at 9233, GAME OVER is on the screen
+#      at 9900, and from 9939 the object at $200400 is another one (the game-over sequence).
+include race_mp.inc
+2600-10500 w16 $209012 1200
+2600-10500 w16 $209038 0
+3000 aset ANALOG1 ff 96
+4000 p16 $209012 $20fb6a $208080
+2600 watch $20040c 1
+9900 snap e14b_9900.png
+10500 p16 $209012 $20fb6a $208080 $20040c
+10500 exit

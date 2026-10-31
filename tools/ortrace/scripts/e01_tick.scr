@@ -1,0 +1,5 @@
+# 1. Tick rate: player 1's speed ($209074) and countdown ($209012) change only at even frames,
+#    player 1's task runs between the VBLANKs of an odd and the next even frame (30 Hz).
+include race_mp.inc
+3300-3309 p16 $209074 $209012 $20e026
+3310 exit

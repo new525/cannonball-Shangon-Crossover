@@ -1,0 +1,11 @@
+# 5. Branch choice at the first checkpoint: the sign of the lateral position in the tick in which the
+#    course script's branch marker is consumed (frame 3959 here, $20FB60 incremented at $10207);
+#    $208349 counts the decisions, $20834A.. holds them (1 = left = WEST / lower), $20060F the next course.
+#    Lateral held at +200 until frame 3940, then -200: left (course 1).
+include race_mp.inc
+2600-3940 w16 $209038 200
+3941-4200 w16 $209038 -200
+2600 watch $20fb60 1
+2600 watch $208349 2
+4200 p8 $20834a $20060f
+4200 exit

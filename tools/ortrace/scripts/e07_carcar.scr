@@ -1,0 +1,26 @@
+# 7. Car-to-car contact: both players in a race (player 2: coin 2 / START 2, its car and transmission
+#    left at the defaults), player 1 steering right and player 2 left after the start:
+#    the test at $12865 sets kind 2 in $20046E and the car goes to state 5 ("Ouch!").
+600 set SERVICE12_A 04 1
+606 set SERVICE12_A 04 0
+610 set SERVICE12_B 04 1
+616 set SERVICE12_B 04 0
+700 set SERVICE12_A 10 1
+700 set SERVICE12_B 10 1
+760 set SERVICE12_A 10 0
+760 set SERVICE12_B 10 0
+900 aset ANALOG1 ff 0
+920 aset ANALOG1 ff 128
+1050 aset ANALOG1 ff 0
+1070 aset ANALOG1 ff 128
+2900 aset ANALOG2 ff 255
+2900 aset ANALOG7 ff 255
+2950 aset ANALOG1 ff 200
+2950 aset ANALOG4 ff 60
+2600 watch $20046e 1
+2600 watch $20040c 1
+2600 p16 $209038 $219038
+3000 p32 $208020 $208024 $218020 $218024
+3000 snap e07_left.png 0
+3000 snap e07_right.png 1
+3100 exit

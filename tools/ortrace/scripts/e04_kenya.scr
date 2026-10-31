@@ -1,0 +1,18 @@
+# 4. Starting a race on Kenya (course 41, route node 30) from power-on with a fresh EEPROM:
+#    the route node and stage bytes $2080A0-$2080A6 written after the race init cleared them
+#    (substate 2 at frame 767, $323E) and before the course is loaded (frame 2571).
+#    A0 alone selects the course; A1-A6 make the bookkeeping (and the HUD's "FINAL STAGE") agree.
+include race_mp.inc
+2500 w8 $2080a0 30
+2500 w8 $2080a1 30
+2500 w8 $2080a3 30
+2500 w8 $2080a6 30
+2500 w8 $2080a2 5
+2500 w8 $2080a4 5
+2500 w8 $2080a5 5
+1 watch $20060f 1
+2600 p8 $20060f
+2700 snap e04_2700.png
+3100 snap e04_3100.png
+3200 snap e04_3200.png
+3200 exit

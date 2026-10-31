@@ -1,0 +1,21 @@
+# 3. Driving the car from outside: speed and lateral position written in the middle of the tick
+#    (at $A477, before the speed is used, and at $A66E, before the lateral position is moved).
+#    Accelerator released. Speed $9000 -> 271 km/h, exactly one segment ($8000) + $1000 per tick;
+#    the camera and the road follow the lateral position (-300 = left of centre, +300 = right).
+include race_mp.inc
+2900 aset ANALOG2 ff 0
+3000 pcw16 $a477 $209074 $9000
+3000 pcw16 $a66e $209038 -300
+3000 pcw16 $a66e $20042e 0
+3000 pcw16 $a66e $2004ce 0
+3100-3110 p16 $209074 $209038 $209042 $208f50
+3100-3110 p32 $209034 $200420
+3290 snap e03_left.png
+3300 unpcw
+3300 pcw16 $a477 $209074 $9000
+3300 pcw16 $a66e $209038 300
+3300 pcw16 $a66e $20042e 0
+3300 pcw16 $a66e $2004ce 0
+3490 p32 $200420
+3490 snap e03_right.png
+3500 exit

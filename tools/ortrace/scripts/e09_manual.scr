@@ -1,0 +1,15 @@
+# 9. Manual transmission (wheel held right at the transmission screen) and shifting up every 100
+#    frames: $209061 = 1, $209063 = 5 (6 gears), the gear $209062 written at $C42F; rpm $209070.
+include race_mp.inc
+2200 aset ANALOG1 ff 255
+2520 aset ANALOG1 ff 128
+1 watch $209061 3
+3100 set P1_A 01 1
+3106 set P1_A 01 0
+3200 set P1_A 01 1
+3206 set P1_A 01 0
+3300 set P1_A 01 1
+3306 set P1_A 01 0
+2600 p32 $209050 $209054 $209058
+3000-3600 p16 $209074 $209070
+3600 exit

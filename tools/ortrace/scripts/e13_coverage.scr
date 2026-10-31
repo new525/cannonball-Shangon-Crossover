@@ -1,0 +1,8 @@
+# 13. Executed-instruction map of 60 frames of a race (frames 3200-3260), for "ortrace list";
+#     and a register trace of one player-1 tick and one player-2 tick (frames 3201-3202).
+include race_mp.inc
+3200 cov race.cov
+3201 trace t3201.tr regs
+3203 traceend
+3260 covend
+3260 exit
