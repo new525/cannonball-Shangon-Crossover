@@ -646,7 +646,7 @@ Found while shortening the program's run-up (tools/ortrace, frames from power-on
 - With these, a race (car chosen, transmission confirmed) starts at frame 1389 (1381 from a used
   EEPROM), against 2581 with the time-outs.
 
-## 11. Found while putting OutRun's Ferrari on the course (crossover/orferrari)
+## 11. Found while putting OutRun's Ferrari on the course (crossover/orferrari, now crossover/orvehicle)
 
 Read from the code and checked on the board with `tools/ortrace` (and in the program) unless marked
 Read. Used by `docs/CROSSOVER-OUTRUNNERS.md` section 7.
@@ -703,3 +703,37 @@ sliding, a shift) `$700718` = 1 or 3. With `$700712` = 0 the engine is silent. C
 queue (`$12124`: filtered by `$1229A`, the queue at `$208800`; the frame interrupt's `$3F8DA` writes one
 a frame to `$700700`, a second queue `$208840` to `$700708`); the car's own are the bounce's (`$8166`,
 `$81C5`, `$8250`: `$34`, `$27`, `$31`), and `$7744` queues `$37`/`$3A` relative to the car ahead (Read).
+
+## 12. Found while putting Super Hang-On's bike on the course (crossover/orvehicle)
+
+Read from the code (`ortrace dasm`) and checked in the program with the bike, unless marked Read. Used
+by `docs/CROSSOVER-OUTRUNNERS.md` section 8.
+
+**The collision box list** (`$124A4`, refines 4.1): a count (32-bit) at `$208510`, then one entry per car
+of 18 bytes: `+0` car number (16-bit), `+2` record pointer, `+6` segment counter, `+8` segment + 4, `+$A`
+position in segment >> 8 + `$A0`, `+$C` position in segment >> 8, `+$E` lateral - half-width, `+$10`
+lateral + half-width (the table at `$12928 + 8 x car`; lateral `44[rec]` from the car array).
+`500[R25]` (`$208500`) points to the player's own entry (`$124DC`); `$2085B0` gets a copy with the
+live position (`$12504`) that no instruction was found reading. The only readers of `500[R25]` are the
+tests: the roadside-object tests `$12554`/`$1254F` (kinds 0/3, entering at `$12557`), `$1261B` and
+`$126F8` (kind 0), all through `6[500[R25]]`; the car test `$127DB` (kind 2); the moving-object test
+`$12896` (kind 1). Each compares the lateral span `+$E`/`+$10` with the other's by the signs of the
+differences. Checked: the player's entry at `$208514`, -44..44 at lateral 0 with MAD POWER.
+
+**The off-road test** `$B79B` takes the car's half-width in R3 (`movz.hw 1A[R12], R3` at `$A3E6`,
+`jsr $B79B` at `$A3EA`); its result `$20907C` and the wheel kinds `$209140-$209142` feed the handling,
+the car record (`50-53`) and the tyre sounds (Read).
+
+**The time-up state** (`$73A0`, car state 3): substate 0 sets a count of 180 ticks (`$73E3`, 6 s);
+substate 1 counts it down every tick, running the handling while the speed is not 0; at 0 the next
+substate sets 60 ticks and GAME OVER (`$7404`, `$7414`), then `94[R25]` bit 4 (`$743C`), the game-over
+animation. So GAME OVER comes 6 s after the time-up whatever the speed. Checked with the bike, which
+keeps rolling at 80 km/h.
+
+**The tyre parameter's second entry:** `$1222F` (test the off-road flag `7C[R23]`, return if set) falls
+into `$12235` (`$1224A`: `$700718` = R0, the sound's number), which is also called directly: from the
+wheelspin (`$AB28`, R0 = `AE2F[car]`), the off-road code (`$B95D`, R0 = `B968[car]`), the goal run
+(`$7552`) and `$695E`/`$69C2` (Read). A bike race off the road showed 298 writes from `$1224A` (values
+2 and 4), and OutRunners' board played a gravel sound (RMS 2,811 with the music stopped); with
+`$12235` skipped, 0.
+

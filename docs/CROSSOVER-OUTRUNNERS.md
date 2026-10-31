@@ -16,7 +16,8 @@ in a race).
 
 OutRunners' courses are in the program too, on an emulated copy of the whole board (section 6):
 **OUTRUNNERS FULL COURSE** (the game's own map, your choice at each checkpoint) and **OUTRUNNERS
-KENYA** (its Kenya stage alone), with OutRunners' car **MAD POWER** or OutRun's Ferrari (section 7).
+KENYA** (its Kenya stage alone), with OutRunners' car **MAD POWER**, OutRun's Ferrari (section 7) or
+Super Hang-On's bike (section 8).
 
 Sets: MAME `orunners`, `orunnersu`, `orunnersj`. Reference: MAME 0.264. The music needs only the three
 sound ROMs, which are the same in all three sets; the courses need every file of `orunnersj`
@@ -230,10 +231,13 @@ board (`tools/ortrace`, `run_all.sh` reruns them).
   unchanged (section 7.8). The earlier checkpoints' times stay 0 on the results.
 
 **Not done yet:**
-- The bikes on OutRunners' courses, and MAD POWER on the other games' courses.
+- Hang-On's bike on OutRunners' courses (section 8.10), and MAD POWER on the other games' courses.
 - The menu's MUSIC choice: OutRunners' courses play OutRunners' own radio.
 
-## 7. OutRun's Ferrari on OutRunners' courses (`crossover/orferrari.*`)
+## 7. OutRun's Ferrari on OutRunners' courses (`crossover/orvehicle.*`)
+
+(`crossover/orvehicle` was `crossover/orferrari` until Super Hang-On's bike joined it, section 8: one
+class, `ORVehicle`, with the vehicle chosen as in `crossover/hovehicle`.)
 
 VEHICLE: OUTRUN FERRARI with TRACK: OUTRUNNERS FULL COURSE or OUTRUNNERS KENYA. The design of the
 Ferrari on Hang-On's and Super Hang-On's courses (`docs/CROSSOVER-HANGON.md` section 3,
@@ -259,7 +263,7 @@ so that OutRunners' camera dips when the car brakes (`$7B74` tests the brake val
 |---|---|---|---|
 | Speed | `car_increment`, 16.16 km/h | `$209074`: the advance per 30 Hz tick in course units, a segment `$8000` long on the centre line; the HUD shows speed / 136 (`$C2E9 divu.h #88`; e02, e03) | km/h x 136: OutRunners' speedometer shows OutRun's km/h, and the Ferrari covers OutRunners' course as an OutRunners car at that km/h would |
 | Lateral | `car_x_pos`, + = left; the Ferrari's half-width 24 (`OFerrari::check_wheels`: one wheel off 24 inside the road's edge, both 24 outside) | `$209038`, world units, + = right (e05); MAD POWER's half-width 44 | x (-11/6): the cars' half-widths 24 and 44 |
-| Road edge | single road of `road_width` w <= `$FF`: wheels off from w + `$D4` to w + `$104`, edge w + `$EC` | the segment's half-width `+$12` (264 to 440 on the full course) | OutRun's w = half-width x 6/11 - 236 (440 -> 4: OutRunners' standard road is OutRun's narrowest, edge 236). Its narrower roads (264-412) would need w < 0, which OutRun's code does not take (its narrowest road); for them `ORFerrari::check_wheels` makes OutRun's comparison with the edge where it is |
+| Road edge | single road of `road_width` w <= `$FF`: wheels off from w + `$D4` to w + `$104`, edge w + `$EC` | the segment's half-width `+$12` (264 to 440 on the full course) | OutRun's w = half-width x 6/11 - 236 (440 -> 4: OutRunners' standard road is OutRun's narrowest, edge 236). Its narrower roads (264-412) would need w < 0, which OutRun's code does not take (its narrowest road); for them `ORVehicle::check_wheels` makes OutRun's comparison with the edge where it is |
 | Limit | `set_ferrari_bounds`: w + `$1F4` | half-width + `$60` (`$A77C-$A79A`) | OutRunners' (the tighter), converted |
 | Distance per km/h | `CAR_BASE_INC` 303 per tick in road position (16.16; the integer part indexes the path) | 136 per tick in `$8000` per segment | one OutRun path position = 272/303 = 0.898 of a segment at the same km/h |
 | Curve | `road_type`, `road_curve`; path: one unit vector (4096) per position | segment heading (12-bit, `+0`), turning right as it grows (`$104F6`: the forward vector is (sin h, cos h) with x to the right) | see 7.3 |
@@ -270,7 +274,7 @@ OutRun units a tick, i.e. a drift angle of the curvature times a look-ahead of 2
 these scales it is 21 car widths in OutRunners too (OutRunners' world is 1.57 times OutRun's in car
 widths per km/h: both its speed and its curvature per distance scale by that).
 
-### 7.3 The road for OutRun's car code (`ORFerrari::build_road`)
+### 7.3 The road for OutRun's car code (`ORVehicle::build_road`)
 
 - **Curve push:** a path in OutRun's format (`sho_road_build_outrun`'s reader): for OutRun position p =
   0-71 ahead of the car, the unit vector (4096 sin h, 4096 cos h) of OutRunners' heading at
@@ -306,7 +310,7 @@ widths per km/h: both its speed and its curvature per distance scale by that).
 | `$9E48` (`$99B8` after the car's parts are written) | the car's entries from 10[`$2080C0`] up to R10, each also at +`$3000` | the body's entry becomes the overlay tag, the others get no source data (7.6) |
 | `$14971`, `$ED6F` | the game-over animation (`$9A01` switches the car's sprite object to `$14900`, which splits the car into objects drawn by the generic `$ED50`) | the body part (`$149A1`) is tagged, the others hidden |
 | `$121E8` | the engine's pitch and on/off to the sound board (`$700710`, `$700712`), every tick | not run; `$700712` = 0 (engine off) |
-| `$1222F` | the tyre/skid parameter (`$700718`) | not run |
+| `$1222F`, `$12235` | the tyre/skid parameter (`$700718`); `$12235` is the routine's second entry, called directly by the wheelspin (`$AB28`), off-road (`$B95D`) and goal-run (`$7552`) code | not run (`$12235` since section 8.9) |
 
 In the goal run (state 4, `$746C`) OutRunners' script drives the car (`$7602`: the speed approaches a
 target, the wheel steers to a lateral target, then the car is stopped) and nothing is written: the
@@ -360,7 +364,10 @@ OutRunners' board keeps its radio and the world's sounds. MAD POWER's engine and
 the sound board as parameters (`$121E8`: `$700710` = engine speed `$209070` >> 8, `$700712` = `$20`,
 from `$1219C`'s `$A0` at the start; `$1222F`: `$700718`), not as commands; with them not written and
 `$700712` = 0 the engine is silent (`tools/ortrace` experiment with the music stopped by `$1F`: the
-board's output fell from RMS 3,700 to 0). Its crash sounds are commands queued (`$12124`, queue
+board's output fell from RMS 3,700 to 0). The tyre parameter's routine has a second entry, `$12235`,
+which the wheelspin, off-road (gravel) and goal-run code call directly; it was found with the bike
+(section 8.9) and is now skipped too, so MAD POWER's gravel sound no longer plays when the Ferrari
+leaves the road. Its crash sounds are commands queued (`$12124`, queue
 `$208800`) only by the bounce, which does not run. OutRun's sound board plays the Ferrari (engine,
 tyres, crash, REBOUND) through `osoundint`, as on the other courses.
 
@@ -393,7 +400,8 @@ Harness runs (`-headless -script`), Linux build:
   name entry, the menu.
 - **Sound:** with OutRunners' music stopped mid-race (`$1F`), the board's output in a Ferrari race is 0
   (RMS 0-3 over 2 s windows), against 2,300-3,200 in a MAD POWER race (its engine); OutRun's sound alone
-  (the board muted) is RMS about 1,280 in a race (its engine), 0 in a MAD POWER race.
+  (the board muted) is RMS about 1,280 in a race (its engine), 0 in a MAD POWER race. (That race stayed
+  on the road: off it, MAD POWER's gravel sound still played until `$12235` was hooked, section 8.9.)
 - **Unchanged:** `tools/s32vtest` replays: 214 of 214 screens exact; `tools/orbtest`: session 1 and
   session 2 (with session 1's EEPROM) identical to MAME (RAM every frame, all I/O, all snapshots); a
   MAD POWER race on Kenya (3,000 frames, seven snapshots and the WAV) byte-identical before and after.
@@ -411,3 +419,179 @@ Harness runs (`-headless -script`), Linux build:
 - Two players, linked cabinets: player 1 only.
 - Kenya alone: the results show 0 for the four checkpoints before Kenya.
 
+
+## 8. Super Hang-On's bike on OutRunners' courses (`crossover/orvehicle.*`, `crossover/bike.*`)
+
+VEHICLE: SUPER HANG ON BIKE with TRACK: OUTRUNNERS FULL COURSE or OUTRUNNERS KENYA. The bike is the
+one that rides OutRun's and Hang-On's courses: Super Hang-On's own tasks rebuilt in C and checked
+against MAME (`crossover/shophys`: speed, centrifugal push, steering, lean, off-road, knockback, the
+crash with its rider and shadows, the sound task) run in OutRun's car slot by `crossover/bike`, with
+its sprites drawn by OutRun's sprite code and its sound from Super Hang-On's sound board. OutRunners
+runs unmodified and keeps the world, through the hooks of section 7.4 (shared code, `ORVehicle` with
+`vehicle` = `SH_BIKE`), plus the widths of section 8.4. Player 1, the left screen.
+
+### 8.1 The run-up and the rate
+
+The run-up is section 7.1's (MAD POWER, automatic). In a race OutRunners' car sees the wheel centred,
+no accelerator and the player's brake (its camera dips as the bike brakes). At `$A39C` (once per
+OutRunners tick, 30 Hz) `CrossoverBike::tick` runs two Super Hang-On frames, as it does for each of
+OutRun's 30 Hz ticks: Super Hang-On runs its tasks at 60 Hz. The program's 30 fps mode gives the same
+bike to the 1/60 s (8.8). The supercharger is GEAR1 or GEAR2, as on the other courses.
+
+### 8.2 Units, with their sources
+
+Super Hang-On's units are OutRun's (`crossover/bike.hpp`, from the code: lateral X, track position,
+16.16 km/h; the distance per km/h is the same within 0.4 %, Super Hang-On's 151 per frame at 60 Hz
+against OutRun's 303 per tick at 30 Hz). So the bike takes the Ferrari's conversions of OutRun's world
+into OutRunners' (7.2); only what belongs to the bike itself changes.
+
+| Quantity | Super Hang-On | OutRunners | Conversion / rule |
+|---|---|---|---|
+| Speed | `$260078`, 16.16 km/h | `$209074` = km/h x 136 | x 136, as the Ferrari. OutRunners' speedometer shows the bike's own value: 241 at top speed, 279 with the supercharger (Super Hang-On's speedometer shows its value x 279/240: 280 and 324), as Hang-On's speedometer does |
+| Lateral | `$260022`, + = left, OutRun's units | `$209038`, + = right | x (-11/6), as the Ferrari |
+| Road edge (off-road) | the bike's X against 300, its centre line (`sub_07F30`) | the segment's half-width `+$12` | the bike's centre line against OutRunners' asphalt edge: off-road when \|X\| > half-width x 6/11 (440 -> 240; 264 -> 144). `CrossoverBike::set_road_edge` |
+| Limit | 500 from its road's centre (`$85B6`, `sub_07F0E`) | half-width + `$60` | OutRunners' (the tighter: 536 -> 292), converted, as the Ferrari |
+| Road's width | Super Hang-On's road is one road | one road, its width changing | no carry with the width (OutRun's carry, `$C1B2`, is for its split roads), as the Ferrari |
+
+### 8.3 The road for Super Hang-On's code
+
+- **Curve push:** Super Hang-On's road builder (`sub_01236`, verified as `sho_road_build_sh`) over the
+  path of 7.3 (OutRunners' segment headings, one OutRun position = 272/303 of a segment ahead of the
+  car), as on OutRun's and Hang-On's courses it runs over their paths (the same format). The centrifugal
+  task reads its table as on its own roads. The path is built at the car's place each tick; the
+  builder reads it from the bike's own track position, which its speed task moves on in the tick's
+  first frame, so the second frame reads it one or two positions further on, as on the other courses.
+- **Curve type and radius** (`$2600AC`/`$2600B0`; the distance correction in its speed task, the demo
+  rider): from the headings, as for the Ferrari (7.3).
+- **Road heights** for the crash objects (`$261200`): OutRun's flat road of 7.3, as on Hang-On's course.
+
+### 8.4 Collisions (design decisions)
+
+OutRunners' tests decide that something was hit and what; Super Hang-On's rules decide how close
+counts, and what follows. The car's own collision box is in the list `$124A4` builds every tick
+(`500[R25]` -> its entry: `+6` segment, `+$A`/`+$C` along the road, `+$E`/`+$10` the lateral span,
+lateral -/+ MAD POWER's 44 from `$12928`). The tests read the span when they start, so the program
+sets it at each test's entry, keeping its centre:
+
+| Test (entry) | Kind | Bike's half-width | Why |
+|---|---|---|---|
+| `$1254F`, `$12554`, `$1261B`, `$126F8` (roadside objects' footprints) | 3, 0 | 0 | Super Hang-On's scenery test is the bike's centre line against the object (on OutRun's courses: against OutRun's hit area, never wider than the object as drawn). OutRunners keeps the car's width in the car's box and the object's in its footprint, so the footprint stands for the object |
+| `$127DB` (the race's cars), `$12896` (objects with their own position: Kenya's elephants) | 2, 1 | 10 x BIKE SIZE, x 11/6: 18 at full size, 15 at 80 % | Super Hang-On hits a vehicle within its half-width + 10 (`$74D4`); the 10 is the bike's part and follows BIKE SIZE, as on OutRun's courses (`CrossoverBike::traffic_half_width`) |
+| `$B79B` (off-road flag `$20907C`, from `$A3EA` with the car's half-width in R3) | | 0 | the bike's centre line, as its own off-road rule; the flag only feeds OutRunners' handling and wheel sounds, which the bike replaces |
+
+The length of the box along the road stays MAD POWER's (`+$A0`). The answers:
+
+| Kind | The bike |
+|---|---|
+| 0 (scenery) | Super Hang-On's crash: `CrossoverBike::scenery_hit` (via OutRun's collision flag, as on OutRun's and Hang-On's courses) counts a hit for every frame of contact while not crashing, Super Hang-On's own rule, so there is no gate |
+| 1, 2 (an elephant, another car) | Super Hang-On's knockback away from it (`$7510`: 14 a frame, kept within 40; the knock also cuts the throttle and brakes, its speed task's `$260088` rule), on both Super Hang-On frames of the tick; its contact sound `$89` when a contact with that object or car starts (`$7540`; OutRunners flags every tick of an overlap) |
+| 3 (minor contact) | Super Hang-On's off-road for 30 of its frames (OutRunners' 15 ticks, `$7FAA`): `CrossoverBike::force_offroad` |
+
+OutRunners' bounce and its crash sounds do not run, as for the Ferrari.
+
+### 8.5 Time up and the goal
+
+- **Time up** (car state 3): Super Hang-On's rule: its timer at 0 cuts the throttle (`$616C`), and below
+  80 km/h its speed task always accelerates (`$61B8`), so the bike slows to about 80 km/h and holds it.
+  OutRunners' time-up state lasts 180 ticks (6 s, `$73E3`) whatever the speed, then shows GAME OVER;
+  the bike is still rolling then, as it would be in Super Hang-On.
+- **Goal run** (state 4): OutRunners' script moves the car, as for the Ferrari (7.4): the bike's speed
+  and position are the script's, with Super Hang-On's engine and the throttle held while the script
+  speeds up (design decision, the Ferrari's). The script's speed on Kenya is 329 km/h.
+
+### 8.6 Drawing
+
+- **Place:** the overlay of 7.6: the bike's frame in OutRun's sprite layer (its crash, rider and shadows
+  included) with its anchor line (y 222, `CrossoverBike::setup_sprite`; the Ferrari's is 221, each the
+  sprite's own y in OutRun's screen) on MAD POWER's bottom line, x 160 on its middle.
+- **Size (design decision):** BIKE SIZE applies, as on OutRun's courses. Like OutRun's, OutRunners'
+  world is sized for a car: MAD POWER (88 x 51 pixels at scale 1) is the Ferrari's size, and the bike at
+  80 % is 25 x 56. On Super Hang-On's and Hang-On's courses, sized for bikes, it stays full size. The size
+  is then scaled by MAD POWER's projection scale, as the Ferrari's.
+- **Off-road dust:** OutRun's smoke from the bike's off-road state, as on OutRun's courses (Super
+  Hang-On's own dust task is not rebuilt; on Hang-On's course Hang-On's draws it).
+- **Colours:** OutRun's palette with the bike's six palettes from Super Hang-On's ROM (as on OutRun's
+  courses), converted per tick as in 7.6.
+
+### 8.7 Sound
+
+OutRunners' board keeps its radio and the world's sounds, without MAD POWER's engine, tyres and gravel
+(7.7, 8.9). Super Hang-On's sound board plays the bike: its sound task's packet every Super Hang-On
+frame (engine, squeal, off-road rumble, the supercharger), its crash sounds and `$89`, as on the other
+courses. OutRun's sound board is silent (the bike's engine pitch is 0, as on OutRun's courses).
+
+### 8.8 Checked
+
+Harness runs (`-headless -script`), Linux build, 60 fps unless noted; the bike at BIKE SIZE 80 %.
+`CB_ORF_TRACE` writes the bike's off-road, crash, knock and lean frame after the Ferrari's columns.
+
+- **Acceleration and top speed** (full throttle from a standstill, steered along the bike's road):
+  on OutRunners' pre-stage and on OutRun's stage 1 (no traffic) the bike reaches 50, 100, 150, 200,
+  220, 230, 235, 240 and 241 km/h at 0.83, 1.87, 3.27, 5.37, 6.60, 7.40, 7.83, 8.37 and 8.47 s, the same
+  in both to the 1/60 s; with the supercharger held, 250, 260, 270, 275 and 279 at 8.60, 8.77, 8.90, 9.00
+  and 9.07 s in both. Top speed 241 (its speed task's sawtooth 241.1-242.0), 279 supercharged. The 30 fps
+  mode gives the same times on the pre-stage.
+- **Curves** (Kenya, steered towards the centre line by the harness, above 200 km/h): the bike stays
+  within 137 of the centre line in the radius-98 curves, 352 in radius 73 and 416 in radius 59 (the
+  road's half-width is 440). It left the road only when an elephant knocked it off.
+- **Branch choice:** full course, kept left of the centre line: the first checkpoint takes WEST
+  (decision 1, course 1) at lateral -341; kept right: EAST (decision 0, course 0) at +199.
+- **Crash:** steered off the road on Kenya and back, the bike hits a tree at 87 km/h: Super Hang-On's
+  crash (the bike slides, the rider is thrown, both lie on the ground), 78 ticks (2.6 s), then the bike is
+  back on the road at X 17.
+- **Elephants:** on Kenya, 11 ticks of contact with two elephants: four contacts starting (four `$89`),
+  the knock reaching -38, the bike pushed from lateral 221 to OutRunners' limit (535) while its speed
+  fell from 238 to 152 km/h.
+- **Off-road and box widths:** off-road from X -252 (the edge is 240); OutRunners' box for the car
+  (`$208514`) read -44..44, set to 0..0 at the roadside tests and -15..15 at the car test.
+- **Timer and game over:** Kenya, time up at 206 km/h; 82 km/h 1.3 s later, then 79-81 km/h; GAME OVER
+  6 s after the time-up, the map, the program's menu.
+- **Goal:** Kenya with the time held (`CB_ORF_FREEZE_TIME`): the goal, CONGRATULATIONS with the total
+  time (1'09"02), the goal run (the bike carried at the script's 329 km/h, then stopped), the ending,
+  the name entry, the menu.
+- **Sound:** with OutRunners' music stopped mid-race (`$1F`) and Super Hang-On's board muted
+  (`CB_XAUDIO_MUTE_SH`, for testing), OutRunners' board is silent in a bike race (RMS 0 in every 2 s
+  window, off-road included); Super Hang-On's board alone (`CB_OR_MUTE_BOARD`) is RMS 1,440-2,230 in a
+  race.
+- **Menu:** VEHICLE cycles SUPER HANG ON BIKE (OUTRUNNERS FULL COURSE kept), HANG ON BIKE (the track
+  becomes HANG ON), OUTRUNNERS MAD POWER (back to OUTRUNNERS FULL COURSE), OUTRUN FERRARI, SUPER HANG
+  ON BIKE; a saved bike with an OutRunners track is kept at start-up.
+- **Unchanged:** `tools/s32vtest` replays: 214 of 214 screens exact; `tools/orbtest` session 1 (8,000
+  frames): RAM identical at every frame, 2,015,481 I/O accesses identical, 16 of 16 snapshots; a MAD
+  POWER race on Kenya (3,000 frames, seven snapshots and the WAV) byte-identical before and after. The
+  Ferrari on Kenya and on the full course (3,300 frames, nine snapshots each and the WAV): byte-identical
+  after the move to `ORVehicle`; with the `$12235` hook (8.9) the snapshots stay identical and the WAVs
+  differ from 25.2 s and 25.7 s on, after the scripts steer off the road at 25.0 s: MAD POWER's gravel
+  sound is gone (and the board's later output differs with it).
+  The bike on OutRun's stage 1 and on Hang-On's course: byte-identical before and after.
+- The Windows build compiles; under Wine a bike snapshot at frame 900 is identical to the Linux build's.
+- Speed: a 3,300-frame Kenya script with the bike runs in 15.8 s (15.3 s with the Ferrari), run-up
+  included.
+
+### 8.9 Found on the way: MAD POWER's tyre parameter has two entries
+
+The routine that writes MAD POWER's tyre/skid parameter (`$700718`) starts at `$1222F` with a test of
+the off-road flag and falls into `$12235`, which the wheelspin (`$AB28`), off-road (`$B95D`) and
+goal-run (`$7552`) code also call directly with the sound's number in R0 (`$1224A` writes it; 298
+writes of 2 and 4 in a bike race off the road, found by logging the V70's writes to the shared RAM).
+Section 7's hook at `$1222F` caught only the first entry, so MAD POWER's gravel sound played on
+OutRunners' board when the Ferrari (and the bike) left the road. `$12235` is now hooked for both
+vehicles (to its `rsr`, `$12251`).
+
+### 8.10 Not done / known issues
+
+- **Hang-On's bike** stays on Hang-On's course. It exists only as Hang-On's own program on its emulated
+  board (`crossover/homode`): its speed, centrifugal, bike and crash tasks (`$8566`, `$879A`, `$AF10`,
+  slots 4-7) work on Hang-On's RAM, its road and its sound packet, and nothing of it has been rebuilt as
+  code that can run outside that board (only Hang-On's road builder is, in `shophys/sho_road.c`). Every
+  vehicle the project puts on another game's world is code of its own (OutRun's in Cannonball, Super
+  Hang-On's rebuilt and checked against MAME); a second emulated board driven as a vehicle beside
+  OutRunners' would be a new design. It needs Hang-On's bike tasks rebuilt in C and checked against
+  MAME as Super Hang-On's were, and its sprites converted.
+- OutRunners' own pictures of its car stay MAD POWER (the ending, the map's and HUD's car icons); the
+  HUD's gearbox shows AUTO.
+- The crash objects stand on OutRun's flat road, not on OutRunners' hills (as the Ferrari's).
+- The roadside footprints stand for the objects' outlines; they were not compared with the objects as
+  drawn (on OutRun's courses the bike's hit area is clipped to the drawn outline).
+- Super Hang-On's own dust is not drawn (OutRun's off-road smoke instead, as on OutRun's courses).
+- Two players, linked cabinets: player 1 only.

@@ -6,6 +6,7 @@
 #include "crossover/romset.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 
 CrossoverAudio xaudio;
 
@@ -121,8 +122,14 @@ void CrossoverAudio::mix(int32_t* out, int samples, int fps)
     // the boards run in 60 Hz frames; at 30 fps two of them make one audio tick
     int sub = fps >= 60 || fps <= 0 ? 1 : 60 / fps;
     int per = samples / sub;
+    // testing: Super Hang-On's board runs as usual but is not heard (the other boards alone)
+    static const bool mute_sh = getenv("CB_XAUDIO_MUTE_SH") != nullptr;
+    static std::vector<int32_t> muted;
+    int32_t* const out_all = out;
     for (int b = 0; b < BOARDS; b++)
     {
+        out = out_all;
+        if (mute_sh && b == SHANGON) { muted.assign((size_t) samples * 2, 0); out = muted.data(); }
         Channel& c = ch[b];
         if (!c.board.ready || !c.active) { c.slots.clear(); c.was_active = false; continue; }
         if (!c.was_active)                      // (re)starting: from a fresh Z80 reset
@@ -156,6 +163,7 @@ void CrossoverAudio::mix(int32_t* out, int samples, int fps)
             c.board.frame(out + 2 * per * s, per);
         }
     }
+    out = out_all;
     cr.mix(out, samples, fps);
     orun.mix(out, samples, fps);
     ormode.mix(out, samples, out_rate);       // OutRunners' board while one of its courses is raced

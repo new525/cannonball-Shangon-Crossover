@@ -406,11 +406,10 @@ int main(int argc, char* argv[])
         (config.crossover.track == 20 && !homode.available()) ||
         (config.crossover.track >= 21 && !ormode.available()))
         config.crossover.track = 0;
+    // Hang-On's bike: its own course only; MAD POWER: OutRunners' courses only (for now). OutRunners' courses
+    // take MAD POWER, OutRun's Ferrari or Super Hang-On's bike
     if (config.crossover.vehicle == 2 && config.crossover.track != 20) config.crossover.vehicle = 0;
-    // OutRunners' courses take its own car or OutRun's Ferrari (the bikes not yet), and MAD POWER only
-    // them (for now)
     if (config.crossover.vehicle == 3 && config.crossover.track < 21) config.crossover.vehicle = 0;
-    if (config.crossover.track >= 21 && config.crossover.vehicle != 0) config.crossover.vehicle = 3;
     bike.enabled = config.crossover.vehicle == 1 && bike.ready;
     xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
 

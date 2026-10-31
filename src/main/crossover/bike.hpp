@@ -67,12 +67,23 @@ public:
     int16_t  car_x_relative() const { return bike_x(); }   // X relative to the bike's road centre
     bool     offroad() const;
 
-    // Racing another game's course (crossover/hovehicle: Hang-On's): drawn full size, and the road path the
-    // centrifugal table is built from read through path (nullptr: OutRun's course, the default)
+    // Racing another game's course (crossover/hovehicle: Hang-On's, full size; crossover/orvehicle: OutRunners',
+    // at BIKE SIZE): the road path the centrifugal table is built from read through path (nullptr: OutRun's
+    // course, the default)
     using PathFn = int16_t (*)(void* ctx, uint32_t offset);
     void set_course(bool full_size, PathFn path);
     // The bike's Super Hang-On state ($260000 + off, word), for a host world
     uint16_t sh_word(uint32_t off) const { return (uint16_t)(shared[off] << 8 | shared[off + 1]); }
+    // A host world whose road is a single road of its own width (crossover/orvehicle: OutRunners'): the
+    // asphalt's half-width around the centre line in the bike's units, the off-road limit of its X (0: from
+    // OutRun's road, the default). Super Hang-On's own rule is the same comparison with 300.
+    void set_road_edge(int16_t half) { host_road_half = half; }
+    // The host's minor contact: the bike off-road for this many Super Hang-On frames (its off-road test,
+    // sub_07F30, answers yes), whatever its X
+    void force_offroad(int frames) { host_offroad = frames; }
+    // The host moves the bike (a scripted goal run): its speed, 16.16 km/h ($260078)
+    void set_speed(uint32_t inc) { shared[0x78] = (uint8_t)(inc >> 24); shared[0x79] = (uint8_t)(inc >> 16);
+                                   shared[0x7A] = (uint8_t)(inc >> 8);  shared[0x7B] = (uint8_t) inc; }
 
     // Palette expansion entries added for the bike (index base set at init)
     static const int NUM_PALS = 6;
@@ -88,6 +99,8 @@ private:
     bool    sh_course = false;  // racing a Super Hang-On course: drawn full size whatever BIKE SIZE says
     bool    full_size = false;  // another game's course (set_course): the same
     PathFn  path_fn = nullptr;
+    int16_t host_road_half = 0;     // set_road_edge
+    int     host_offroad = 0;       // force_offroad: Super Hang-On frames left
                                 // (set by the course loader once Super Hang-On's courses are in)
     bool    mirrored = false;   // on OutRun's mirrored road at a fork (see build_road_table)
     uint16_t road_native[2][512];   // the builder's own tables, per buffer, before mirroring

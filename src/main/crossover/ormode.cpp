@@ -20,7 +20,7 @@
 #include "engine/oinputs.hpp"
 #include "engine/audio/osoundint.hpp"
 #include "crossover/xaudio.hpp"
-#include "crossover/orferrari.hpp"
+#include "crossover/orvehicle.hpp"
 
 ORMode ormode;
 
@@ -186,12 +186,14 @@ void ORMode::start(int course, Vehicle v, bool manual)
     vehicle = v;
     course_ = course;
     kenya_goal = false;
-    // OutRun's Ferrari: the run-up chooses MAD POWER with its automatic box (its collision box and
-    // off-road width are the Ferrari's at the conversion's scale, docs/CROSSOVER-OUTRUNNERS.md 7)
+    // OutRun's Ferrari or Super Hang-On's bike: the run-up chooses MAD POWER with its automatic box (its
+    // collision box and off-road width are the Ferrari's at the conversion's scale; the bike's are set in
+    // OutRunners' tests, docs/CROSSOVER-OUTRUNNERS.md 7 and 8)
     manual_box = v == MAD_POWER && manual;
     run_up(course, CAR_MAD_POWER, manual_box);
-    orferrari.enabled = v == FERRARI;
-    orferrari.begin(board.get());
+    orvehicle.enabled = v != MAD_POWER;
+    orvehicle.vehicle = v == SH_BIKE ? ORVehicle::SH_BIKE : ORVehicle::FERRARI;
+    orvehicle.begin(board.get());
     ym.clear(); pcm.clear();
     feeding = true;
     acc = 0;
@@ -207,7 +209,7 @@ void ORMode::stop()
     if (!active) return;
     active = false;
     feeding = false;
-    orferrari.end();
+    orvehicle.end();
     save_eeprom();
     ym.clear(); pcm.clear();
     osoundint.queue_sound(sound::FM_RESET);
@@ -228,9 +230,9 @@ void ORMode::set_inputs()
     int k = std::max(0, std::min((int) oinputs.brake_adjust, 0x100));
     b.set_accelerator(0, (uint8_t) std::min(255, a));
     b.set_brake(0, (uint8_t) std::min(255, k));
-    // The Ferrari drives itself (crossover/orferrari): in a race OutRunners' car sees the wheel centred
-    // and no accelerator; the brake is passed on, so that its camera dips as the car brakes ($7B74)
-    if (orferrari.driving())
+    // The Ferrari or the bike drives itself (crossover/orvehicle): in a race OutRunners' car sees the wheel
+    // centred and no accelerator; the brake is passed on, so that its camera dips as the car brakes ($7B74)
+    if (orvehicle.driving())
     {
         b.set_steering(0, 0x80);
         b.set_accelerator(0, 0);

@@ -1,11 +1,12 @@
 /***************************************************************************
-    OutRun's Ferrari as the vehicle on OutRunners' courses. See orferrari.hpp, and
-    docs/CROSSOVER-OUTRUNNERS.md section 7 for the addresses and conversions.
+    OutRun's Ferrari or Super Hang-On's bike as the vehicle on OutRunners' courses. See orvehicle.hpp,
+    and docs/CROSSOVER-OUTRUNNERS.md sections 7 and 8 for the addresses and conversions.
 
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
-#include "crossover/orferrari.hpp"
+#include "crossover/orvehicle.hpp"
 #include "crossover/orboard.hpp"
+#include "crossover/bike.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -35,7 +36,7 @@ extern "C" {
 #include "crossover/shophys/sho_road.h"
 }
 
-ORFerrari orferrari;
+ORVehicle orvehicle;
 
 // ------------------------------------------------------------------------------------------------
 // OutRunners addresses (player 1; docs/OUTRUNNERS-RE.md)
@@ -68,20 +69,32 @@ static const uint32_t PC_OBJECT_DRAWN = 0xED6F;         // $ED50 after an object
 static const uint32_t ROUTINE_PART_BODY = 0x149A1;      // the game-over part that draws the car's body
 static const uint32_t PC_ENGINE = 0x121E8, PC_ENGINE_RET = 0x12215;     // engine parameters ($7392)
 static const uint32_t PC_TYRES = 0x1222F, PC_TYRES_RET = 0x12234;       // tyre/skid parameter
+// the same routine's second entry, called directly by the wheelspin ($AB28), off-road ($B95D) and goal-run
+// ($7552) code with the sound's number in R0: $700718 := R0 ($1224A)
+static const uint32_t PC_TYRES2 = 0x12235, PC_TYRES2_RET = 0x12251;
+// the bike's widths in OutRunners' collision tests (docs/OUTRUNNERS-RE.md 4.1, 4.2): the tests' entries
+static const uint32_t PC_BOX_SCENERY[] = { 0x1254F, 0x12554, 0x1261B, 0x126F8 };   // roadside objects (kinds 3, 0)
+static const uint32_t PC_BOX_CARS = 0x127DB;            // the race's cars (kind 2)
+static const uint32_t PC_BOX_OBJECTS = 0x12896;         // objects with their own position (kind 1)
+static const uint32_t PC_OFFROAD_TEST = 0xA3EA;         // jsr $B79B with R3 = the car's half-width (parameter +$1A)
+static const uint32_t A_BOXPTR = 0x208500;              // 500[R25]: the car's entry in the box list ($124A4)
+static const uint32_t BOX_LEFT = 0x0E, BOX_RIGHT = 0x10;    // the entry's lateral span (lateral -/+ half-width)
 
 // V60Cpu register numbers
-static const int REG_R0 = 0, REG_R10 = 10, REG_R19 = 19, REG_R20 = 20, REG_R21 = 21, REG_R25 = 25, REG_PC = 32;
+static const int REG_R0 = 0, REG_R3 = 3, REG_R10 = 10, REG_R19 = 19, REG_R20 = 20, REG_R21 = 21, REG_R25 = 25, REG_PC = 32;
 
 // ------------------------------------------------------------------------------------------------
 // Conversions (docs/CROSSOVER-OUTRUNNERS.md 7.2)
 // ------------------------------------------------------------------------------------------------
 // Speed: OutRunners' speed is its advance per 30 Hz tick in course units (a segment is $8000 long on
-// the centre line); its HUD shows speed / 136 as km/h ($C2E9). The Ferrari's km/h x 136.
+// the centre line); its HUD shows speed / 136 as km/h ($C2E9). The vehicle's km/h x 136 (the bike's speed is
+// in the same units as OutRun's: 16.16 km/h with the same distance per unit, docs/CROSSOVER-OUTRUNNERS.md 8).
 static const int SPEED_PER_KMH = 136;
 // Lateral: OutRunners' world units (the road's half-width is the segment's +$12, 440 for width code 5;
 // MAD POWER's half-width 44, parameter +$1A and its collision box $12928) against OutRun's X (the
 // Ferrari's half-width 24: OFerrari::check_wheels puts one wheel off 24 inside the road's edge and both
-// 24 outside it). X x 44/24 = X x 11/6, with OutRun's X + = left and OutRunners' + = right.
+// 24 outside it). X x 44/24 = X x 11/6, with OutRun's X + = left and OutRunners' + = right. Super Hang-On's X
+// is in OutRun's units (crossover/bike.hpp), so the bike's takes the same conversion.
 static const int LAT_OR = 11, LAT_OUT = 6;
 // OutRunners keeps its car within the segment's half-width + $60 ($A77C-$A79A)
 static const int WORLD_MARGIN = 0x60;
@@ -104,6 +117,13 @@ static const uint16_t CAR_COLLISION_MASK = 1;
 // OutRun's Ferrari: bottom anchor of its sprite at screen y 221 (OFerrari::setup_ferrari_sprite), x 0 =
 // the middle of OutRun's 320-pixel screen
 static const int FERRARI_REF_X = 160, FERRARI_REF_Y = 221;
+// Super Hang-On's bike in OutRun's screen: its bottom anchor at y 222 (CrossoverBike::setup_sprite: 222 + its
+// wobble, Super Hang-On's own line $DF), x 0 the middle
+static const int BIKE_REF_X = 160, BIKE_REF_Y = 222;
+// The bike's contact sound: Super Hang-On's $89 when a contact starts ($7540)
+static const uint8_t SH_CONTACT_SOUND = 0x89;
+// OutRunners' answer to a minor contact lasts 15 of its ticks ($7FAA); two Super Hang-On frames a tick
+static const int MINOR_TICKS = 15, SH_FRAMES_PER_TICK = 2;
 
 static bool dbg() { static int d = getenv("CB_ORF_DEBUG") ? 1 : 0; return d; }
 
@@ -123,13 +143,28 @@ static inline uint32_t ring_rec(uint32_t k)   // the k-th segment record from th
     return RING + ((RW(A_SEGOFF) + 0x20 * k) & 0xFFF);
 }
 
+// OutRun's path (one unit vector per OutRun position ahead of the car), built by ORVehicle::build_road
+static int16_t path_xy[PATH_N][2];
+// The OutRun position of path_xy[0] (the car's place this tick): 0 for OutRun's builder run here; the bike's
+// builder (CrossoverBike::build_road_table) reads from its own road position, the car's place plus what its
+// speed task has moved it in this tick's Super Hang-On frames
+static uint32_t path_base = 0;
+
+static int16_t path_word(void*, uint32_t off)
+{
+    uint32_t p = (off >> 2) - path_base;
+    if (p >= (uint32_t) PATH_N) p = (int32_t) p < 0 ? 0 : PATH_N - 1;
+    return path_xy[p][(off >> 1) & 1];
+}
+
 // ------------------------------------------------------------------------------------------------
 // Start and end
 // ------------------------------------------------------------------------------------------------
-void ORFerrari::begin(ORBoard* b)
+void ORVehicle::begin(ORBoard* b)
 {
     board = nullptr;
     if (!enabled || !b) return;
+    if (vehicle == SH_BIKE && !bike.ready) return;
     board = b;
     B = b;
 
@@ -153,6 +188,19 @@ void ORFerrari::begin(ORBoard* b)
     oferrari.init_ingame();
     for (int s : { (int) OSprites::SPRITE_SMOKE1, (int) OSprites::SPRITE_SMOKE2 })
         osprites.jump_table[s].control |= OSprites::ENABLE;
+    if (vehicle == SH_BIKE)
+    {
+        // Super Hang-On's bike in OutRun's car slot (as on OutRun's and Hang-On's courses), its curve push
+        // from Super Hang-On's road builder over the path made from OutRunners' headings; drawn at BIKE SIZE
+        // (OutRunners' world, like OutRun's, is sized for a car: docs/CROSSOVER-OUTRUNNERS.md 8)
+        bike.reset();
+        bike.set_course(false, path_word);
+        // its reach against cars and moving objects: Super Hang-On's 10 beyond the other's half-width, at
+        // BIKE SIZE (CrossoverBike::traffic_half_width), in OutRunners' units
+        reach = (int16_t)((bike.traffic_half_width(0) * LAT_OR + LAT_OUT / 2) / LAT_OUT);
+    }
+    contact_prev = 0;
+    path_base = 0;
     // where the game put its car on the start line
     lat_prev = (int16_t) RW(A_LAT);
     oinitengine.car_x_pos = oinitengine.car_x_old = (int16_t)(-lat_prev * LAT_OUT / LAT_OR);
@@ -174,17 +222,24 @@ void ORFerrari::begin(ORBoard* b)
     WB(SND_ENGINE, 0);
     WB(SND_ENGINE + 2, 0);
 
-    board->video().set_overlay([this](uint16_t id, S32Video::OverlayImage& o) {
-        o.px = img[id % IMG_COUNT].data(); o.w = IMG_W; o.h = IMG_H; o.ref_x = FERRARI_REF_X; o.ref_y = FERRARI_REF_Y;
+    const bool is_bike = vehicle == SH_BIKE;
+    board->video().set_overlay([this, is_bike](uint16_t id, S32Video::OverlayImage& o) {
+        o.px = img[id % IMG_COUNT].data(); o.w = IMG_W; o.h = IMG_H;
+        o.ref_x = is_bike ? BIKE_REF_X : FERRARI_REF_X; o.ref_y = is_bike ? BIKE_REF_Y : FERRARI_REF_Y;
         return true;
     });
-    static const uint32_t pcs[] = { PC_HANDLING, PC_SPEED, PC_ADVANCE, PC_LATERAL, PC_COLLISION, PC_SPRITES_DONE,
-                                    PC_PART_SPAWNED, PC_OBJECT_DRAWN, PC_ENGINE, PC_TYRES };
-    board->set_pc_hooks(pcs, (int)(sizeof pcs / sizeof pcs[0]), &ORFerrari::hook, this);
-    if (dbg()) fprintf(stderr, "orferrari: race from lateral %d\n", lat_prev);
+    std::vector<uint32_t> pcs = { PC_HANDLING, PC_SPEED, PC_ADVANCE, PC_LATERAL, PC_COLLISION, PC_SPRITES_DONE,
+                                  PC_PART_SPAWNED, PC_OBJECT_DRAWN, PC_ENGINE, PC_TYRES, PC_TYRES2 };
+    if (is_bike)
+    {
+        pcs.insert(pcs.end(), std::begin(PC_BOX_SCENERY), std::end(PC_BOX_SCENERY));
+        pcs.insert(pcs.end(), { PC_BOX_CARS, PC_BOX_OBJECTS, PC_OFFROAD_TEST });
+    }
+    board->set_pc_hooks(pcs.data(), (int) pcs.size(), &ORVehicle::hook, this);
+    if (dbg()) fprintf(stderr, "orvehicle: %s, race from lateral %d (reach %d)\n", is_bike ? "bike" : "Ferrari", lat_prev, reach);
 }
 
-void ORFerrari::end()
+void ORVehicle::end()
 {
     if (board)
     {
@@ -193,6 +248,12 @@ void ORFerrari::end()
     }
     board = nullptr;
     if (!enabled) return;
+    if (vehicle == SH_BIKE)
+    {
+        bike.set_course(false, nullptr);
+        bike.set_road_edge(0);
+        bike.force_offroad(0);
+    }
     osoundint.engine_data[sound::ENGINE_PITCH_H] = 0;
     osoundint.engine_data[sound::ENGINE_PITCH_L] = 0;
     osoundint.engine_data[sound::ENGINE_VOL] = 0;
@@ -200,22 +261,22 @@ void ORFerrari::end()
     osoundint.queue_sound(sound::STOP_SAFETYZONE);
 }
 
-int ORFerrari::car_state() const { return RB(OBJ_CAR + O_STATE); }
+int ORVehicle::car_state() const { return RB(OBJ_CAR + O_STATE); }
 
-bool ORFerrari::racing() const
+bool ORVehicle::racing() const
 {
     int s = car_state();
     return RB(A_STATE) == 6 && s >= 1 && s <= 4;
 }
 
-bool ORFerrari::driving() const { return enabled && board && racing(); }
+bool ORVehicle::driving() const { return enabled && board && racing(); }
 
 // ------------------------------------------------------------------------------------------------
 // Hooks
 // ------------------------------------------------------------------------------------------------
-void ORFerrari::hook(void* ctx, uint32_t pc) { ((ORFerrari*) ctx)->on_pc(pc); }
+void ORVehicle::hook(void* ctx, uint32_t pc) { ((ORVehicle*) ctx)->on_pc(pc); }
 
-void ORFerrari::on_pc(uint32_t pc)
+void ORVehicle::on_pc(uint32_t pc)
 {
     if (pc == PC_SPRITES_DONE)
     {
@@ -232,7 +293,7 @@ void ORFerrari::on_pc(uint32_t pc)
     if (pc == PC_PART_SPAWNED)
     {
         // the game-over animation ($14900, which the car's sprite object becomes at $9A01) splits the car
-        // into objects (R21, parent R20): the body's ($149A1) carries on as the Ferrari, the others hide
+        // into objects (R21, parent R20): the body's ($149A1) carries on as the vehicle, the others hide
         if (car_obj && (board->main_reg(REG_R20) & 0xFFFFFF) == car_obj && RL(board->main_reg(REG_R21) + 4) == ROUTINE_PART_BODY)
             body_part = board->main_reg(REG_R21) & 0xFFFFFF;
         return;
@@ -255,6 +316,9 @@ void ORFerrari::on_pc(uint32_t pc)
             return;
         case PC_TYRES:                                      // MAD POWER's tyres: silent
             board->set_main_reg(REG_PC, PC_TYRES_RET);
+            return;
+        case PC_TYRES2:                                     // and its wheelspin, gravel and goal-run sounds
+            board->set_main_reg(REG_PC, PC_TYRES2_RET);
             return;
     }
     if (!racing()) return;
@@ -285,7 +349,7 @@ void ORFerrari::on_pc(uint32_t pc)
 
         case PC_ADVANCE:
             // the advance along the course is speed x cos(angle of the lateral velocity to the speed): the
-            // Ferrari's speed is OutRun's speed along its road
+            // vehicle's speed is its speed along its road
             if (cs != 4) board->set_main_reg(REG_R0, 0);
             break;
 
@@ -301,11 +365,38 @@ void ORFerrari::on_pc(uint32_t pc)
                 WW(A_LAT, (uint16_t)(lat - lv));
             }
             break;
+
+        // the bike only (these are hooked for it alone): Super Hang-On's widths in OutRunners' tests
+        case PC_BOX_CARS:
+        case PC_BOX_OBJECTS:
+            set_box_width(reach);                           // within the other's half-width + 10 (BIKE SIZE)
+            break;
+        case PC_OFFROAD_TEST:
+            board->set_main_reg(REG_R3, 0);                 // the bike's centre line against the road's edge
+            break;
+        default:
+            for (uint32_t p : PC_BOX_SCENERY)
+                if (pc == p) set_box_width(0);              // its centre line against the object's footprint
+            break;
     }
 }
 
-// The Ferrari's lateral position in OutRunners' units (+ = right), within the world's limit
-int16_t ORFerrari::world_lateral() const
+// The car's collision box in the list $124A4 builds every tick (its entry at 500[R25]: lateral -/+ the car's
+// half-width at +$E/+$10, MAD POWER's 44 from $12928): the same centre, the bike's half-width
+void ORVehicle::set_box_width(int w)
+{
+    uint32_t e = RL(A_BOXPTR) & 0xFFFFFF;
+    if (e < 0x200000 || e >= 0x300000) return;
+    int c = ((int16_t) RW(e + BOX_LEFT) + (int16_t) RW(e + BOX_RIGHT)) / 2;
+    if (dbg() && (tick_no % 60) == 3)
+        fprintf(stderr, "orvehicle: box %06x at pc %05x: %d..%d -> %d..%d\n", e, board->main_reg(REG_PC) & 0xFFFFF,
+                (int16_t) RW(e + BOX_LEFT), (int16_t) RW(e + BOX_RIGHT), c - w, c + w);
+    WW(e + BOX_LEFT, (uint16_t)(c - w));
+    WW(e + BOX_RIGHT, (uint16_t)(c + w));
+}
+
+// The vehicle's lateral position in OutRunners' units (+ = right), within the world's limit
+int16_t ORVehicle::world_lateral() const
 {
     int hw = RW(ring_rec(0) + SEG_HALFWIDTH);
     int lim = hw + WORLD_MARGIN;
@@ -314,9 +405,10 @@ int16_t ORFerrari::world_lateral() const
 }
 
 // ------------------------------------------------------------------------------------------------
-// Collisions: OutRunners' tests decide that something was hit (and what), OutRun's rules what follows
+// Collisions: OutRunners' tests decide that something was hit (and what), the vehicle's own game's rules
+// what follows (OutRun's for the Ferrari, Super Hang-On's for the bike)
 // ------------------------------------------------------------------------------------------------
-void ORFerrari::collision()
+void ORVehicle::collision()
 {
     uint16_t fl = RW(OBJ_CAR);
     if (!(fl & 4)) return;
@@ -325,18 +417,21 @@ void ORFerrari::collision()
     int own = (int16_t) RW(A_LAT);
     switch (kind)
     {
-        case 0:                                             // scenery: OutRun's crash
+        case 0:                                             // scenery: the vehicle's crash
             if (n_hits < 8) hits[n_hits++] = { 0, 0, 0 };
             break;
         case 3:                                             // minor contact: OutRunners' own answer is 15 ticks
-            minor_ticks = 15;                               // of off-road drag ($7FAA, $B7F0); OutRun's off-road
+            if (vehicle == SH_BIKE)                         // of off-road drag ($7FAA, $B7F0); the vehicle's off-road
+                bike.force_offroad(MINOR_TICKS * SH_FRAMES_PER_TICK);
+            else
+                minor_ticks = 15;
             break;
         case 2:                                             // another car of the race ($200468 = its number)
         {
             uint32_t rec = CARS + 0x80u * RB(OBJ_CAR + O_ARG);
             int other = (int16_t) RW(rec + 0x44);
             int kmh = RW(rec + 0x4C) / SPEED_PER_KMH;
-            if (n_hits < 8) hits[n_hits++] = { 2, other < own ? -1 : 1, kmh };
+            if (n_hits < 8) hits[n_hits++] = { 2, other < own ? -1 : 1, kmh, 2u << 24 | RB(OBJ_CAR + O_ARG) };
             break;
         }
         case 1:                                             // an object with its own position ($8029)
@@ -345,18 +440,18 @@ void ORFerrari::collision()
             int hw = RW(ring_rec(0) + SEG_HALFWIDTH);
             int other = (int16_t) RW(obj + 0x20) + hw * (int8_t) RB(obj + 0x3F);
             int kmh = (int)((uint32_t) RW(obj + 0x2C) << 8) / SPEED_PER_KMH;
-            if (n_hits < 8) hits[n_hits++] = { 1, other < own ? -1 : 1, kmh };
-            if (dbg()) fprintf(stderr, "orferrari: object %06x lateral %d speed word %04x (%d km/h)\n", obj, other, RW(obj + 0x2C), kmh);
+            if (n_hits < 8) hits[n_hits++] = { 1, other < own ? -1 : 1, kmh, 1u << 24 | (obj & 0xFFFFFF) };
+            if (dbg()) fprintf(stderr, "orvehicle: object %06x lateral %d speed word %04x (%d km/h)\n", obj, other, RW(obj + 0x2C), kmh);
             break;
         }
     }
-    if (dbg()) fprintf(stderr, "orferrari: collision kind %d at lateral %d\n", kind, own);
+    if (dbg()) fprintf(stderr, "orvehicle: collision kind %d at lateral %d\n", kind, own);
 }
 
 // ------------------------------------------------------------------------------------------------
-// OutRun's car logic, one tick
+// The vehicle's logic, one tick
 // ------------------------------------------------------------------------------------------------
-void ORFerrari::world_to_outrun()
+void ORVehicle::world_to_outrun()
 {
     int cs = car_state();
     outrun.tick_frame = true;
@@ -372,6 +467,8 @@ void ORFerrari::world_to_outrun()
     // positions limit the steering on its first stage, OFerrari::set_ferrari_x)
     uint64_t units = (uint64_t) RW(A_SEGCNT) * 0x8000u + std::min<uint32_t>(RL(A_SEGPOS), 0x7FFF);
     oroad.road_pos = (uint32_t)(units * 2 * 303 / 272);
+    // the bike's own road builder reads the path from its road position (path_word)
+    path_base = vehicle == SH_BIKE ? oroad.road_pos >> 16 : 0;
     ostats.cur_stage = RB(A_STAGE);
     // the time: 0 = time over, no accelerator (OutRun's rule); OutRunners' time-up state is 3
     ostats.time_counter = (RW(A_COUNTDOWN) && cs != 3) ? 1 : 0;
@@ -380,12 +477,9 @@ void ORFerrari::world_to_outrun()
     build_road();
 }
 
-void ORFerrari::tick()
+// OutRun's car block (OInitEngine::update_engine) and its collision responses
+void ORVehicle::ferrari_tick(int cs)
 {
-    world_to_outrun();
-    const int cs = car_state();
-    tick_no++;
-
     // a scenery hit -> OutRun's crash (OFerrari::setup_ferrari_sprite starts it, OCrash takes a hit
     // during the crash as OutRun does), with OutRun's own gate: no new hit while its counter runs
     // (OLevelObjs::sprite_normal; OutRunners flags every tick of an overlap)
@@ -458,9 +552,85 @@ void ORFerrari::tick()
             osoundint.queue_sound(sound::REBOUND);
         }
     }
+}
+
+// Super Hang-On's bike in OutRun's car slot (OInitEngine::update_engine's bike block, as on OutRun's and
+// Hang-On's courses) and its collision responses
+void ORVehicle::bike_tick(int cs)
+{
+    // A scenery hit: Super Hang-On's crash (OFerrari::setup_ferrari_sprite hands it to CrossoverBike::scenery_hit,
+    // which counts a hit for every frame of contact while not crashing, Super Hang-On's own rule: no gate).
+    // A car or an object with its own position: Super Hang-On's knockback away from it ($7510, both Super
+    // Hang-On frames of the tick, as OutRun's traffic check does it), its contact sound $89 when a contact
+    // starts ($7540; OutRunners flags every tick of an overlap)
+    uint32_t contact = 0;
+    for (int i = 0; i < n_hits; i++)
+    {
+        if (hits[i].kind == 0) olevelobjs.collision_sprite = 1;
+        else
+        {
+            bike.traffic_hit((int16_t) hits[i].side);
+            if (hits[i].who != contact_prev)
+            {
+                bike.sh_sound(SH_CONTACT_SOUND);
+                if (dbg()) fprintf(stderr, "orvehicle: bike contact with %08x starts (side %d)\n", hits[i].who, hits[i].side);
+            }
+            contact = hits[i].who;
+        }
+    }
+    contact_prev = contact;
+
+    // OutRunners' road: one road, its asphalt's half-width in the bike's units its off-road limit (Super
+    // Hang-On's own rule is the bike's X against 300); no carry with the road's width (as the Ferrari)
+    int hw = RW(ring_rec(0) + SEG_HALFWIDTH);
+    bike.set_road_edge((int16_t)(hw * LAT_OUT / LAT_OR));
+    if (cs == 4)
+    {
+        // The goal run: OutRunners' script moves the car; the bike follows it, Super Hang-On's engine with
+        // the throttle held while the script speeds up (the Ferrari's design), its speed and position the
+        // script's
+        uint16_t spd = RW(A_SPEED);
+        oinputs.acc_adjust = spd > speed_prev ? 0xFF : 0;
+        oinputs.brake_adjust = 0;
+        oinputs.input_steering = 0x80;
+        speed_prev = spd;
+        uint32_t inc = ((uint32_t) spd << 16) / SPEED_PER_KMH;
+        int16_t x = (int16_t)(-(int16_t) RW(A_LAT) * LAT_OUT / LAT_OR);
+        oinitengine.car_x_pos = x;
+        bike.set_speed(inc);
+        bike.tick();
+        bike.set_speed(inc);
+        oinitengine.car_increment = (int32_t) inc;
+        oinitengine.car_x_pos = x;
+        lat_prev = (int16_t) RW(A_LAT);
+    }
+    else
+    {
+        speed_prev = RW(A_SPEED);
+        if (oferrari.car_ctrl_active)
+        {
+            bike.tick();
+            // within OutRunners' limit for its car (Super Hang-On's own, 500 from its road's centre, is wider)
+            int lim = (hw + WORLD_MARGIN) * LAT_OUT / LAT_OR;
+            oinitengine.car_x_pos = (int16_t) std::max(-lim, std::min((int) oinitengine.car_x_pos, lim));
+        }
+    }
+    oferrari.do_sound_score_slip();
+    if (olevelobjs.spray_counter > 0) olevelobjs.spray_counter--;
+    if (olevelobjs.sprite_collision_counter > 0) olevelobjs.sprite_collision_counter--;
+}
+
+void ORVehicle::tick()
+{
+    world_to_outrun();
+    const int cs = car_state();
+    tick_no++;
+    if (vehicle == SH_BIKE) bike_tick(cs);
+    else                    ferrari_tick(cs);
     n_hits = 0;
 
-    // Outrun::jump_table, the car's part
+    // Outrun::jump_table, the car's part (the bike: as on OutRun's courses, its sprite and crash objects through
+    // OFerrari, OutRun's off-road smoke from its wheel state, no shadow)
     oinitengine.init_crash_bonus();
     oferrari.tick();
     if (oferrari.state != OFerrari::FERRARI_END_SEQ)
@@ -480,17 +650,21 @@ void ORFerrari::tick()
         static FILE* tf = fopen(trace, "w");
         if (tf)
         {
-            fprintf(tf, "%u %llu %d %.3f %d %d %d %d %d %d %d %d %d %u %u %d %d %d %d %d %02x%02x %d\n", tick_no,
+            fprintf(tf, "%u %llu %d %.3f %d %d %d %d %d %d %d %d %d %u %u %d %d %d %d %d %02x%02x %d", tick_no,
                     (unsigned long long) board->frame(), cs, oinitengine.car_increment / 65536.0, oinitengine.car_x_pos,
                     (int16_t) RW(A_LAT), RW(ring_rec(0) + SEG_HALFWIDTH), oinitengine.road_type, oinitengine.road_curve,
                     (int16_t)(oroad.road_x[170] - oroad.road_x[511]), oferrari.wheel_state, ocrash.crash_counter,
                     ocrash.skid_counter, RW(A_SEGCNT), RW(A_SPEED), RB(0x20060F), RB(0x208349), RB(0x20834A + std::max(0, RB(0x208349) - 1)),
                     RW(A_COUNTDOWN), RB(OBJ_CAR + O_HILL), RB(SND_ENGINE + 2), RB(SND_ENGINE), oinputs.gear);
+            if (vehicle == SH_BIKE)         // the bike: off-road, crashing, knock, lean frame
+                fprintf(tf, " | %d %d %d %d", bike.offroad(), bike.crashing(), (int16_t) bike.sh_word(0x88),
+                        bike.sh_word(0x56) >> 8);
+            fprintf(tf, "\n");
             fflush(tf);
         }
     }
     if (dbg() && (tick_no % 15) == 0)
-        fprintf(stderr, "orferrari: tick %u state %d kmh %d x %d lat %d hw %d curve %d/%d push %d hill %d wheels %d crash %d skid %d seg %u gear %d\n",
+        fprintf(stderr, "orvehicle: tick %u state %d kmh %d x %d lat %d hw %d curve %d/%d push %d hill %d wheels %d crash %d skid %d seg %u gear %d\n",
                 tick_no, cs, oinitengine.car_increment >> 16, oinitengine.car_x_pos, (int16_t) RW(A_LAT),
                 RW(ring_rec(0) + SEG_HALFWIDTH), oinitengine.road_type, oinitengine.road_curve,
                 (int16_t)(oroad.road_x[170] - oroad.road_x[511]), RB(OBJ_CAR + O_HILL), oferrari.wheel_state,
@@ -501,7 +675,7 @@ void ORFerrari::tick()
 // road_width w <= $FF): one wheel off when |X| > w + $D4, both when |X| > w + $104, the edge at w + $EC.
 // OutRun's roads are never narrower than w = 0 (edge 236 = OutRunners' 433); for OutRunners' narrower
 // roads (half-widths down to 264) the same comparison is made here with the edge where it is.
-void ORFerrari::check_wheels()
+void ORVehicle::check_wheels()
 {
     int hw = RW(ring_rec(0) + SEG_HALFWIDTH);
     int w = hw * LAT_OUT / LAT_OR - OUT_EDGE;
@@ -526,16 +700,7 @@ void ORFerrari::check_wheels()
 // The road for OutRun's car code: curvature from OutRunners' segment headings, OutRun's road builder
 // over a path made from them, road heights
 // ------------------------------------------------------------------------------------------------
-static int16_t path_xy[PATH_N][2];
-
-static int16_t path_word(void*, uint32_t off)
-{
-    uint32_t p = off >> 2;
-    if (p >= (uint32_t) PATH_N) p = PATH_N - 1;
-    return path_xy[p][(off >> 1) & 1];
-}
-
-void ORFerrari::build_road()
+void ORVehicle::build_road()
 {
     // segments generated ahead of the car's ($2090AA counts them as $209042 does)
     int ahead = (int16_t)(RW(A_RINGEND) - RW(A_SEGCNT));
@@ -560,7 +725,7 @@ void ORFerrari::build_road()
     uint16_t rx[512];
     for (int i = 0; i < 512; i++) rx[i] = 0;
     sho_path_reader pr = { path_word, nullptr };
-    sho_road_build_outrun(&pr, 0, rx);
+    sho_road_build_outrun(&pr, path_base << 2, rx);
     for (int i = 0; i < 512; i++) oroad.road_x[i] = (int16_t) rx[i];
 
     // OutRun's curve type and radius at the car (the radius in OutRun positions: in OutRun's own data
@@ -594,7 +759,7 @@ void ORFerrari::build_road()
 // ------------------------------------------------------------------------------------------------
 // Display: OutRun's sprites into the board's sprite list
 // ------------------------------------------------------------------------------------------------
-void ORFerrari::render_overlay()
+void ORVehicle::render_overlay()
 {
     std::fill(layer.begin(), layer.end(), 0);
     video.sprite_layer->render_to(layer.data(), IMG_W, IMG_H, 0, 8);
@@ -613,15 +778,15 @@ void ORFerrari::render_overlay()
         for (int y = 0; y < IMG_H; y++)
             for (int x = 0; x < IMG_W; x++)
                 if (o[(size_t) y * IMG_W + x]) { x0 = std::min(x0, x); x1 = std::max(x1, x); y0 = std::min(y0, y); y1 = std::max(y1, y); }
-        fprintf(stderr, "orferrari: overlay bbox x %d-%d y %d-%d\n", x0, x1, y0, y1);
+        fprintf(stderr, "orvehicle: overlay bbox x %d-%d y %d-%d\n", x0, x1, y0, y1);
     }
 }
 
 // $99B8 has written the car's parts ($9F22: 16-byte System 32 entries, each at R10 and at R10 + $3000)
 // from 10[$2080C0] up to R10. The first is the body: it becomes the overlay's tag, its X the middle of
-// MAD POWER's body and its Y the body's bottom line (where MAD POWER stands on the road); the Ferrari is
-// drawn with its own bottom there. The other parts (wheels, smoke, effects) get no source data.
-void ORFerrari::tag_sprites(uint32_t r20, uint32_t start, uint32_t end, bool body)
+// MAD POWER's body and its Y the body's bottom line (where MAD POWER stands on the road); the vehicle is
+// drawn with its own bottom there (its anchor line in OutRun's screen, FERRARI_REF_Y / BIKE_REF_Y). The other parts (wheels, smoke, effects) get no source data.
+void ORVehicle::tag_sprites(uint32_t r20, uint32_t start, uint32_t end, bool body)
 {
     S32Video& v = board->video();
     if (end <= start || end - start > 0x400) return;
@@ -643,13 +808,13 @@ void ORFerrari::tag_sprites(uint32_t r20, uint32_t start, uint32_t end, bool bod
                 // walk how many entries it takes)
                 // MAD POWER's scale as drawn ($99B8: 34[R20], 8.8, the projection's $19A340[depth] >> 4; 1 when
                 // the car stands on the start line, smaller while the camera flies in at the start and pulls
-                // back at speed): the Ferrari is scaled the same, from OutRun's size
+                // back at speed): the vehicle is scaled the same, from its size in OutRun's screen
                 int scale = std::max(1, std::min(0xFFF, (int) RW(r20 + 0x34) * 4));
                 uint16_t t[8] = { (uint16_t)(w[0] & 0x3030), 0, (uint16_t)(scale << 4 | (tick_no % IMG_COUNT)), (uint16_t)(w[3] & 0x0800),
                                   (uint16_t)((top + dsth - 1) & 0xFFF), (uint16_t)((left + (dstw - 1) / 2) & 0xFFF),
                                   S32Video::OVL_TAG, w[7] };
                 if (dbg() && copy == 0 && (tick_no % 60) == 2)
-                    fprintf(stderr, "orferrari: body x %d y %d w %d h %d align %d/%d flags %04x -> tag %d,%d scale %d\n", xpos, ypos, dstw, dsth, ax, ay, w[0], left + (dstw - 1) / 2, top + dsth - 1, scale);
+                    fprintf(stderr, "orvehicle: body x %d y %d w %d h %d align %d/%d flags %04x -> tag %d,%d scale %d\n", xpos, ypos, dstw, dsth, ax, ay, w[0], left + (dstw - 1) / 2, top + dsth - 1, scale);
                 for (int k = 0; k < 8; k++) v.spriteram_w(wi + k, t[k], 0xFFFF);
             }
             else v.spriteram_w(wi + 1, 0, 0xFFFF);

@@ -42,6 +42,16 @@ Changes since 0.7.0 (not yet released)
 - OUTRUNNERS KENYA: reaching the goal now ends the race with the goal run,
   results and name entry, as at the end of the full course (the race used to
   go on at the goal run's speed for ever).
+- Super Hang-On's bike on OutRunners' courses (VEHICLE: SUPER HANG ON BIKE
+  with OUTRUNNERS FULL COURSE or OUTRUNNERS KENYA): the same bike as on
+  OutRun's and Hang-On's courses (Super Hang-On's own speed, steering, lean,
+  centrifugal push, off-road, supercharger, knockback and crash), with its
+  engine and effects from Super Hang-On's sound board, in OutRunners' world
+  as the Ferrari is. Top speed 241 (279 with the supercharger), which
+  OutRunners' speedometer shows; the acceleration is the same as on OutRun's
+  first stage to the 1/60 s. BIKE SIZE applies on OutRunners' courses too.
+- On OutRunners' courses MAD POWER's gravel and wheelspin sounds no longer
+  play under the Ferrari (or the bike) when it leaves the road.
 
 
 Changes in 0.7.0
@@ -255,7 +265,8 @@ Main menu > PLAY GAME opens the race setup:
               (HANG ON BIKE: Hang-On's course only), or OutRunners' MAD
               POWER (OutRunners' courses only, for now)
     BIKE SIZE 80 percent (default), 50 to 90 percent, or FULL SIZE
-              (OutRun's courses; the bike is full size on the others)
+              (OutRun's and OutRunners' courses; the bike is full size on
+              Super Hang-On's and Hang-On's)
     TRACK     OutRun's full route (you choose at each fork), or any single
               OutRun stage (1, 2A-2B, 3A-3C, 4A-4D, 5A-5E; letters follow
               the order of Cannonball's time-trial course map). A single
@@ -263,8 +274,8 @@ Main menu > PLAY GAME opens the race setup:
               set under GAME MODES > TIME TRIAL. Or one of Super Hang-On's
               courses: AFRICA, ASIA, AMERICA, EUROPE (either vehicle), or
               Hang-On's course: HANG ON (any of the three vehicles), or
-              OUTRUNNERS FULL COURSE / OUTRUNNERS KENYA (MAD POWER or the
-              Ferrari; not the bikes yet).
+              OUTRUNNERS FULL COURSE / OUTRUNNERS KENYA (MAD POWER, the
+              Ferrari or Super Hang-On's bike; not Hang-On's bike).
     MUSIC     any of the tracks below (Music), previewed as you choose, or
               "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
 Up/down moves, left/right (or select) changes a setting. Your choices are
@@ -346,16 +357,43 @@ Design choices (not original behaviour of either game):
   flies in at the start and pulls back with speed). After the goal,
   OutRunners' scripted goal run carries the Ferrari. Details in
   docs\CROSSOVER-OUTRUNNERS.md (section 7) in the source.
+- Super Hang-On's bike on OutRunners' courses: as the Ferrari, MAD POWER
+  (automatic) is chosen in the run-up. Super Hang-On's units are OutRun's,
+  so the bike takes the Ferrari's conversions (speed x 136, lateral x 11/6,
+  272/303 of a segment per OutRun path position); OutRunners' speedometer
+  shows the bike's own speed value (241 at top speed; Super Hang-On's own
+  speedometer would show 280). Super Hang-On's tasks run two frames per
+  OutRunners tick, as they run per OutRun tick. The bike is off the road
+  when its centre line passes OutRunners' asphalt edge (Super Hang-On's own
+  rule, which uses 300 on its road), and OutRunners' limit for its car holds
+  it. Curve push: Super Hang-On's road builder over the same path made from
+  OutRunners' headings. Collisions: OutRunners' tests decide, with the
+  bike's widths written into OutRunners' collision box for each test: its
+  centre line against roadside objects, 10 units (x BIKE SIZE) beyond a
+  car's or an elephant's width; scenery starts Super Hang-On's crash, an
+  elephant or a car its knockback and contact sound, a minor contact its
+  off-road for half a second. At time up Super Hang-On's rule cuts the
+  throttle and holds 80 km/h; OutRunners shows GAME OVER 6 s later, as
+  always. BIKE SIZE applies, as on OutRun's courses (both worlds are sized
+  for a car). After the goal, OutRunners' scripted goal run carries the
+  bike. Off-road dust is OutRun's smoke, as on OutRun's courses. Details in
+  docs\CROSSOVER-OUTRUNNERS.md (section 8) in the source.
 
 
 Not done yet
 ------------
-- The bikes on OutRunners' courses, and MAD POWER on the other games'
-  courses.
-- With the Ferrari on OutRunners' courses: OutRunners' own pictures of the
-  car stay MAD POWER (the ending's picture, the map's and HUD's car icons);
-  the HUD's gearbox shows AUTO; the flying wreck and passengers are drawn at
-  the car's depth and on OutRun's flat-road heights, not OutRunners' hills.
+- Hang-On's bike on OutRunners' courses: it exists only as Hang-On's own
+  program on its emulated board, and its tasks have not been rebuilt as code
+  that can run in another game's world, as Super Hang-On's were. MAD POWER
+  on the other games' courses.
+- With the Ferrari or the bike on OutRunners' courses: OutRunners' own
+  pictures of the car stay MAD POWER (the ending's picture, the map's and
+  HUD's car icons); the HUD's gearbox shows AUTO; the flying wreck and
+  passengers (or the bike's rider) are drawn at the car's depth and on
+  OutRun's flat-road heights, not OutRunners' hills.
+- The bike on OutRunners' courses: Super Hang-On's own dust is not drawn
+  (OutRun's smoke instead), and OutRunners' roadside hit areas have not been
+  compared with the objects as drawn.
 - OUTRUNNERS KENYA: the results show 0 for the four checkpoints before Kenya.
 - On OutRunners' courses the MUSIC choice is not used: OutRunners plays its
   own radio.

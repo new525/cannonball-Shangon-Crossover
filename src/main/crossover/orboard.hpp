@@ -155,7 +155,7 @@ public:
     uint64_t rand_calls = 0;
     V60Cpu& maincpu() { return *cpu; }
 
-    // ---- instruction hooks (the crossover's vehicles, crossover/orferrari) --------------------
+    // ---- instruction hooks (the crossover's vehicles, crossover/orvehicle) --------------------
     // fn(ctx, pc) is called before the V70 executes the instruction at one of these addresses; it
     // may change the registers (the PC too: execution continues there) and memory. With no hooks
     // set (the default) the V70's instruction hook is off and the board runs exactly as checked

@@ -1244,7 +1244,8 @@ void Menu::xover_cycle(int dir)
     {
         // OutRun's Ferrari, Super Hang-On's bike (its ROMs), Hang-On's bike (its ROMs; Hang-On's course
         // only), OutRunners' MAD POWER (the full orunnersj set; OutRunners' courses only for now). On
-        // OutRunners' courses: MAD POWER or the Ferrari (the bikes not yet).
+        // OutRunners' courses: MAD POWER, the Ferrari or Super Hang-On's bike (Hang-On's bike exists only on
+        // its own board).
         if (!bike.ready && !homode.available() && !ormode.available())
         {
             config.crossover.vehicle = 0;
@@ -1257,7 +1258,7 @@ void Menu::xover_cycle(int dir)
         config.crossover.vehicle = v;
         if (v == 2) config.crossover.track = XOVER_HO_TRACK;            // its own course
         if (v == 3 && !is_orr_track(config.crossover.track)) config.crossover.track = XOVER_ORR_FULL;
-        if ((v == 1 || v == 2) && is_orr_track(config.crossover.track)) config.crossover.track = 0;   // the bikes: not on OutRunners' yet
+        if (v == 2 && is_orr_track(config.crossover.track)) config.crossover.track = 0;    // Hang-On's bike: its course only
     }
     else if (SELECTED(ENTRY_X_BIKESIZE))
     {
@@ -1272,7 +1273,6 @@ void Menu::xover_cycle(int dir)
         config.crossover.track = t;
         if (t != XOVER_HO_TRACK && config.crossover.vehicle == 2) config.crossover.vehicle = 0;   // Hang-On's bike: its course only
         if (!is_orr_track(t) && config.crossover.vehicle == 3) config.crossover.vehicle = 0;      // MAD POWER: OutRunners' only for now
-        if (is_orr_track(t) && config.crossover.vehicle != 0) config.crossover.vehicle = 3;       // OutRunners' courses: its own car or the Ferrari
     }
     else if (SELECTED(ENTRY_X_MUSIC))
     {
@@ -1305,10 +1305,11 @@ void Menu::xover_start()
     }
     if (is_orr_track(config.crossover.track))
     {
-        // OutRunners' own car on its courses (a manual box with the separate gear buttons), or OutRun's
-        // Ferrari (crossover/orferrari)
+        // OutRunners' own car on its courses (a manual box with the separate gear buttons), OutRun's Ferrari
+        // or Super Hang-On's bike (crossover/orvehicle)
         ormode.start(config.crossover.track == XOVER_ORR_KENYA ? ORMode::KENYA : ORMode::FULL_COURSE,
-                     config.crossover.vehicle == 0 ? ORMode::FERRARI : ORMode::MAD_POWER,
+                     config.crossover.vehicle == 0 ? ORMode::FERRARI :
+                     config.crossover.vehicle == 1 ? ORMode::SH_BIKE : ORMode::MAD_POWER,
                      config.controls.gear == config.controls.GEAR_SEPARATE);
         if (ormode.active) cannonball::state = cannonball::STATE_OUTRUNNERS;
         return;

@@ -212,6 +212,7 @@ void CrossoverBike::reset()
     last_frame = -1;
     sh_frame_acc = 0;
     knock_pending = 0;
+    host_offroad = 0;
     for (bool& v : crash_vis) v = false;
     xaudio.reset_packets();
 }
@@ -249,6 +250,12 @@ bool    CrossoverBike::offroad() const   { return shared[0x98] || shared[0x99]; 
 // ------------------------------------------------------------------------------------------------
 void CrossoverBike::compute_road_frame(int16_t car_x)
 {
+    if (host_road_half > 0)                                 // a host world's single road (set_road_edge)
+    {
+        road_center = 0;
+        road_half = host_road_half;
+        return;
+    }
     int16_t rw = (int16_t)(oroad.road_width >> 16);
     switch (oroad.road_ctrl)
     {
@@ -267,6 +274,11 @@ void CrossoverBike::compute_road_frame(int16_t car_x)
 int CrossoverBike::offroad_cb(void* ctx, int16_t x)
 {
     CrossoverBike* b = (CrossoverBike*) ctx;
+    if (b->host_offroad > 0)         // the host's minor contact (force_offroad)
+    {
+        b->host_offroad--;
+        return 1;
+    }
     int v = x < 0 ? -x : x;          // x is relative to the bike's road centre
     return v > b->road_half;
 }
@@ -691,8 +703,8 @@ int16_t CrossoverBike::traffic_half_width(uint16_t car_width) const
     return (int16_t)((car_width >> 1) + (10 * size_percent() + 50) / 100);
 }
 
-// BIKE SIZE as an OutRun sprite zoom value (0x200 = full size). The option is for OutRun's courses,
-// where the bike shares the screen with scenery and traffic sized for the Ferrari, and the screen lines that show
+// BIKE SIZE as an OutRun sprite zoom value (0x200 = full size). The option is for OutRun's and OutRunners' courses,
+// where the bike shares the screen with scenery and traffic sized for a car, and the screen lines that show
 // a sprite of 'rows' source rows at that zoom without reading past its last row
 uint16_t CrossoverBike::scaled_zoom() const
 {
