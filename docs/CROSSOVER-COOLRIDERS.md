@@ -83,10 +83,12 @@ Cool Riders' main program talks to the sound board only through the shared RAM (
   song is playing it is paused (its time stops) once the fade is over.
 - **NVRAM:** the SH-1's 512-byte backup RAM is left at zero. The output was sample-identical with
   zeros and with MAME's NVRAM file.
-- **Level:** MAME's ±1.0 scale is converted to 16 bits and doubled, which brings the cover's
-  average level (RMS 507 over the whole song in MAME) to that of Hang-On's own theme on Hang-On's
-  board here (RMS 989). This is a design decision; absolute levels between different boards have
-  no arcade reference.
+- **Level:** MAME's ±1.0 scale is converted to 16 bits and multiplied by 5.7, which brings the
+  cover to the average level of OutRun's own three tracks as the program plays them (RMS 2,494,
+  16-bit, measured at the radio screen over 9.5-24.5 s; the cover measures 2,487). Until 0.6.1 it
+  was doubled, matching Hang-On's own theme on Hang-On's board, which is about a third of
+  OutRun's level. This is a design decision; absolute levels between different boards have no
+  arcade reference.
 - **Resampling:** from 44,099 Hz to the output rate, by linear interpolation, as for the other
   boards (`crossover/resample.hpp`).
 

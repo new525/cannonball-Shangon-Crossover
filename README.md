@@ -5,7 +5,8 @@
 This project takes Cannonball and adds Super Hang-On (1987) and Hang-On (1985) to it. You can
 ride Super Hang-On's bike on OutRun's courses, drive OutRun's Ferrari on Super Hang-On's courses,
 race Hang-On's course with the Ferrari or either game's bike, and race to the music of all three
-games, plus Cool Riders' cover of Hang-On's theme. Super Hang-On's and Hang-On's courses run on
+games, plus Cool Riders' cover of Hang-On's theme and OutRunners' covers of OutRun's music.
+Super Hang-On's and Hang-On's courses run on
 emulated copies of their own boards, and each tune plays on an emulated copy of its own game's
 sound board.
 
@@ -30,8 +31,9 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 - **The MAME team**: the FD1089 decryption, the Sega PCM sample generation, the two boards'
   video (tilemaps, road, sprites, mixing), the SH-1 core in `src/main/crossover/sh` (MAME's
   SH-2 family interpreter: Juergen Buchmueller, R. Belmont, David Haywood, Angelo Salese) and the
-  SCSP in `src/main/crossover/scsp` (ElSemi, R. Belmont, kingshriek) are derived from MAME
-  (BSD-3-Clause). MAME 0.264 was also the reference that every reconstruction here was
+  SCSP in `src/main/crossover/scsp` (ElSemi, R. Belmont, kingshriek), the MultiPCM in
+  `src/main/crossover/multipcm` (Miguel Angel Horna) and the System Multi 32 sound board's
+  wiring (from Aaron Giles's `segas32` driver) are derived from MAME (BSD-3-Clause). MAME 0.264 was also the reference that every reconstruction here was
   checked against.
 
 ---
@@ -58,6 +60,7 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 | OutRun's Ferrari on Super Hang-On's courses (handling, crash, skids, smoke, engine sound) | Done |
 | Hang-On's course on an emulated Hang-On board, with the Ferrari, either game's bike | Done |
 | Cool Riders' cover of Hang-On's theme, on an emulated Cool Riders sound board | Done |
+| OutRunners' covers of OutRun's music, on an emulated System Multi 32 sound board | Done |
 | Bike versions of OutRun's start and ending scenes | Planned |
 
 ---
@@ -154,10 +157,18 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   emulated copy of the sound side of its System H1 board: the SH-1 that streams the samples, the
   68000 and the two Yamaha SCSPs. Cool Riders' main CPU isn't emulated; the program writes the
   sound commands as its main program does. Compared with MAME 0.264 over the whole song, the
-  notes, loudness and tempo match: 5,542 notes started against MAME's 5,541, no tempo drift,
-  and notes within about 4 ms of MAME's.
+  notes, loudness and tempo match: 30,775 key-ons against MAME's 30,778, no tempo drift, and
+  each key-on within a fraction of a millisecond of MAME's (median 0.03 ms).
   The details are in [`docs/CROSSOVER-COOLRIDERS.md`](docs/CROSSOVER-COOLRIDERS.md), together
   with why Cool Riders' courses and bikes are not in (yet).
+- **OutRunners' covers of OutRun's music** (`crossover/orsound.*`, `crossover/ormusic.*`):
+  Magical Sound Shower, Passing Breeze, Splash Wave and Last Wave from OutRunners (1992), played
+  by its own sound program on an emulated copy of the System Multi 32 sound board: the Z80, the
+  YM3438 and the MultiPCM (`crossover/multipcm`, from MAME). Fed the same main-CPU writes as MAME
+  0.264, all 6,989 MultiPCM notes of Magical Sound Shower start at the same microsecond as
+  MAME's; with only the sound-test commands, as the program sends them, within 1.6 ms.
+  The details are in [`docs/CROSSOVER-OUTRUNNERS.md`](docs/CROSSOVER-OUTRUNNERS.md), together
+  with what adding OutRunners' courses and cars would take.
 - **68000 timing**: Musashi now takes the same number of cycles as MAME 0.264's 68000 on every
   instruction tested (104,854 cases) and takes interrupts at the same points. This brought the
   emulated Hang-On board much closer to MAME (see *Hang-On's course* above).
@@ -165,7 +176,7 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
 
-Super Hang-On, Hang-On and Cool Riders ROMs are optional. Without them, Cannonball runs as normal
+Super Hang-On, Hang-On, Cool Riders and OutRunners ROMs are optional. Without them, Cannonball runs as normal
 with the Ferrari, and each missing set only removes that game's part.
 
 ---
@@ -187,6 +198,7 @@ No game ROMs are included. You need your own copies, as zip-extracted files from
 | Super Hang-On | `shangon1` (mini ride-on, FD1089B 317-0034), including `317-0034.key` | `roms\shangon1\` |
 | Hang-On | `hangon` (Rev A) | `roms\hangon\` |
 | Cool Riders (music only) | `coolridr`: 13 of its files, without the ten 4 MB `mpr-176xx` sprite ROMs | `roms\coolridr\` |
+| OutRunners (music only) | `orunners`, `orunnersu` or `orunnersj`: the 3 sound ROMs `epr-15550.ic31`, `mpr-15551.ic1`, `mpr-15552.ic2` | `roms\orunners\` |
 
 Each folder has a `roms.txt` listing the exact files and their CRC32s. Files are recognised by
 CRC32 first and by name second, so they don't need to be renamed.
@@ -203,6 +215,7 @@ roms\            epr-10380b.133, epr-10382b.118, ... (OutRun)
 roms\shangon1\   epr-10636.133, ..., 317-0034.key   (Super Hang-On)
 roms\hangon\     epr-6918a.ic22, ...                (Hang-On)
 roms\coolridr\   ep17659.30, ..., ep17662.12        (Cool Riders)
+roms\orunners\   epr-15550.ic31, mpr-15551.ic1, mpr-15552.ic2   (OutRunners)
 ```
 
 ### 3. Play
@@ -222,9 +235,9 @@ roms\coolridr\   ep17659.30, ..., ep17662.12        (Cool Riders)
      of Super Hang-On's courses: *SUPER HANG ON AFRICA* (Beginner, 6 stages), *ASIA* (Junior,
      10), *AMERICA* (Senior, 14) or *EUROPE* (Expert, 18), with either vehicle, or Hang-On's
      course, *HANG ON*, with any of the three.
-   - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks, or Cool Riders'
-     *HANG ON THEME OF LOVE* (it previews as you choose; Cool Riders' board takes about half a
-     second to start the first time), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen.
+   - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks, Cool Riders'
+     *HANG ON THEME OF LOVE* or OutRunners' four covers (it previews as you choose; Cool Riders'
+     board takes about half a second to start the first time), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen.
      On Super Hang-On's courses, *CHOOSE ON THE RADIO* takes you to Super Hang-On's own music
      screen instead (choose with the brake, confirm with START); on Hang-On's course it plays
      Hang-On's own race music. The music chosen here also plays in the ENHANCED, ORIGINAL and
@@ -232,7 +245,7 @@ roms\coolridr\   ep17659.30, ..., ep17662.12        (Cool Riders)
 3. Choose **START RACE**.
 
 Up/down moves through the menu and left/right changes a setting. Your choices are saved in
-`config.xml` (section `<crossover>`, which also holds the three ROM folders; the music is saved by
+`config.xml` (section `<crossover>`, which also holds the four crossover ROM folders; the music is saved by
 its title, so it survives ROM sets coming and going). **CLEAR HISCORES** under SETTINGS clears
 Super Hang-On's and Hang-On's rankings along with OutRun's. On Super Hang-On's and Hang-On's courses the game is that game's own, rankings
 included; when it ends you're back in the menu. The menu key leaves at any time.
