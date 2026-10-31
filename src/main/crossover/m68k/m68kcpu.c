@@ -973,6 +973,7 @@ int m68k_execute(int num_cycles)
 	    if (!is000)
 		rc = 0;
 	}
+	m68ki_cpu.slice_reset_cycles = rc;
 
 	/* Set our pool of clock cycles available */
 	SET_CYCLES(num_cycles);
@@ -1015,8 +1016,10 @@ int m68k_execute(int num_cycles)
 				REG_DA_SAVE[i] = REG_DA[i];
 			}
 
-			/* Read an instruction and call its handler */
-			int before = GET_CYCLES();
+			/* Read an instruction and call its handler. The instruction's length is measured
+			 * against m68ki_initial_cycles, which m68k_end_timeslice() (called from a bus access
+			 * in the middle of the instruction) adjusts together with the remaining cycles. */
+			int before = m68ki_initial_cycles - GET_CYCLES();
 			REG_IR = m68ki_read_imm_16();
 			m68ki_instruction_jump_table[REG_IR]();
 			USE_CYCLES(CYC_INSTRUCTION[REG_IR]);
@@ -1025,7 +1028,7 @@ int m68k_execute(int num_cycles)
 			if(is000)
 			{
 				m68ki_cpu.ipl_last_ir = REG_IR;
-				m68ki_cpu.ipl_last_cycles = before - GET_CYCLES();
+				m68ki_cpu.ipl_last_cycles = (m68ki_initial_cycles - GET_CYCLES()) - before;
 				if(m68ki_cpu.ipl_defer | m68ki_cpu.ipl_check)
 				{
 					m68ki_cpu.ipl_defer = m68ki_cpu.ipl_check = 0;
@@ -1046,15 +1049,17 @@ int m68k_execute(int num_cycles)
 	m68ki_cpu.ipl_last_over = -GET_CYCLES();
 	m68ki_cpu.total_cycles += m68ki_initial_cycles - GET_CYCLES();
 	m68ki_cpu.in_execute = 0;
+	m68ki_cpu.slice_reset_cycles = 0;
 
 	/* return how many clocks we used */
 	return m68ki_initial_cycles - GET_CYCLES() + rc;
 }
 
 
+/* Crossover: includes the reset cycles taken at the start of this slice, as the returned count does */
 int m68k_cycles_run(void)
 {
-	return m68ki_initial_cycles - GET_CYCLES();
+	return m68ki_initial_cycles - GET_CYCLES() + m68ki_cpu.slice_reset_cycles;
 }
 
 int m68k_cycles_remaining(void)

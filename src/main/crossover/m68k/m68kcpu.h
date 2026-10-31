@@ -1024,6 +1024,7 @@ typedef struct
 	uint ipl_defer;                   /* run one more instruction before taking an interrupt */
 	uint ipl_check;                   /* look for an interrupt after the current instruction */
 	uint in_execute;
+	int  slice_reset_cycles;          /* reset cycles eaten at the start of the running slice */
 } m68ki_cpu_core;
 
 
