@@ -30,6 +30,7 @@
 #include "engine/otraffic.hpp"
 #include "engine/oinitengine.hpp"
 #include "crossover/bike.hpp"
+#include "crossover/madpower.hpp"
 
 OInitEngine oinitengine;
 
@@ -52,6 +53,7 @@ OInitEngine::~OInitEngine()
 void OInitEngine::init(int8_t level)
 {
     if (bike.ready) bike.reset();   // crossover: fresh Super Hang-On state for every race and demo
+    if (madpower.ready()) madpower.reset();     // crossover: MAD POWER's too
 
     ostats.game_completed  = 0;
 
@@ -271,6 +273,12 @@ void OInitEngine::update_engine()
         if (oferrari.car_ctrl_active)
             bike.tick();
     }
+    else if (madpower.enabled)
+    {
+        // Crossover: OutRunners' car code (crossover/orcar, crossover/madpower)
+        if (oferrari.car_ctrl_active)
+            madpower.tick();
+    }
     else
     {
         oferrari.move();
@@ -305,7 +313,7 @@ void OInitEngine::update_engine()
         if ((config.controls.gear == config.controls.GEAR_BUTTON ||
             config.controls.gear == config.controls.GEAR_SEPARATE)
             && !config.smartypi.enabled
-            && !bike.enabled)   // crossover: the bike has no gearbox (the gear buttons are its supercharger)
+            && !bike.enabled && !madpower.enabled)   // crossover: the bike has no gearbox (the gear buttons are its supercharger); MAD POWER's is its own
         {
             if (oinputs.gear)
                 ohud.blit_text_new(9, 26, "H", OHud::GREEN);

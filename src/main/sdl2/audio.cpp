@@ -23,6 +23,7 @@
 #include "sdl2/audio.hpp"
 #include "crossover/harness.hpp"
 #include "crossover/xaudio.hpp"
+#include "crossover/madpower.hpp"
 #include <vector>
 #include "frontend/config.hpp" // fps
 #include "engine/audio/osoundint.hpp"
@@ -229,6 +230,7 @@ void Audio::tick()
     static std::vector<int32_t> xmix;
     xmix.assign(samples_written, 0);
     xaudio.mix(xmix.data(), samples_written / 2, config.fps);
+    madpower.mix(xmix.data(), samples_written / 2, config.fps);     // MAD POWER on OutRun's courses: OutRunners' sound board
 
     // And mix them into the mix_buffer
     for (int i = 0; i < samples_written; i++)

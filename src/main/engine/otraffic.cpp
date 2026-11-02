@@ -19,6 +19,7 @@
 #include "engine/ostats.hpp"
 #include "engine/otraffic.hpp"
 #include "crossover/bike.hpp"
+#include "crossover/madpower.hpp"
 
 OTraffic otraffic;
 
@@ -765,6 +766,17 @@ void OTraffic::check_collision(oentry* sprite)
                     outrun.ttrial.vehicle_cols++;
                 }
             }
+            // Crossover: MAD POWER gets OutRunners' response to a car of its race ($8074), its own crash sounds
+            else if (madpower.enabled)
+            {
+                if (outrun.game_state == GS_ATTRACT || outrun.game_state == GS_INGAME)
+                {
+                    madpower.traffic_hit(sprite);
+                    d0 = sound::REBOUND;
+                    collision_traffic++;
+                    outrun.ttrial.vehicle_cols++;
+                }
+            }
             else
             {
             d0 = (sprite->x < 0) ? -OCrash::SKID_RESET : OCrash::SKID_RESET;
@@ -803,6 +815,8 @@ void OTraffic::check_collision(oentry* sprite)
         // Crossover: Super Hang-On's contact sound ($7540: $89 when a contact starts)
         if (bike.enabled && sprite->traffic_fx == sound::REBOUND)
             bike.sh_sound(0x89);
+        else if (madpower.enabled && sprite->traffic_fx == sound::REBOUND)
+            ;   // MAD POWER's contact sounds are its response's, on OutRunners' sound board
         else
             osoundint.queue_sound(sprite->traffic_fx);
         // Set all proximity bits on

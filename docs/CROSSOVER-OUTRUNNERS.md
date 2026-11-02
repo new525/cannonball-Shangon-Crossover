@@ -17,7 +17,7 @@ in a race).
 OutRunners' courses are in the program too, on an emulated copy of the whole board (section 6):
 **OUTRUNNERS FULL COURSE** (the game's own map, your choice at each checkpoint) and **OUTRUNNERS
 KENYA** (its Kenya stage alone), with OutRunners' car **MAD POWER**, OutRun's Ferrari (section 7) or
-Super Hang-On's bike (section 8).
+Super Hang-On's bike (section 8). MAD POWER also drives OutRun's courses (section 9).
 
 Sets: MAME `orunners`, `orunnersu`, `orunnersj`. Reference: MAME 0.264. The music needs only the three
 sound ROMs, which are the same in all three sets; the courses need every file of `orunnersj`
@@ -231,7 +231,8 @@ board (`tools/ortrace`, `run_all.sh` reruns them).
   unchanged (section 7.8). The earlier checkpoints' times stay 0 on the results.
 
 **Not done yet:**
-- Hang-On's bike on OutRunners' courses (section 8.10), and MAD POWER on the other games' courses.
+- Hang-On's bike on OutRunners' courses (section 8.10), and MAD POWER on Super Hang-On's and Hang-On's
+  courses (section 9.9; it drives OutRun's, section 9).
 - The menu's MUSIC choice: OutRunners' courses play OutRunners' own radio.
 
 ## 7. OutRun's Ferrari on OutRunners' courses (`crossover/orvehicle.*`)
@@ -595,3 +596,184 @@ vehicles (to its `rsr`, `$12251`).
   drawn (on OutRun's courses the bike's hit area is clipped to the drawn outline).
 - Super Hang-On's own dust is not drawn (OutRun's off-road smoke instead, as on OutRun's courses).
 - Two players, linked cabinets: player 1 only.
+
+
+## 9. MAD POWER on OutRun's courses (`crossover/madpower.*`, `crossover/orcar/*`)
+
+VEHICLE: OUTRUNNERS MAD POWER with TRACK: OUTRUN FULL ROUTE or any single OutRun stage. The design of
+Super Hang-On's bike on OutRun's courses (`crossover/bike`): OutRun's world keeps running in Cannonball
+(road and camera, traffic, roadside objects and the collision tests, checkpoints and forks, timer,
+score, goal and bonus, OutRun's sound board for the world); the vehicle in OutRun's car slot
+(`OInitEngine::update_engine`) is OutRunners' own car code, transcribed and proven against its board
+(`docs/OUTRUNNERS-RE.md` section 13): the handling, the sprite frame and the sound parameters
+(`orcar::ORCar`), and the car's sprite object (`orcar::CarSprite`, section 13.8 there). It runs once per
+OutRun tick, which is OutRunners' car rate (30 Hz) at both of the program's frame rates. The ROMs are
+the full `orunnersj` set (the main program, the sprite ROMs and the sound ROMs, loaded at the first
+race with MAD POWER, as the board's are for OutRunners' courses).
+
+### 9.1 Where it plugs in (Cannonball's OutRun code, each marked `crossover`)
+
+| Place | With MAD POWER |
+|---|---|
+| `OInitEngine::init` | a race (`GS_INIT_GAME`) with MAD POWER chosen: `CrossoverMadPower::reset` (OutRunners' state 0 at the first tick, the sound board powered on); the attract mode keeps the Ferrari |
+| `OInitEngine::update_engine` | `madpower.tick()` in place of `OFerrari::move` ... `set_ferrari_bounds` (as the bike); OutRun's L/H gear text is not drawn |
+| `OFerrari::setup_ferrari_sprite` | a scenery hit (`olevelobjs.collision_sprite`) goes to MAD POWER; the car's entry is MAD POWER's |
+| `OFerrari` passengers, shadow, engine pitch, curve squeal, off-road sounds | not used (MAD POWER's own sprite and sound board) |
+| `OTraffic::check_collision` | OutRun's test (the Ferrari's 0.6875 x the car's width: MAD POWER has the Ferrari's width, 9.2); the hit goes to MAD POWER; OutRun's bookkeeping (`collision_traffic`, the time trial's count) kept, its REBOUND sound not played |
+| `OSprites::do_sprite` | the car's entry becomes a foreign entry (bank 7, address `$FFFF`) |
+| `hwsprites::render_impl` | at a foreign entry, `CrossoverMadPower::blit` draws the car's image (widescreen offset, hi-res doubled) |
+| `Video`, renderers | `XCAR_COLOURS` (4096) more colours after `EXT_COLOURS + 1`: MAD POWER's |
+| `sdl2/audio.cpp` | `madpower.mix` adds its sound board |
+
+### 9.2 Units and the road (`MadRoad`, `CrossoverMadPower::tick`)
+
+| Quantity | OutRun | OutRunners | Conversion (section 7.2 the other way) |
+|---|---|---|---|
+| Lateral | `car_x_pos`, + = left; the Ferrari's half-width 24 | `$209038`, + = right; MAD POWER's 44 | OutRunners' lateral = -(X - the centre of the car's road) x 11/6, kept as MAD POWER's own (converted back to X each tick; recomputed from X only when the car's road changes, OutRun's road-width carry moves it or OutRun's limit holds it) |
+| Speed | `car_increment`, 16.16 km/h | `$209074`, the advance a tick, `$8000` a segment | km/h = speed / 136, OutRun's speedometer shows it (as OutRunners' does) |
+| Distance | road position 16.16, the path's index | segments of `$8000` | one segment = 303/272 OutRun positions; the car's advance (segments crossed + its place in the segment, the place as a fraction of the segment's length at its lateral position, which is OutRunners' own inside-line rule) moves OutRun's road position (fractions carried) |
+| Road edge | asphalt half-width `$EC` around a road's centre (`OFerrari::check_wheels`), `road_width` + `$EC` for one wide road | the segment's half-width `+$12` | half-width x 11/6 (433 on a road of OutRun's narrowest width); the road the car is on as for the bike (`CrossoverBike::compute_road_frame`: split roads, the two roads drawn as one) |
+| Heading | the path: a unit vector per position, its angle atan2(x, y) grows in right curves | the segment's heading (12-bit), grows in a right turn | each segment's heading = the car's heading + the path's turn (4096 a turn) from the car to the segment's start (interpolated between positions); on OutRun's mirrored road at a fork (`rd_split_state` set, X < 0: OutRun mirrors its own curve push there) the turns are the other way |
+| Pitch, heights | OutRun's car has no slope force; its heights only draw the road | `+2` pitch (the slope's force), `+C` heights | level: pitch 0, heights 0 (design decision) |
+| Surface | | the course node's zone lists | the pre-stage's (node 0): its lists end at once, so beyond the asphalt's edges the wheel kind is 7, and no zones on it |
+
+Inputs: the controls as crossover/ormode puts OutRun's onto OutRunners' cabinet (the wheel over the
+ADC's travel, `$208100` = `$FF` - ADC; the pedals 0-`$FF`); the separate gear buttons setting gives
+MAD POWER's 6-speed manual box (GEAR2 up, GEAR1 down; their new presses each tick), otherwise its
+automatic. One player alone: rank 0, the car ahead is itself (no catch-up).
+
+### 9.3 The start, time up and the goal (design decisions)
+
+- OutRunners' state 0 runs at the first tick of the race (a tick of its own: the sound board must see
+  the engine's start value `$A0` before the running `$20`); MAD POWER's place on the line is OutRun's
+  (its X), its own grid position is not used.
+- OutRunners' start line (state 1: brake held, the wheel centred, the engine revs with the
+  accelerator) lasts while OutRun counts down, and ends at OutRun's start (`GS_INGAME`).
+- Time up, the goal, the bonus and the ending are OutRun's: at time up OutRun stops calling the car;
+  in the bonus run MAD POWER drives with OutRun's bonus inputs; after it, OutRun's ending runs with MAD
+  POWER's image standing at the car's place (OutRun's passengers' animation is the Ferrari's).
+- OutRun's limit for its car (`set_ferrari_bounds`) applies after the tick; MAD POWER's own (the
+  half-width + `$60`) is the tighter.
+
+### 9.4 Collisions (design decisions)
+
+OutRun's tests decide that something was hit; MAD POWER's own responses (`$7F87`) follow, reported for
+its next tick as OutRunners' roadside tests report theirs (they run after its car), every tick of an
+overlap as OutRunners' tests flag them:
+
+| OutRun | MAD POWER (kind `$20046E`) |
+|---|---|
+| a roadside object (`OLevelObjs`) | 0, scenery: the bounce by its speed, the crash frames ("Ouch!", "CRASH") |
+| a traffic car or lorry (`OTraffic::check_collision`) | 2, a car of its race, of MAD POWER's own weight (272): its lateral position the car's own + the traffic's screen x x 11/6 (at the car's depth OutRun's screen x is in road units: `OTraffic::update_props`, x = xw1 x z / 512 + the road's centre, z about 512), its lateral speed its lane change (4 a tick towards `xw2`, x 11/6), its speed its km/h x 136 |
+
+MAD POWER's width is the Ferrari's at the lateral scale, so OutRun's tests are unchanged. Its off-road
+is its own (a side beyond the edge: OutRun's "one wheel off"), with its drag, shaker, gravel sound and
+smoke kind; OutRun's wheel state stays "on the road", so OutRun draws no dust and plays no off-road
+sound for it.
+
+### 9.5 Drawing
+
+- **The entries:** the car's sprite object (`orcar::CarSprite`, `$99B8` for the player's car: body,
+  wheels, the wheels' smoke, the dust when the speed jumps, the crash's dust; its `$14374` objects that
+  bring the wheels back after a frame without them), drawn from the car record of the last tick as on
+  the board, at OutRunners' scale 1 (`$100`).
+- **Rendering:** `orcar::S32Sprites`, MAME's `draw_one_sprite` for these entries, with the palette RAM
+  as the game loads it at power-on (`$153904`: entries `$000-$9FF`; `$3153C`: `$F00-$FFF`; `$11881`) and
+  the indirect palettes as it copies them into sprite RAM (`$107020` to `$401000`, `$10BE0`), and the
+  mixer's colour for a sprite pixel with the registers the game sets in a race (sprite groups from bits
+  12-13, palette base 0, no colour offsets, the transparency mask `$0FFF`). MAD POWER's palettes are the
+  same on every course (palette RAM compared at six points of a full-course race); the per-course
+  palette lists (`$31B14`, `$318CC`, `$31DDC`) load other entries.
+- **Place and size (design decisions):** OutRun's camera is fixed to its car: MAD POWER's point is where
+  OutRunners' projection puts it on its start line (the list's offset (160, 222) and R16 = -12, R15 =
+  0), in the middle of OutRun's screen, at scale 1 (MAD POWER on its start line: 88 x 51 pixels, the
+  Ferrari's 90 x 42); a crash's jump raises it by its height (world units are pixels at scale 1). Its
+  frame's hill index (`$7B3F`) is OutRun's own decision for its car (`road_y[$1E8] - road_y[$1F0]`:
+  above `$12` uphill, index 0; `$12` level, 1; below, downhill, 2).
+- **In the list:** the image is drawn at the Ferrari's entry (`priority` `$1FD`), so nearer objects are
+  drawn over it, as OutRun draws them over the Ferrari.
+- **Not drawn:** the player marker OutRunners shows on its start line, the wheels flying off in a crash
+  (`$14374` draws them with the generic `$ED50`; their timing is kept), the objects `$14460` switch off
+  for MAD POWER.
+
+### 9.6 Sound
+
+OutRunners' sound board (`crossover/orsound`, a second instance beside the music player's), driven as
+its main CPU drives it for player 1, no music: the engine's parameters (`$700713` the car's engine,
+`$700714` the box, `$700710` = 1 and `$700712` = `$A0` at the start; then every tick `$700710` = the
+engine speed >> 8, `$700712` = `$20`), the tyre/skid sound's number (`$700718`, each write the car's
+code makes: wheelspin, locked wheels, slides, the gravel off the road, the shift smoke) and the
+commands the car queues (the crash's two, the bounce's `$31`), one a 60 Hz frame to `$700700` as the
+frame interrupt `$3F8DA` sends them. Each car tick's writes reach the board at the start of the next
+audio frame. The mix is crossover/ormode's (MAME's left speaker, x 0.17). These are all the main CPU's
+writes to the car's parameters in a race (`ortrace`, every write to `$700700-$7008FF` from power-on to
+a race: `$700700` commands, `$700710-$700714`, `$700718`, and player 2's engine off). The program's
+OutRun sound board plays the world (music, traffic, voices); OutRun's engine and tyre sounds are off.
+
+### 9.7 Checked
+
+Harness runs (`-headless -script`), Linux build. `CB_MP_TRACE=<file>` writes a line per tick (frame,
+OutRun state, car state, km/h, X, lateral, half-width, road position, road control, road width, split
+state, mirror, heading, off-road, gear, engine speed, frame, sub-frame, jump); `CB_MP_DEBUG` logs the
+hits and the sound board; `CB_MP_MUTE_BOARD` mutes MAD POWER's board (testing).
+
+- **Acceleration, automatic** (OutRun's stage 1, no traffic, full throttle from the start, steered
+  along its road): against MAD POWER on OutRunners' pre-stage (the board under `tools/ortrace`, the
+  accelerator held from the start line), its speed is identical at every tick for the first 124 ticks
+  (to 148 km/h); there the pre-stage's first slope begins (the segment's pitch 8, then rising), which
+  OutRun's level road does not have. With the pre-stage made level on the board (every ring segment's
+  pitch written 0 each frame, the lateral held at 0), identical at every tick for 501 ticks (16.7 s,
+  to 414 km/h): 50, 100, 150, 200, 250, 300 and 330 km/h at 1.53, 3.10, 4.40, 5.70, 7.00, 8.40 and 9.53 s
+  in both. At tick 502 the board's car touches a roadside object at the line it was held on (OutRunners'
+  minor contact: its drag x 5.6).
+- **Acceleration, manual** (shifts up at ticks 40, 80, 120, 160 and 200 after the start, both): identical
+  for 458 ticks (15.3 s, to 464 km/h); 50 to 330 km/h at 1.50, 2.60, 3.70, 4.77, 5.83, 6.87 and 7.57 s.
+- The program's 30 fps mode gives the same speeds at every tick.
+- **Top speed** on OutRun's stage 1: 451 km/h automatic (its gear's limit is 467), 471 km/h manual (480);
+  OutRun's speedometer shows them.
+- **The full route** (OUTRUN FULL ROUTE, normal traffic, the time held, steered at its road's centre):
+  the five stages, the forks (on the mirrored road at the first, frame 3367: split state 2, the car on
+  the left road), 36 ticks of traffic contact and 5 of scenery contact (30 crashes of MAD POWER's own:
+  "CRASH" and the spin for cars, "Ouch!" for the rocks), the goal at frame 17757, the bonus, the ending. Snapshots: at speed (stages 1-4),
+  in curves, at the fork, a traffic contact, a scenery contact, the goal, the steering frames left and
+  right (sub-frames 0 and 8).
+- **Sprites:** `orcar::S32Sprites` against the board's screen (a race frame's sprite RAM dumped, the
+  car's entries rendered, compared with the board's screen): 3,484 of 3,484 pixels identical; a crash
+  frame (body and crash dust): 5,914 of 5,925, the other 11 under the HUD band at the top of the screen.
+- **Sound:** MAD POWER's board's part of the output (the WAV with and without it, `CB_MP_MUTE_BOARD`,
+  the difference): RMS 286-735 over 2 s windows as the car accelerates; the board's own engine writes
+  from a race replayed into a standalone board give 890-1,210 while accelerating, the same order.
+- **Unchanged:** `tools/orcartest` `run_all.sh` (with the new comparisons, `docs/OUTRUNNERS-RE.md`
+  13.8): 26 runs, 0 differences; `tools/orbtest` session 1 (3,000 frames): RAM identical at every frame,
+  798,342 I/O accesses identical, 6 of 6 snapshots; `tools/s32vtest` replays: 214 of 214 screens exact;
+  the Ferrari and Super Hang-On's bike on OutRun's stage 1 (1,500 frames, four snapshots, the WAV) and
+  on OutRunners' Kenya (3,300 frames, nine snapshots, the WAV), and MAD POWER on OutRunners' Kenya:
+  byte-identical before and after.
+- The Windows build compiles.
+
+### 9.8 Found on the way
+
+- MAD POWER's palette entries are loaded once, at power-on, and are the same on every course; the
+  palette lists loaded by course are the scenery's.
+- Its body is an 8 bpp sprite with indirect palettes (sixteen sub-palettes); the indirect tables are in
+  sprite RAM, copied from the ROM at power-on.
+- The sprite object draws the record the car published the tick before (the race's car array is
+  copied from the records at the start of each frame, before the car's tick).
+
+### 9.9 Not done / known issues
+
+- **Super Hang-On's and Hang-On's courses** with MAD POWER. They run on their own emulated boards, with
+  OutRun's Ferrari put on them by `crossover/shferrari` / `crossover/hovehicle`. MAD POWER would take
+  their place: the road adapter of 9.2 over their road paths (OutRun's format), their road edges (300
+  and 260 around one road) x 11/6 for the half-width, their rivals as cars of its race and their
+  roadside test for scenery, its image drawn into their frames at the vehicle's place in their sprite
+  lists (their frames use the external palette, `Video::set_external`: MAD POWER's colours would have to
+  join it), and its sound board beside theirs. The menu does not offer them.
+- The wheels flying off in a crash are not drawn (their timing is: the wheels come back when they would).
+- The start-line marker is not drawn.
+- OutRun's ending runs with MAD POWER's image standing still and the Ferrari's passengers' animation;
+  there is no MAD POWER version of OutRun's start and ending scenes. The attract mode shows the Ferrari.
+- OutRun's HUD shows no gear for MAD POWER's manual box.
+- No slope force from OutRun's hills (design decision, 9.2).
+- MAD POWER's engine level from its board, against OutRunners' own race, was compared only roughly
+  (9.7).

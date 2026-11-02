@@ -27,6 +27,7 @@ class OFerrari
     friend class SHFerrari;       // crossover: the Ferrari on Super Hang-On's courses
     friend class HOVehicle;       // crossover: the Ferrari on Hang-On's course
     friend class ORVehicle;       // crossover: the vehicles on OutRunners' courses
+    friend class CrossoverMadPower;   // crossover: MAD POWER on OutRun's courses
 public:
     // Ferrari Sprite Object
     oentry *spr_ferrari;

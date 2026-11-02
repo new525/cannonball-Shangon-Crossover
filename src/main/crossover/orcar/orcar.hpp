@@ -22,15 +22,21 @@
               angle, curve push, grip and slide, lateral velocity, the advance along the course
               ($12318 atan2; the catch-up $A620), segment crossing, lateral limits,
               world position ($104F6) and heading interpolation
-      $F579   the car's animation step, while in the crash (it ends the crash: $81CB)
-      $7B3F   the hill index of the crash frame
-      $C3C4   the gear box: manual shifts, the over-rev smoke timer $209144
-    Left to the board (not the car's motion): the camera ($A89E, $7B74, $79A0), the publishing
-    of the car record ($77BD), the road generator and projection ($FF8E, $102CE), race order
-    ($76AF), the collision tests that report a contact ($124A4, $127DB and the roadside objects'
-    tests: their result is an input), the sprite frame selection ($7A7A outside the crash), the
-    sounds ($1222F, $12235, $12124: the engine, tyre and crash sounds; $209134-$209136), the
-    demo driver ($A325) and the linked-cabinet mode ($20E623 set): see unsupported().
+      $7A7A   the sprite frame: base frame by the hill, steering frame, wheelspin and slide
+              frames, the crash's animation ($F579, $F5D2; the goal run's stop frame)
+      $F579   the car's animation step (it ends the crash: $81CB)
+      $7B3F   the hill index of the frame
+      $7B97-$7BE5  the camera's flag for the sprite object ($209145: the speed jumped)
+      $1219C, $121E8, $1222F, $12235, $12124  the sounds: the engine's parameters, the tyre/skid
+              sound's number, the commands queued (the crash's, the bounce's, the time-up's
+              through $1966E); $209134-$209136
+      $C3C4   the gear box: manual shifts, the over-rev smoke timer $209144 (and its tyre sound)
+    Left to the board (not the car's motion): the camera ($A89E, the rest of $7B74, $79A0), the
+    publishing of the car record ($77BD; orcarspr.hpp Record::publish has the sprite's fields),
+    the road generator and projection ($FF8E, $102CE), race order ($76AF), the collision tests
+    that report a contact ($124A4, $127DB and the roadside objects' tests: their result is an
+    input), the demo driver ($A325) and the linked-cabinet mode ($20E623 set): see unsupported().
+    The car's sprite object ($99B8) is in orcarspr.hpp.
 
     Inputs: the controls, the road (Road: the segment ring and the course node's surface data),
     and the world values the code reads (TickInput: the race's car records, the camera's pitch,
@@ -99,6 +105,7 @@ struct TickInput
     uint8_t rank = 0;           // $208320 + carnum: position (indexes $8292 and $97AC)
     uint8_t players_m1 = 0;     // 1F[$208308] - 1 (the start grid table, init only)
     uint8_t time_up = 0;        // $209180 ($CA0F)
+    uint8_t stage = 0;          // $2080A4: the stage (the time-up's sound, $7448)
     uint8_t goal = 0;           // $209181 ($CB51)
     uint16_t finish_time = 0;   // $208410 + 2 x carnum (goal run, $74AE)
     // the race's car array as copied at the start of the frame ($E88C), the car's own entry
@@ -116,8 +123,10 @@ struct TickInput
     // the player's flags word $208094 when the tick starts (the time-up and goal-run counts set
     // bit 4 when they end; the game's ending clears it)
     uint16_t flags94 = 0;
-    // the camera's pitch ($20902C, the previous tick's camera): the crash frame's hill index ($7B3F)
+    // the camera's pitch ($20902C): the previous tick's camera for the crash frame's hill index ($8175
+    // bsr 7B3F, before this tick's camera), this tick's for the sprite frame's ($7A7A, after the camera $A89E)
     uint16_t camera_pitch = 0;
+    uint16_t camera_pitch_now = 0;
     // a contact reported by the collision tests: bit 2 of $200400 when the car's tick starts
     // (the roadside objects' tests, run after the car in the previous frame) and at $7348
     // (after the car-to-car test $127DB), with the kind $20046E and argument $200468
@@ -130,6 +139,8 @@ struct TickInput
     int16_t  obj_lateral = 0; int8_t obj_width = 0; int16_t obj_latvel = 0; uint16_t obj_speed = 0; uint16_t obj_weight = 0;
     // kind 2: the other car's record in the car array: 44 lateral, 4E lateral velocity, 4C speed, 49 car
     int16_t  car_lateral = 0; int16_t car_latvel = 0; uint16_t car_speed = 0; uint8_t car_model = 0;
+    // the camera's state ($2004E0, 1 in a race) and its flag $2004E1 (0 in a race): $7B74's part above
+    uint8_t cam_state = 1, cam_e1 = 0;
     // must be 0 (see ORCar::unsupported)
     uint8_t demo = 0;           // bit 8 of $208090 (the attract demo's driver)
     uint8_t link = 0;           // $20E623
@@ -208,6 +219,36 @@ struct State
     uint8_t  rec_markers = 0;   // +60 (the goal run counts the goal)
     uint8_t  rec_goal = 0;      // +5E
     uint16_t rec_finish = 0;    // +16
+    // the sprite frame ($7A7A; with the animation fields above): the steering frame the car's frame
+    // moves to one step a tick, and the palette index of its body ($7270: $977C[car])
+    uint8_t  steer_frame = 0;   // $2004DB
+    uint16_t pal_index = 0;     // $20043A
+    // the sounds: the car's parameters in the sound board's shared RAM (player 1's: $700710 +
+    // $100 x player; $1219C at the start, $121E8 every tick), the crash's sounds ($8159, $81B0) and
+    // the command queue ($12124: the frame interrupt sends one a frame to $700700)
+    uint8_t  snd_engine = 0;    // $700710: the engine speed >> 8 ($121E8), 1 at the start
+    uint8_t  snd_ctrl = 0;      // $700712: $A0 at the start, $20 running
+    uint8_t  snd_car = 0;       // $700713: the car's engine ($12292[car])
+    uint8_t  snd_box = 0;       // $700714: $10 automatic, $30 manual
+    uint8_t  crash_snd = 0;     // $209134: the crash's second sound
+    uint8_t  crash_snd_wait = 0;// $209135: ticks until it
+    uint8_t  crash_dust = 0;    // $209136: $FF when a crash starts (the sprite object takes it)
+    uint8_t  sq_wr = 0;         // $208801: the queue's write index
+    uint8_t  sq[32] = {};       // $208802: the queue
+    // the camera's flag for the car's sprite object ($7B74 at $7B97-$7BE5, the rest of the camera is
+    // not transcribed): $FF when the speed grew by more than $A0 this tick (published as the record's +53)
+    uint8_t  squat = 0;         // $209145
+    int16_t  neg_speed = 0;     // $2004B2: minus the speed, last tick
+};
+
+// What a tick sent to the sound board besides the parameters in State: the tyre/skid sound ($12235:
+// $700718 := the sound's number; the board's Z80 takes it) and the commands queued ($12124)
+struct SoundOut
+{
+    int     tyre_writes = 0;    // writes to $700718 this tick
+    uint8_t tyre = 0;           // the last one's value
+    int     ncmd = 0;           // commands queued this tick
+    uint8_t cmd[8] = {};
 };
 
 class ORCar
@@ -217,11 +258,14 @@ public:
     explicit ORCar(const uint8_t* rom) : rom(rom) {}
 
     State s;
+    SoundOut snd;               // cleared at the start of tick() and gearbox_tick()
 
     // One tick of the car object ($715C), player's tick (30 Hz)
     void tick(const TickInput& in, const Road& road);
     // The gear box's tick ($C379, state 1 $C3C4), run later in the same frame (object $200C00)
     void gearbox_tick(const TickInput& in);
+
+    const uint8_t* rom_data() const { return rom; }
 
     // Set when the tick met a path that is not transcribed (the demo driver, the linked mode, a
     // state outside 0-5); the state is then not valid. 0 = none.
@@ -250,7 +294,13 @@ private:
     void clear_contact();                                   // $7A4B
     void goal_drive();                                      // $7602
     void anim_step_f579();
-    uint8_t hill_index(const TickInput& in);                // $7B3F
+    void anim_set_f5d2(uint16_t frame);                     // $F5D2: start a frame's animation
+    void frame_select(const TickInput& in);                 // $7A7A: the sprite frame
+    void camera_flag(const TickInput& in);                  // $7B97-$7BE5: $209145
+    uint8_t hill_index(uint16_t camera_pitch, const TickInput& in);     // $7B3F
+    void sound_queue(uint8_t cmd);                          // $12124
+    void sound_tyre(uint8_t num);                           // $12235
+    void sound_tyre_if_on_road(uint8_t num);                // $1222F
 };
 
 } // namespace orcar

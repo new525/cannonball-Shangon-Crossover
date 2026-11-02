@@ -21,6 +21,7 @@
 #include "engine/osprites.hpp"
 #include "engine/oferrari.hpp"
 #include "crossover/bike.hpp"
+#include "crossover/madpower.hpp"
 #include "engine/otraffic.hpp"
 #include "engine/data/ozoom_lookup.hpp"
 
@@ -594,6 +595,8 @@ void OSprites::do_sprite(oentry* input)
 
     // Crossover: the player's vehicle may be another game's sprite
     if (bike.enabled && bike.owns(input) && bike.draw(input, output))
+        return;
+    if (madpower.enabled && madpower.owns(input) && madpower.draw(input, output))
         return;
 
     // Sprite Width/Height Settings

@@ -27,6 +27,7 @@
 //   (the collision speed change, the wheelspin flag, the speed for a crash's response; mode a only)
 #include "crossover/orboard.hpp"
 #include "crossover/orcar/orcar.hpp"
+#include "crossover/orcar/orcarspr.hpp"
 #include "crossover/v60/v60d.hpp"
 
 #include <algorithm>
@@ -98,7 +99,7 @@ struct BoardRoad : orcar::Road
 // The model's variables in the board's RAM (player 1's addresses; player 2: + $10000 except the
 // shaker and the record)
 // ------------------------------------------------------------------------------------------------
-enum Area { OBJ, VAR, BASE, ABS, REC };
+enum Area { OBJ, VAR, BASE, ABS, REC, SND };
 enum When { ALWAYS, CRASH, CRASH_START, MASK10, GOALRUN, GEARBOX };
 struct Field { const char* name; Area area; uint32_t off; int size; size_t member; When when; };
 #define F(n, area, off, when) { #n, area, off, (int) sizeof(State::n), offsetof(State, n), when }
@@ -107,13 +108,13 @@ const Field FIELDS[] = {
     F(flags, OBJ, 0x00, ALWAYS), F(state, OBJ, 0x0C, ALWAYS), F(sub, OBJ, 0x0D, ALWAYS), F(st_e, OBJ, 0x0E, ALWAYS),
     F(st_f, OBJ, 0x0F, ALWAYS), F(timer, OBJ, 0x10, ALWAYS), F(wx, OBJ, 0x20, ALWAYS), F(wy, OBJ, 0x24, ALWAYS),
     F(wz, OBJ, 0x28, ALWAYS), F(speed_copy, OBJ, 0x2C, ALWAYS), F(latvel, OBJ, 0x2E, ALWAYS),
-    F(anim_frame, OBJ, 0x38, CRASH), F(anim_step, OBJ, 0x40, CRASH), F(anim_rate, OBJ, 0x41, CRASH),
-    F(anim_count, OBJ, 0x42, CRASH), F(grace, OBJ, 0x6F, ALWAYS), F(pitch_init, OBJ, 0x8C, ALWAYS),
+    F(anim_frame, OBJ, 0x38, ALWAYS), F(anim_step, OBJ, 0x40, ALWAYS), F(anim_rate, OBJ, 0x41, ALWAYS),
+    F(anim_count, OBJ, 0x42, ALWAYS), F(grace, OBJ, 0x6F, ALWAYS), F(pitch_init, OBJ, 0x8C, ALWAYS),
     F(heading, OBJ, 0x8E, ALWAYS), F(heading_prev, OBJ, 0x90, ALWAYS), F(force, OBJ, 0x94, ALWAYS),
     F(steer_angle, OBJ, 0x96, ALWAYS), F(brake_val, OBJ, 0xB0, ALWAYS), F(wy_prev, OBJ, 0xB4, ALWAYS),
     F(slide, OBJ, 0xB8, ALWAYS), F(speed32, OBJ, 0xC0, ALWAYS), F(dspeed, OBJ, 0xC4, ALWAYS), F(jump, OBJ, 0xC8, ALWAYS),
     F(jump_v, OBJ, 0xCC, ALWAYS), F(push, OBJ, 0xCE, ALWAYS), F(in_accel, OBJ, 0xD0, ALWAYS),
-    F(in_brake, OBJ, 0xD1, ALWAYS), F(in_steer, OBJ, 0xD2, ALWAYS), F(hill, OBJ, 0xD9, CRASH_START),
+    F(in_brake, OBJ, 0xD1, ALWAYS), F(in_steer, OBJ, 0xD2, ALWAYS), F(hill, OBJ, 0xD9, ALWAYS),
     F(goal_seg, OBJ, 0xF0, ALWAYS), F(goal_lat, OBJ, 0xF2, ALWAYS), F(goal_speed, OBJ, 0xF4, ALWAYS),
     F(goal_steer, OBJ, 0xF6, ALWAYS), F(goal_accel, OBJ, 0xF7, ALWAYS), F(goal_flag, OBJ, 0xF8, ALWAYS),
     F(pos_hi, VAR, 0x32, ALWAYS), F(pos, VAR, 0x34, ALWAYS), F(lateral, VAR, 0x38, ALWAYS), F(seg_rest, VAR, 0x3A, ALWAYS),
@@ -132,6 +133,11 @@ const Field FIELDS[] = {
     F(done_flags, BASE, 0x94, MASK10),
     F(rec_pitch, REC, 0x54, ALWAYS), F(rec_markers, REC, 0x60, GOALRUN), F(rec_goal, REC, 0x5E, ALWAYS),
     F(rec_finish, REC, 0x16, ALWAYS),
+    // the sprite frame, the camera's flag, the sounds
+    F(steer_frame, OBJ, 0xDB, ALWAYS), F(pal_index, OBJ, 0x3A, ALWAYS), F(squat, VAR, 0x145, ALWAYS),
+    F(neg_speed, OBJ, 0xB2, ALWAYS), F(crash_snd, VAR, 0x134, ALWAYS), F(crash_snd_wait, VAR, 0x135, ALWAYS),
+    F(crash_dust, VAR, 0x136, ALWAYS), F(sq_wr, BASE, 0x801, ALWAYS),
+    FA(sq, 0, BASE, 0x802, ALWAYS), FA(sq, 1, BASE, 0x803, ALWAYS), FA(sq, 2, BASE, 0x804, ALWAYS), FA(sq, 3, BASE, 0x805, ALWAYS), FA(sq, 4, BASE, 0x806, ALWAYS), FA(sq, 5, BASE, 0x807, ALWAYS), FA(sq, 6, BASE, 0x808, ALWAYS), FA(sq, 7, BASE, 0x809, ALWAYS), FA(sq, 8, BASE, 0x80A, ALWAYS), FA(sq, 9, BASE, 0x80B, ALWAYS), FA(sq, 10, BASE, 0x80C, ALWAYS), FA(sq, 11, BASE, 0x80D, ALWAYS), FA(sq, 12, BASE, 0x80E, ALWAYS), FA(sq, 13, BASE, 0x80F, ALWAYS), FA(sq, 14, BASE, 0x810, ALWAYS), FA(sq, 15, BASE, 0x811, ALWAYS), FA(sq, 16, BASE, 0x812, ALWAYS), FA(sq, 17, BASE, 0x813, ALWAYS), FA(sq, 18, BASE, 0x814, ALWAYS), FA(sq, 19, BASE, 0x815, ALWAYS), FA(sq, 20, BASE, 0x816, ALWAYS), FA(sq, 21, BASE, 0x817, ALWAYS), FA(sq, 22, BASE, 0x818, ALWAYS), FA(sq, 23, BASE, 0x819, ALWAYS), FA(sq, 24, BASE, 0x81A, ALWAYS), FA(sq, 25, BASE, 0x81B, ALWAYS), FA(sq, 26, BASE, 0x81C, ALWAYS), FA(sq, 27, BASE, 0x81D, ALWAYS), FA(sq, 28, BASE, 0x81E, ALWAYS), FA(sq, 29, BASE, 0x81F, ALWAYS), FA(sq, 30, BASE, 0x820, ALWAYS), FA(sq, 31, BASE, 0x821, ALWAYS),
 };
 const int NFIELDS = (int)(sizeof FIELDS / sizeof FIELDS[0]);
 
@@ -148,6 +154,7 @@ struct Player
         case BASE: return r25 + f.off;
         case ABS: return f.off + (uint32_t) p;
         case REC: return rl(r25 + 0x24) + f.off;
+        case SND: return 0x700700 + 0x100u * (uint32_t) p + f.off;
         }
         return 0;
     }
@@ -175,6 +182,49 @@ void load_state(State& s, const Player& pl)
         for (int i = 0; i < 256; i++) s.torque[g][i] = g <= s.gears_m1 ? rw(pl.r23 + 0x300 + 0x200 * g + 2 * i) : 0;
 }
 
+// The car's sprite object's fields ($201800 +)
+void load_sprite(orcar::CarSprite& m, uint32_t o, uint32_t r23)
+{
+    m.car = rb(o + 0x0A); m.wheels_off = rb(o + 0x2E); m.body_flags = rw(o + 0x84); m.acc = rl(o + 0x88);
+    m.img_base = rw(o + 0x8C); m.frame_base = rw(o + 0x8E);
+    for (int k = 0; k < 2; k++)
+    {
+        uint32_t w = o + 0x90 + 0x10u * (uint32_t) k;
+        m.wheel[k].table = rl(w); m.wheel[k].frame = rw(w + 4); m.wheel[k].pal = rw(w + 6);
+        m.wheel[k].mask = rb(w + 8); m.wheel[k].count = rb(w + 0xA); m.wheel[k].limit = rb(w + 0xB);
+        uint32_t sm = o + 0xC0 + 0x10u * (uint32_t) k;
+        m.smoke[k].frames = rl(sm); m.smoke[k].pos = rl(sm + 4); m.smoke[k].which = (uint8_t)((rl(sm + 8) & 0x7F) - 0x50);
+        m.smoke[k].count = rb(sm + 0xC); m.smoke[k].mask = rb(sm + 0xD); m.smoke[k].kind = rb(sm + 0xE);
+    }
+    m.dust_y = rw(o + 0xB0); m.dust_count = rb(o + 0xB2); m.dust_step = rb(o + 0xB3); m.dust_frame = rw(o + 0xB4);
+    m.dust_pal = rw(o + 0xB6); m.bf = rb(o + 0xBF); m.row = rb(o + 0xE3); m.flag137 = rb(r23 + 0x137);
+}
+// differences between the model's fields and the object's, as text ("" when none)
+std::string diff_sprite(const orcar::CarSprite& m, uint32_t o, uint32_t r23)
+{
+    orcar::CarSprite b(ROM.data());
+    load_sprite(b, o, r23);
+    std::string d;
+    auto chk = [&](const char* n, uint32_t mv, uint32_t bv) {
+        if (mv == bv) return;
+        char buf[80]; snprintf(buf, sizeof buf, "%s%s model %X board %X", d.empty() ? "" : "; ", n, mv, bv); d += buf; };
+    chk("2E", m.wheels_off, b.wheels_off); chk("84", m.body_flags, b.body_flags); chk("88", m.acc, b.acc);
+    chk("8C", m.img_base, b.img_base); chk("8E", m.frame_base, b.frame_base);
+    for (int k = 0; k < 2; k++)
+    {
+        chk(k ? "A0" : "90", m.wheel[k].table, b.wheel[k].table); chk(k ? "A4" : "94", m.wheel[k].frame, b.wheel[k].frame);
+        chk(k ? "A6" : "96", m.wheel[k].pal, b.wheel[k].pal); chk(k ? "A8" : "98", m.wheel[k].mask, b.wheel[k].mask);
+        chk(k ? "AA" : "9A", m.wheel[k].count, b.wheel[k].count); chk(k ? "AB" : "9B", m.wheel[k].limit, b.wheel[k].limit);
+        chk(k ? "D0" : "C0", m.smoke[k].frames, b.smoke[k].frames); chk(k ? "D4" : "C4", m.smoke[k].pos, b.smoke[k].pos);
+        chk(k ? "D8" : "C8", m.smoke[k].which, b.smoke[k].which); chk(k ? "DC" : "CC", m.smoke[k].count, b.smoke[k].count);
+        chk(k ? "DD" : "CD", m.smoke[k].mask, b.smoke[k].mask); chk(k ? "DE" : "CE", m.smoke[k].kind, b.smoke[k].kind);
+    }
+    chk("B0", m.dust_y, b.dust_y); chk("B2", m.dust_count, b.dust_count); chk("B3", m.dust_step, b.dust_step);
+    chk("B4", m.dust_frame, b.dust_frame); chk("B6", m.dust_pal, b.dust_pal); chk("BF", m.bf, b.bf); chk("E3", m.row, b.row);
+    chk("$209137", m.flag137, b.flag137);
+    return d;
+}
+
 // ------------------------------------------------------------------------------------------------
 // The test
 // ------------------------------------------------------------------------------------------------
@@ -189,7 +239,12 @@ struct Checker
     bool dead = false;          // mode b: the model met an unsupported path
     uint64_t ticks = 0, ticks_bad = 0, field_diffs = 0, gear_ticks = 0, gear_bad = 0, unsupported = 0;
     std::vector<Diff> first;
-    explicit Checker(const char* n, bool a) : name(n), model(ROM.data()), resync(a) {}
+    // the car's sprite object ($99B8 from $9AE0, the player's own car): its model, the entries it made
+    orcar::CarSprite spr;
+    bool spr_started = false;
+    std::vector<uint16_t> ent;
+    uint64_t spr_calls = 0, spr_bad = 0, spr_marker = 0;
+    explicit Checker(const char* n, bool a) : name(n), model(ROM.data()), resync(a), spr(ROM.data()) {}
 };
 
 struct PlayerTest
@@ -207,6 +262,13 @@ struct PlayerTest
     std::string route;          // the checkpoints' nodes and choices, when the goal is reached
     // coverage of situations (the board's state after each tick)
     std::map<std::string, uint64_t> events;
+    // the sounds the board's car made in this tick ($1224A: $700718; $12124 after $76AF) and gear-box tick
+    int tyre_writes = 0; uint8_t tyre = 0; std::vector<uint8_t> cmds; bool cmd_on = false; bool in_gear = false;
+    // the engine's parameters as the main CPU wrote them this tick ($700710-$700714, read right after the
+    // writes: the sound board's Z80 changes some of them later); -1 when not written
+    int snd[5] = { -1, -1, -1, -1, -1 };
+    // the sprite object being checked (between $9AE0 and $9E48)
+    uint32_t spr_obj = 0; bool spr_marker = false;
 };
 
 PlayerTest PT[2];
@@ -228,7 +290,7 @@ void capture_entry(PlayerTest& t)
     in.player = rb(pl.r25 + 0); in.carnum = rb(pl.r25 + 1);
     in.rank = rb(pl.r25 + 0x320 + in.carnum);
     in.players_m1 = (uint8_t)(rb(rl(pl.r25 + 0x308) + 0x1F) - 1);
-    in.time_up = rb(pl.r23 + 0x180); in.goal = rb(pl.r23 + 0x181);
+    in.time_up = rb(pl.r23 + 0x180); in.goal = rb(pl.r23 + 0x181); in.stage = rb(pl.r25 + 0xA4);
     in.finish_time = rw(pl.r25 + 0x410 + 2u * in.carnum);
     uint32_t own = rl(pl.r25 + 0x20);
     in.own_rec_seg = rw(own + 0x42); in.own_rec_goal = rb(own + 0x5E); in.own_rec_pitch = rw(own + 0x54);
@@ -238,6 +300,7 @@ void capture_entry(PlayerTest& t)
     in.hit_at_entry = (rw(pl.r20) & 4) != 0;
     in.demo = rb(pl.r25 + 0x91) & 1;
     in.link = rb(0x20E623);
+    in.cam_state = rb(pl.r20 + 0xE0); in.cam_e1 = rb(pl.r20 + 0xE1);
 }
 
 void capture_road(PlayerTest& t) { t.road.capture(t.pl.ring, t.pl.r25); t.road_ok = true; }
@@ -284,6 +347,38 @@ void compare(Checker& c, PlayerTest& t, bool gear_only)
                     nd++;
                     if (first.size() < 400) { char buf[80]; snprintf(buf, sizeof buf, "; torque[%d][%d]", g, i); first += buf; }
                 }
+    // the sounds the tick sent: the tyre parameter's writes ($1224A), the commands queued ($12124)
+    {
+        const orcar::SoundOut& so = c.model.snd;
+        char buf[160];
+        if (so.tyre_writes != t.tyre_writes || (so.tyre_writes && so.tyre != t.tyre))
+        {
+            nd++;
+            snprintf(buf, sizeof buf, "%styre writes model %d (%X) board %d (%X)", first.empty() ? "" : "; ", so.tyre_writes, so.tyre, t.tyre_writes, t.tyre);
+            if (first.size() < 400) first += buf;
+        }
+        if (!gear_only)
+        {
+            const State& ms = c.model.s;
+            const int mv[5] = { ms.snd_engine, -1, ms.snd_ctrl, ms.snd_car, ms.snd_box };
+            for (int i = 0; i < 5; i++)
+                if (t.snd[i] >= 0 && t.snd[i] != mv[i])
+                {
+                    nd++;
+                    snprintf(buf, sizeof buf, "%s$7007%X model %X board %X", first.empty() ? "" : "; ", 0x10 + i, mv[i], t.snd[i]);
+                    if (first.size() < 400) first += buf;
+                }
+            bool same = so.ncmd == (int) t.cmds.size();
+            for (int i = 0; same && i < so.ncmd && i < 8; i++) same = so.cmd[i] == t.cmds[(size_t) i];
+            if (!same)
+            {
+                nd++;
+                snprintf(buf, sizeof buf, "%scommands model %d (%X) board %d (%X)", first.empty() ? "" : "; ", so.ncmd, so.ncmd ? so.cmd[0] : 0,
+                         (int) t.cmds.size(), t.cmds.empty() ? 0 : t.cmds[0]);
+                if (first.size() < 400) first += buf;
+            }
+        }
+    }
     if (gear_only) { c.gear_ticks++; if (nd) c.gear_bad++; }
     else { c.ticks++; if (nd) c.ticks_bad++; }
     c.field_diffs += (uint64_t) nd;
@@ -332,6 +427,7 @@ void hook(void*, uint32_t pc)
 {
     auto it = cover.find(pc);
     if (it != cover.end()) it->second++;
+
     V60Cpu& cpu = B->maincpu();
     int p = player_of(cpu.reg(25));
     if (p < 0) return;
@@ -345,6 +441,8 @@ void hook(void*, uint32_t pc)
         if (t.demo) { t.demo_ticks++; return; }
         t.in_tick = true;
         t.road_ok = false;
+        t.tyre_writes = 0; t.cmds.clear(); t.cmd_on = false;
+        for (int& v : t.snd) v = -1;
         if (force && rb(t.pl.r20 + 0xC) == 2)
         {
             // the collision speed change $2004C4 large (the speed above $FFFF: $ACA0), or
@@ -370,7 +468,111 @@ void hook(void*, uint32_t pc)
         // mode b: loaded once, before the car's first tick of the race (state 0)
         if (t.state_before == 0) { load_state(t.b.model.s, t.pl); t.b.started = true; t.b.dead = false; }
         load_state(t.a.model.s, t.pl);
+        // the crash's dust flag is taken (cleared) by the sprite object, after the car in the frame
+        t.b.model.s.crash_dust = rb(t.pl.r23 + 0x136);
         break;
+    case 0x716A:                    // after $76AF (race order; its $7744 queues sounds): the queue as it stands
+        if (!t.in_tick || r20 != t.pl.r20) return;
+        for (Checker* c : { &t.a, &t.b })
+        {
+            c->model.s.sq_wr = rb(t.pl.r25 + 0x801);
+            for (uint32_t i = 0; i < 32; i++) c->model.s.sq[i] = rb(t.pl.r25 + 0x802 + i);
+        }
+        t.cmd_on = true;
+        break;
+    case 0x1224A:                   // $12235: the tyre parameter written ($700718 := R0)
+        if ((t.in_tick && r20 == t.pl.r20) || t.in_gear) { t.tyre_writes++; t.tyre = (uint8_t) cpu.reg(0); }
+        break;
+    // the engine's parameters, the values as the instructions write them (the sound board's Z80 may change
+    // them before the next instruction when a timeslice ends between the two)
+    case 0x12205: if (t.in_tick && r20 == t.pl.r20) t.snd[0] = (uint8_t) cpu.reg(0); break;          // $700710 := R0
+    case 0x1220C: if (t.in_tick && r20 == t.pl.r20) t.snd[2] = 0x20; break;                         // $700712 := $20
+    case 0x121B5: if (t.in_tick && r20 == t.pl.r20) t.snd[3] = ROM[0x12292 + (cpu.reg(0) & 0xFF)]; break;  // $700713
+    case 0x121CF: if (t.in_tick && r20 == t.pl.r20) t.snd[4] = (uint8_t) cpu.reg(0); break;          // $700714 := R0
+    case 0x121D6: if (t.in_tick && r20 == t.pl.r20) t.snd[0] = 1; break;                            // $700710 := 1
+    case 0x121DE: if (t.in_tick && r20 == t.pl.r20) t.snd[2] = 0xA0; break;                         // $700712 := $A0
+    case 0x7A7A:                    // the sprite frame: the camera's pitch after this tick's camera
+        if (t.in_tick && r20 == t.pl.r20) t.in.camera_pitch_now = rw(t.pl.r23 + 0x2C);
+        break;
+    case 0x12124:                   // a sound command queued (by the car's code: the callers the model transcribes)
+        if (t.in_tick && t.cmd_on && r20 == t.pl.r20)
+        {
+            uint32_t ret = rl(cpu.reg(31) & 0xFFFFFF);
+            if (ret == 0x816A + 6 || ret == 0x81C5 + 6 || ret == 0x8250 + 6 || ret == 0x7454 + 6) t.cmds.push_back((uint8_t) cpu.reg(0));
+            else if (getenv("ORCARTEST_DBG")) printf("f%llu command %02X queued from %X (not the car's)\n", (unsigned long long) frame_no, cpu.reg(0) & 0xFF, ret);
+        }
+        break;
+    case 0x980F:                    // a car's sprite object created ($97FC): R21 the object
+        if (getenv("ORCARTEST_DBG")) printf("f%llu sprite object %06X created (player %d)\n", (unsigned long long) frame_no, cpu.reg(21) & 0xFFFFFF, p + 1);
+        break;
+    case 0x9AE0:                    // the car's sprite object ($99B8), the player's own car
+    {
+        uint32_t own = 0x20FC00 + 0x80u * rb(t.pl.r25 + 1);
+        if ((cpu.reg(19) & 0xFFFFFF) != own || rb(r20 + 0xBD) != 0 || t.demo) return;
+        orcar::Record rec;
+        rec.frame = rw(own + 0x3C); rec.pal = rw(own + 0x3E); rec.sub = rb(own + 0x4A); rec.speed = rw(own + 0x4C);
+        for (int i = 0; i < 4; i++) rec.wheel[i] = rb(own + 0x50 + (uint32_t) i);
+        orcar::SpriteInput si;
+        si.x = (int16_t) cpu.reg(15); si.y = (int16_t) cpu.reg(16); si.scale = (uint16_t) cpu.reg(8);
+        si.braking = rw(t.pl.r23 + 0x7E); si.crash_dust = rb(t.pl.r23 + 0x136); si.crash_snd = rb(t.pl.r23 + 0x134);
+        si.marker = rb(t.pl.r25 + 0x31C) == 0 && rw(rl(t.pl.r23) + 0x10) >= 0x3C;
+        si.hide = rb(r20 + 0xE1); si.monitor = rw(t.pl.r25 + 0x1A);
+        t.spr_obj = r20; t.spr_marker = si.marker;
+        if (getenv("ORCARTEST_DBG") && (cpu.reg(23) & 0xFFFFFF) != t.pl.r23) printf("f%llu sprite object: R23 %X\n", (unsigned long long) frame_no, cpu.reg(23));
+
+        for (Checker* c : { &t.a, &t.b })
+        {
+            if (c->resync) load_sprite(c->spr, r20, t.pl.r23);
+            else if (!c->spr_started) { c->spr.init(rb(r20 + 0xA)); c->spr_started = true; }
+            else
+            {
+                c->spr.after();         // mode b: the $14374 objects ran after the sprite object last frame
+                // $209137 is written by every car's sprite object on the screen ($9B61): the other cars' too
+                c->spr.flag137 = rb(t.pl.r23 + 0x137);
+            }
+            orcar::SpriteInput in2 = si;
+            c->ent.clear();
+            c->spr.draw(rec, in2, c->ent);
+        }
+        break;
+    }
+    case 0x9E48:                    // the car's entries written ($9F0A from 10[$2080C0] up to R10)
+    {
+        if (r20 != t.spr_obj || !t.spr_obj) return;
+        t.spr_obj = 0;
+        uint32_t start = rl(t.pl.r25 + 0xC0) + 0x10, end = cpu.reg(10) & 0xFFFFFF;
+        const uint16_t* sram = B->video().m_spriteram;
+        for (Checker* c : { &t.a, &t.b })
+        {
+            c->spr_calls++;
+            std::string d = diff_sprite(c->spr, r20, t.pl.r23);
+            if (t.spr_marker) c->spr_marker++;
+            else
+            {
+                size_t n = (end - start) / 2;
+                bool same = c->ent.size() == n;
+                for (size_t i = 0; same && i < n; i++) same = c->ent[i] == sram[((start - 0x400000) / 2 + i) & 0xFFFF];
+                if (!same)
+                {
+                    size_t k = 0;
+                    while (k < n && k < c->ent.size() && c->ent[k] == sram[((start - 0x400000) / 2 + k) & 0xFFFF]) k++;
+                    char buf[200];
+                    snprintf(buf, sizeof buf, "%sentries: model %zu words, board %zu; first difference at word %zu: model %04X board %04X", d.empty() ? "" : "; ",
+                             c->ent.size(), n, k, k < c->ent.size() ? c->ent[k] : 0, k < n ? sram[((start - 0x400000) / 2 + k) & 0xFFFF] : 0);
+                    d += buf;
+                }
+            }
+            if (!d.empty())
+            {
+                c->spr_bad++;
+                char buf[700];
+                snprintf(buf, sizeof buf, "P%d sprite at tick %llu: %s", t.pl.p + 1, (unsigned long long) t.tick_no, d.substr(0, 600).c_str());
+                report(*c, t, buf);
+                if (verbose) printf("[%s] f%llu %s\n", c->name, (unsigned long long) frame_no, buf);
+            }
+        }
+        break;
+    }
     case 0x71F0:                    // state 0, after $FF28: the course's first segments
     case 0xA39C:                    // the handling
         if (!t.in_tick || r20 != t.pl.r20) return;
@@ -397,6 +599,7 @@ void hook(void*, uint32_t pc)
         break;
     case 0x11F3E:                   // an object is called: the gear box's entry
         if (rl(r20 + 4) != 0xC379 || r20 != t.pl.r20 + 0x800) return;
+        t.in_gear = true; t.tyre_writes = 0;
         load_state(t.a.model.s, t.pl);
         t.in.shift_edges = rb(t.pl.r25 + 0x118);
         t.in.gearbox_state = rb(r20 + 0xC);
@@ -428,6 +631,7 @@ void hook(void*, uint32_t pc)
                 c->model.gearbox_tick(t.in);
                 compare(*c, t, true);
             }
+            t.in_gear = false;
         }
         break;
     }
@@ -441,6 +645,9 @@ const uint32_t RANGES[][2] = {
     { 0xA278, 0xA2B6 }, { 0xA2B6, 0xA304 }, { 0xA304, 0xA325 }, { 0xA39C, 0xA85E }, { 0xA870, 0xA89E },
     { 0xAAC9, 0xAD28 }, { 0xB764, 0xB968 }, { 0xC3C4, 0xC43E }, { 0xF579, 0xF5B7 }, { 0xF5C4, 0xF602 },
     { 0x104F6, 0x10575 }, { 0x12318, 0x12375 },
+    // the sprite frame, the camera's flag, the sounds, the sprite object (the player's car), its $14374 objects
+    { 0x7A7A, 0x7B3F }, { 0x7B93, 0x7BF0 }, { 0x12124, 0x12160 }, { 0x1219C, 0x121E8 }, { 0x121F6, 0x12216 },
+    { 0x1222F, 0x12252 }, { 0x9AE0, 0x9CCC }, { 0x9D19, 0x9D9D }, { 0x9E8A, 0x9FC0 }, { 0x1438C, 0x143EE }, { 0x14443, 0x14460 },
 };
 
 void build_cover()
@@ -604,11 +811,16 @@ int main(int argc, char** argv)
         uint32_t off = p ? 0x10000 : 0;
         pl.r20 = 0x200400 + off; pl.r23 = 0x209000 + off; pl.r25 = 0x208000 + off; pl.ring = 0x20A000 + off;
     }
-    for (PlayerTest& t : PT) { t.a.model = ORCar(ROM.data()); t.b.model = ORCar(ROM.data()); }
+    for (PlayerTest& t : PT)
+    {
+        t.a.model = ORCar(ROM.data()); t.b.model = ORCar(ROM.data());
+        t.a.spr = orcar::CarSprite(ROM.data()); t.b.spr = orcar::CarSprite(ROM.data());
+    }
     setvbuf(stdout, nullptr, _IOLBF, 0);
     build_cover();
     for (auto& e : cover) cover_pcs.push_back(e.first);
-    for (uint32_t pc : { 0x715Cu, 0x71F0u, 0xA39Cu, 0x7348u, 0x11F3Eu, 0x11F41u }) cover_pcs.push_back(pc);
+    for (uint32_t pc : { 0x715Cu, 0x71F0u, 0xA39Cu, 0x7348u, 0x11F3Eu, 0x11F41u, 0x716Au, 0x1224Au, 0x12124u, 0x9AE0u, 0x9E48u, 0x980Fu, 0x12205u, 0x1220Cu, 0x121B5u, 0x121CFu, 0x121D6u, 0x121DEu, 0x7A7Au })
+        cover_pcs.push_back(pc);
     std::sort(cover_pcs.begin(), cover_pcs.end());
     cover_pcs.erase(std::unique(cover_pcs.begin(), cover_pcs.end()), cover_pcs.end());
 
@@ -680,8 +892,10 @@ int main(int argc, char** argv)
                    "%llu field differences; %llu unsupported\n", c->name, (unsigned long long) c->ticks,
                    (unsigned long long) c->ticks_bad, (unsigned long long) c->gear_ticks, (unsigned long long) c->gear_bad,
                    (unsigned long long) c->field_diffs, (unsigned long long) c->unsupported);
+            printf("    sprite object: %llu draws compared, %llu with differences (%llu with the start's marker: fields only)\n",
+                   (unsigned long long) c->spr_calls, (unsigned long long) c->spr_bad, (unsigned long long) c->spr_marker);
             for (const Diff& d : c->first) printf("    frame %llu: %s\n", (unsigned long long) d.frame, d.what.c_str());
-            if (c->ticks_bad || c->gear_bad || c->unsupported || (c->ticks == 0 && !(force && !c->resync))) fail = 1;
+            if (c->ticks_bad || c->gear_bad || c->unsupported || c->spr_bad || (c->ticks == 0 && !(force && !c->resync))) fail = 1;
         }
         printf("  situations (ticks):");
         for (auto& e : t.events) printf(" [%s] %llu", e.first.c_str(), (unsigned long long) e.second);

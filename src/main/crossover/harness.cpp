@@ -34,6 +34,7 @@
 #include "engine/oferrari.hpp"
 #include "engine/ocrash.hpp"
 #include "crossover/bike.hpp"
+#include "crossover/madpower.hpp"
 
 Harness harness;
 
@@ -145,7 +146,8 @@ void Harness::before_tick()
     // steering autopilot: + X is left, and wheel > 0x80 steers right (moves X down)
     if (steer_on)
     {
-        int x = steer_abs ? oinitengine.car_x_pos : (bike.enabled ? bike.car_x_relative() : oinitengine.car_x_pos);
+        int x = steer_abs ? oinitengine.car_x_pos : (bike.enabled ? bike.car_x_relative() :
+                madpower.enabled ? madpower.car_x_relative() : oinitengine.car_x_pos);
         int w = 0x80 + (x - steer_target) / 3;
         wheel = w < 0x48 ? 0x48 : (w > 0xB8 ? 0xB8 : w);
     }

@@ -223,6 +223,12 @@ void hwsprites::render_impl(const uint8_t priority, uint16_t* target, const int 
         if (hide != 0 || height == 0) continue;
         
         int16_t bank    = (ramBuff[data+0] >> 9) & 7;
+        // crossover: a foreign car's entry (see hwsprites.hpp)
+        if (bank == 7 && ramBuff[data+1] == 0xFFFF)
+        {
+            if (foreign) foreign(foreign_ctx, target, s16_width, s16_height, s16_x_off, hires);
+            continue;
+        }
         int32_t top     = (ramBuff[data+0] & 0x1ff) - 0x100;
         uint32_t addr    = ramBuff[data+1];
         int32_t pitch  = ((ramBuff[data+2] >> 1) | ((ramBuff[data+4] & 0x1000) << 3)) >> 8;

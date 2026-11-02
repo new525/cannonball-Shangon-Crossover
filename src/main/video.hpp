@@ -50,6 +50,8 @@ public:
     // Crossover: show another board's frame (w x h palette indices 0-0x1FFF with their own colours,
     // 0x00RRGGBB) instead of OutRun's layers; nullptr returns to OutRun's video and palette.
     void set_external(const uint16_t* px, int w = 0, int h = 0, const uint32_t* rgb = nullptr);   // rgb: EXT_COLOURS entries
+    // Crossover: a foreign car's colours (XCAR_COLOURS entries, 0x00RRGGBB) for frame-buffer values EXT_COLOURS + 1 + i
+    void set_car_colours(const uint32_t* rgb);
     void render_frame();
     bool supports_window();
     bool supports_vsync();
@@ -91,6 +93,7 @@ private:
     const uint16_t* ext_px = nullptr;
     int ext_w = 0, ext_h = 0;
     uint32_t ext_rgb[EXT_COLOURS + 1] = {};
+    uint32_t car_rgb[XCAR_COLOURS] = {};
 };
 
 extern Video video;

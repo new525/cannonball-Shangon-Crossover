@@ -19,12 +19,18 @@ public:
     void render_to(uint16_t* target, int width, int height, int x_off, const uint8_t priority);
     // Crossover: banks 4-7 hold converted graphics from the other games (OutRun's ROM fills 0-3)
     uint32_t* bank_ptr(int bank) { return sprites + 0x10000 * (bank & 7); }
+    // Crossover: an entry of bank 7 with address $FFFF is drawn by a callback (a foreign car's image, in its
+    // own colours: crossover/madpower), at its place in the list; nullptr: none (the entry is skipped)
+    typedef void (*ForeignFn)(void* ctx, uint16_t* target, int width, int height, int x_off, bool hires);
+    void set_foreign(ForeignFn fn, void* ctx) { foreign = fn; foreign_ctx = ctx; }
 
 private:
     void render_impl(const uint8_t priority, uint16_t* target, const int s16_width, const int s16_height,
                      const int s16_x_off, const bool hires, const uint16_t x1, const uint16_t x2);
     // Clip values.
     uint16_t x1, x2;
+    ForeignFn foreign = nullptr;
+    void* foreign_ctx = nullptr;
 
     // 128 sprites, 16 bytes each (0x400)
     static const uint16_t SPRITE_RAM_SIZE = 128 * 8;

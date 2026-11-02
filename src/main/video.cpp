@@ -165,6 +165,7 @@ uint32_t Video::rgb_of(uint16_t pixel)
 
 uint32_t Video::own_rgb(uint16_t pixel)
 {
+    if (pixel > EXT_COLOURS && pixel <= EXT_COLOURS + XCAR_COLOURS) return car_rgb[pixel - EXT_COLOURS - 1];   // crossover
     bool shadow = pixel >= S16_PALETTE_ENTRIES;
     uint32_t adr = (pixel & (S16_PALETTE_ENTRIES - 1)) << 1;
     uint32_t a = (palette[adr] << 8) | palette[adr + 1];
@@ -178,6 +179,11 @@ uint32_t Video::own_rgb(uint16_t pixel)
     }
     else { r *= 8; g *= 8; b *= 8; }
     return (r << 16) | (g << 8) | b;
+}
+
+void Video::set_car_colours(const uint32_t* rgb)
+{
+    for (uint32_t i = 0; i < XCAR_COLOURS; i++) { car_rgb[i] = rgb[i]; renderer->set_rgb(EXT_COLOURS + 1 + i, rgb[i]); }
 }
 
 void Video::set_external(const uint16_t* px, int w, int h, const uint32_t* rgb)

@@ -748,8 +748,10 @@ V70 code as C++, and proven identical to the original on the emulated board tick
 
 - `src/main/crossover/orcar/orcar.hpp`, `orcar.cpp`: `orcar::ORCar` (the model), `orcar::State` (its
   variables), `orcar::TickInput` (what a tick reads besides the road), `orcar::Road` / `orcar::Segment`
-  (the road). Each step is commented with the address of the instruction it transcribes. Not in the
-  program's build yet (nothing uses it until the model is put on other games' roads).
+  (the road). Each step is commented with the address of the instruction it transcribes. In the
+  program's build since MAD POWER drives OutRun's courses (`crossover/madpower`).
+- `src/main/crossover/orcar/orcarspr.hpp`, `orcarspr.cpp`: the car's sprite object and the System 32
+  sprite renderer (13.8).
 - `tools/orcartest/orcartest.cpp`, `build.sh`, `run_all.sh`: the proof (13.5).
 
 ### 13.2 What is transcribed
@@ -798,11 +800,11 @@ Found while transcribing (Read from the code; their effects are in the compared 
 - `$8140 movt.wh R0, CE[R20]` is followed by `brk` taken on an overflow (a trap on the V70; MAME 0.264
   skips BRK): the model keeps MAME's behaviour (the low 16 bits). Never met in the tests.
 
-Not transcribed (not the car's motion, or refused): the camera (`$A89E`, `$7B74`, `$79A0`), the car
-record's publishing (`$77BD`), the road generator and projection (`$FF8E`, `$102CE`), race order
-(`$76AF`), the contact tests (`$124A4`, `$127DB` and the roadside objects': their result is an input),
-the sprite frames (`$7A7A`; the animation only while bit 2 of the flags is set), the sounds (`$1222F`,
-`$12235`, `$12124`, `$209134`-`$209136`), the GAME OVER and HUD objects. `ORCar::unsupported()`
+Not transcribed (not the car's motion, or refused): the camera (`$A89E`, `$7B74` but its flag `$209145`,
+`$79A0`), the car record's publishing (`$77BD`), the road generator and projection (`$FF8E`, `$102CE`),
+race order (`$76AF`), the contact tests (`$124A4`, `$127DB` and the roadside objects': their result is
+an input), the GAME OVER and HUD objects. The sprite frame (`$7A7A`), the sounds and the car's sprite
+object were added for MAD POWER on OutRun's courses: 13.8. `ORCar::unsupported()`
 returns the address when a tick meets a path that is not transcribed: the demo driver (`$A325`, bit 8
 of `$208090`), the linked-cabinet mode (`$20E623` set: the car is then driven from its record), a car
 state outside 0-5, a contact kind above 3, an animation command outside 0 to −2.
@@ -924,3 +926,52 @@ object for more players: not transcribed), `$8147`/`$8148` (the BRK), `$80F6` (a
 - The meaning of `68[$208000]` (the car ahead) and of the sounds' parameters are Read.
 - The comparison is with the emulated board, itself checked against MAME 0.264 (`orboard.hpp`), not
   directly with MAME.
+
+### 13.8 Added for MAD POWER on OutRun's courses: the sprite frame, the sounds, the sprite object
+
+Transcribed, and added to the proof (`tools/orcartest`), for `docs/CROSSOVER-OUTRUNNERS.md` section 9:
+
+| Routine | What | Where |
+|---|---|---|
+| `$7A7A` | the sprite frame (`38[R20]`) and sub-frame (`40`): with a contact the animation steps (`$F579`); sliding, `$957C`/`$967C` by the steering's side and the slide amount; spinning with the force forward, `$956C[car]`; otherwise `$94D8[car]` + the hill index, its sub-frame the steering frame `$9528[steering angle]` (a signed index) followed one step a tick (`DB[R20]`); a new frame starts its animation | `ORCar::frame_select`, run in the handling's tail (`$7398`) and at state 0's end (`$72EB`) |
+| `$F5D2` | a frame's animation from its start (the goal run's stop frame `$978C[car]`, `$751D`) | `ORCar::anim_set_f5d2` |
+| `$7B3F` | the hill index, now every tick: from this tick's camera pitch in `$7A7A` (after the camera `$A89E`), the last tick's in the crash's frame (`$8175`) | `TickInput::camera_pitch_now` / `camera_pitch` |
+| `$7B97-$7BE5` | `$209145` = `$FF` when the speed grew by more than `$A0` since the last tick (not spinning, no contact; `$2004B2` keeps minus the speed); published as the record's `+53` | `ORCar::camera_flag` (camera states 0-1 `$2004E0`, `$2004E1` = 0) |
+| `$1219C`, `$121E8` | the engine's parameters: `$700713` = `$12292[car]`, `$700714` = `$10`/`$30`, `$700710` = 1, `$700712` = `$A0` at the start; every tick `$700710` = the engine speed >> 8, `$700712` = `$20` (also in the goal run's tail `$75F6`) | `State::snd_*` |
+| `$1222F`, `$12235` | the tyre/skid sound's number to `$700718` (not off the road for `$1222F`): slides 3 (`$A56D`), wheelspin 1 (`$AB5C`), locked wheels `$AE2F[car]` with the brake pressed (`$AB28`), off the road and minor contacts `$B968[car]` (`$B95D`), the goal run `$AE2F[car]` (`$7552`), the shift smoke 1 (`$C3D1`) | `ORCar::snd` (`SoundOut`) |
+| `$12124` | the command queue (`$208800` read index, `$208801` write index, 32 bytes; the frame interrupt `$3F8DA` sends one a frame to `$700700`): the crash's `+$C` of the response row, its second sound `+$D` ten ticks later (`$209134`, `$209135`), the bounce's `$31` (`$8250`), the time-up's (`$7454`, through `$1966E`: `$197E2[$36/$37 by the stage]`'s top byte) | `ORCar::sound_queue` |
+| `$8197` | `$209136` = `$FF` when a crash starts (the sprite object's crash dust takes it) | `State::crash_dust` |
+| `$97FC-$99B3` | the car's sprite object's fields for the player's car (per car: image base `$A038`, first frame `$A048`, wheel frames `$A058`/`$A068`, masks `$A078`/`$A080`, palettes `$A088`/`$A098`, animation lengths `$A0A8`/`$A0B0`, positions `$18D25C`; the smoke tables `$A198`/`$A1B8`) | `CarSprite::init` |
+| `$99B8` (`$9AE0-$9E7E`, `$9E8A-$9FBF`) | the player's car's entries: the body (frame `+3C`, sub-frame `+4A`, palette index `+3E` + the braking value `$20907E` + a toggle from the distance driven, `88`/`8B`), the wheels (turning while the car moves; their frame by the body's image; gone for good once a frame without them is drawn, `$A0B8`), the wheels' smoke (by the wheel kinds `+50-52`), the dust under the car (`+53`: five steps of frame `$44`), the crash's dust (`$209136`: 30 ticks, frames `$2F`/`$30`); each piece a System 32 entry (`$9F0A`: frame definitions `$34138`, image definitions at `$122B74` + 4 x the image's number (12 bytes, the images numbered in threes), palette words `$32BA4`) | `CarSprite::draw` |
+| `$14374` (two objects) | when the wheels went (`2E`), their animation (`$1467A[car]`, `$1467A[car + 8]`), clearing the smoke's counts; at its end `2E` := their `A` (`$FF`, then 0: the wheels are back) | `CarSprite::after` |
+
+Not transcribed: the start-line marker (`$9CCC-$9D16`), the other cars' drawing (`BD[R20]` != 0), the
+depth sorting (`$9E48`), the generic object draw (`$ED50`, the flying wheels' images) and the `$14460`
+objects (they switch themselves off for MAD POWER: `$146BA[0]` = 0).
+
+Found: the sprite object draws the car array's copy of the record (made at the start of each frame,
+`$E88C`), i.e. what the car published the tick before; `$209137` is written by every car's sprite
+object on a screen (`$9B61`), so in a two-player race the other car's object clears it.
+
+**Rendering** (`orcar::S32Sprites`): MAME's `draw_one_sprite` for these entries; the palette RAM's
+entries `$000-$9FF` and `$F00-$FFF` as `$11881` loads them at power-on (blocks `$153904`, `$3153C`:
+destination, length, the colours in the palette's xBGR half) and the indirect palettes as the boot
+copies them (`$107020` to `$401000`); the mixer's sprite colour with a race's registers (`$4C` = `$BE4D`:
+groups by bits 12-13, palette bases 0, no colour offsets; transparency mask `$0FFF`). Checked against
+the board's screen: 3,484 of 3,484 pixels of a race frame, 5,914 of 5,925 of a crash frame (the rest
+under the HUD band).
+
+**The proof's additions** (`tools/orcartest`): the animation fields, `hill`, `steer_frame` (`DB`),
+`pal_index` (`3A`), `$209145`, `$2004B2`, `$209134-$209136` and the queue compared at every tick; the
+engine's parameters as the instructions write them (`$12205`, `$1220C`, `$121B5`, `$121CF`, `$121D6`,
+`$121DE`: the sound board's Z80 may change the shared RAM before the next instruction when a timeslice
+ends between the two); the tyre parameter's writes (`$1224A`) and the commands the car's code queues
+(`$12124`, by its callers) in each car and gear-box tick; the queue loaded after `$76AF` (its `$7744`
+queues sounds); the sprite object at `$9AE0` (its inputs: R15, R16, R8, the car array's entry, `$20907E`,
+`$209134`, `$209136`, the marker's condition, `E1`, `1A[R25]`) with its entries compared with sprite RAM
+and its fields with the object's at `$9E48` (mode a: loaded from the board each draw; mode b: from
+`CarSprite::init` at the race's first draw, with the `$14374` objects' tick between draws and
+`$209137` taken from the board). Results of `run_all.sh` (26 runs): mode a 83,811 car ticks and 83,784
+gear-box ticks, mode b 76,099 and 76,072, 0 differences; the sprite object 83,057 draws in each mode,
+0 differences (2,403 with the start's marker: fields only). Coverage of the transcribed routines
+(now 1,713 instructions): 1,642 executed over the set.

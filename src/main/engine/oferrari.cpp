@@ -29,6 +29,7 @@
 #include "engine/outils.hpp"
 #include "engine/oferrari.hpp"
 #include "crossover/bike.hpp"
+#include "crossover/madpower.hpp"
 
 OFerrari oferrari;
 
@@ -179,7 +180,7 @@ void OFerrari::tick()
                 else
                     draw_sprite(spr_ferrari);
             }
-            if (spr_pass1->control & OSprites::ENABLE && !bike.enabled)
+            if (spr_pass1->control & OSprites::ENABLE && !bike.enabled && !madpower.enabled)
             {
                 if (outrun.tick_frame)
                     set_passenger_sprite(spr_pass1);
@@ -187,7 +188,7 @@ void OFerrari::tick()
                     draw_sprite(spr_pass1);
             }
 
-            if (spr_pass2->control & OSprites::ENABLE && !bike.enabled)
+            if (spr_pass2->control & OSprites::ENABLE && !bike.enabled && !madpower.enabled)
             {
                 if (outrun.tick_frame)
                     set_passenger_sprite(spr_pass2);
@@ -374,6 +375,14 @@ void OFerrari::setup_ferrari_sprite()
     
     // Test Collision With Other Sprite Object
     // Crossover: the bike answers with Super Hang-On's crash (OutRun's detection, Super Hang-On's response)
+    // Crossover: MAD POWER answers with OutRunners' own response; it is drawn with its own sprites
+    if (madpower.enabled)
+    {
+        if (olevelobjs.collision_sprite) { madpower.scenery_hit(); olevelobjs.collision_sprite = 0; }
+        madpower.setup_sprite(spr_ferrari);
+        draw_sprite(spr_ferrari);
+        return;
+    }
     if (bike.enabled && olevelobjs.collision_sprite)
     {
         bike.scenery_hit();
@@ -865,7 +874,7 @@ void OFerrari::draw_shadow()
     if (spr_shadow->control & OSprites::ENABLE)
     {
         if (outrun.game_state == GS_MUSIC) return;
-        if (bike.enabled) return;   // crossover: the bike has no car shadow
+        if (bike.enabled || madpower.enabled) return;   // crossover: the bike has no car shadow, MAD POWER draws its own
 
         if (outrun.tick_frame)
         {
@@ -1589,7 +1598,7 @@ void OFerrari::do_sound_score_slip()
     uint16_t engine_pitch = 0;
 
     // Do Engine Rev (crossover: the bike's engine is on Super Hang-On's sound board)
-    if (outrun.game_state >= GS_START1 && outrun.game_state <= GS_INGAME && !bike.enabled)
+    if (outrun.game_state >= GS_START1 && outrun.game_state <= GS_INGAME && !bike.enabled && !madpower.enabled)
     {
         engine_pitch = rev_pitch2 + (rev_pitch2 >> 1);
     }
@@ -1598,7 +1607,7 @@ void OFerrari::do_sound_score_slip()
     osoundint.engine_data[sound::ENGINE_PITCH_L] = engine_pitch & 0xFF;
 
     // Curved Road (crossover: the bike's tyre squeal comes from Super Hang-On's sound task)
-    if (oinitengine.road_type != OInitEngine::ROAD_STRAIGHT && !bike.enabled)
+    if (oinitengine.road_type != OInitEngine::ROAD_STRAIGHT && !bike.enabled && !madpower.enabled)
     {
         int16_t steering = oinputs.steering_adjust;
         if (steering < 0) steering = -steering;
@@ -1683,7 +1692,7 @@ void OFerrari::do_sound_score_slip()
     // check_wheels:
     cornering_old = cornering;
 
-    if (bike.enabled) { sprite_wheel_state = wheel_state; return; }   // crossover: off-road rumble from the bike's board
+    if (bike.enabled || madpower.enabled) { sprite_wheel_state = wheel_state; return; }   // crossover: off-road sounds from the vehicle's own board
 
     if (sprite_wheel_state)
     {

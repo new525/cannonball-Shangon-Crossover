@@ -56,6 +56,13 @@ static const uint32_t CRASH_PARAMS = 0x82B6;        // per car: restitution, spe
 static const uint32_t WEIGHTS = 0x82A4, RANK_OFFSET = 0x8292;
 static const uint32_t ANIM = 0x34138, ANIM_CMDS = 0xF5B8;
 static const uint32_t TIMEUP_BRAKE = 0x979C, GOAL_SCRIPT = 0x97AC;
+// the sprite frame ($7A7A): base frame, wheelspin frame, slides (left / right), steering frame, body
+// palette index, the goal run's stop frame (per car; the slides' and steering frame's by value)
+static const uint32_t FRAME_BASE = 0x94D8, FRAME_SPIN = 0x956C, FRAME_SLIDE_L = 0x957C, FRAME_SLIDE_R = 0x967C;
+static const uint32_t FRAME_STEER = 0x9528, PAL_INDEX = 0x977C, FRAME_STOP = 0x978C;
+// the sounds: the car's engine ($12292[car]), its tyre sounds when the wheels lock ($AE2F[car]) and
+// off the road ($B968[car])
+static const uint32_t SND_ENGINE = 0x12292, SND_LOCK = 0xAE2F, SND_GRAVEL = 0xB968;
 
 int32_t ORCar::sin_(uint32_t i) const { return sx16(r16(SINE + 2 * i)); }
 int32_t ORCar::cos_(uint32_t i) const { return sx16(r16(COSINE + 2 * i)); }
@@ -94,6 +101,7 @@ static uint16_t rom16(const void* ctx, uint32_t a)
 void ORCar::tick(const TickInput& in, const Road& road)
 {
     unsupported_pc = 0;
+    snd = SoundOut();
     if (in.link) { unsupported_pc = 0x71B5; return; }              // $20E623: the linked mode's paths
     s.rec_markers = in.rec_markers;
     s.done_flags = in.flags94;
@@ -161,7 +169,12 @@ void ORCar::tick(const TickInput& in, const Road& road)
             if (--s.timer != 0) { handling(in, road); return; }
             s.sub++;                                                // 7439
             s.done_flags |= 0x10;                                   // 743C: or.h #10, 94[R25]
-            // 7444-7454: a sound
+            {
+                // 7444-7454: the time-up's sound by the stage ($2080A4 > 3: $37, else $36), through $1966E: its
+                // table $197E2 gives the command (the entry's top byte; the rest to F30[R25], not the car's)
+                uint8_t r0 = in.stage > 3 ? 0x37 : 0x36;
+                sound_queue((uint8_t)(r32(0x197E2 + 4u * r0) >> 24));
+            }
             handling(in, road);
             return;
         case 3:                                                     // 745A
@@ -205,7 +218,7 @@ void ORCar::tick(const TickInput& in, const Road& road)
             if (s.goal_seg > s.seg_count2) { goal_drive(); handling(in, road); return; }   // 750C bnh
             s.sub++;                                                // 7514
             s.goal_speed = 0;                                       // 7517
-            // 751D-7529: jsr F5D2, the car's stop animation (sprite)
+            anim_set_f5d2(r16(FRAME_STOP + 2u * s.car));            // 751D-7529: the car's stop frame
             goto t752f;
         case 3:
         t752f:                                                      // 752F
@@ -213,7 +226,7 @@ void ORCar::tick(const TickInput& in, const Road& road)
             s.in_brake = 0;
             s.in_steer = 0x80;
             goal_drive();                                           // 7543
-            // 7546-7552: a tyre sound
+            sound_tyre(r8_(SND_LOCK + s.car));                      // 7546-7552
             if (s.speed != 0)                                       // 7558
             {
                 a39c(in, road);                                     // 75B2-75BB
@@ -221,7 +234,7 @@ void ORCar::tick(const TickInput& in, const Road& road)
                 s.wheel[2] = 2;
                 s.wheel[0] = 3;
                 s.braking = 2;                                      // 75D3
-                return;                                             // 75D8: camera, sprites
+                goto t75d8;
             }
             s.sub++;                                                // 755D
             s.timer = 0x5A;
@@ -236,12 +249,18 @@ void ORCar::tick(const TickInput& in, const Road& road)
         t757b:                                                      // 757B
             if (--s.timer == 0) { s.sub++; s.done_flags |= 0x10; }  // 7580-7583
             a39c(in, road);                                         // 75A1
-            return;
+            goto t75d8;
         case 5:                                                     // 758D
             s.in_accel = 0;
             s.in_brake = 0x80;
             s.in_steer = 0x80;
             a39c(in, road);                                         // 75A1
+        t75d8:
+            camera_flag(in);                                        // 75DE bsr 7B74 (75D8: A89E, the camera)
+            // 75E1-75F0: $79A0, the car record, the road; 75F6 jsr 121E8: the engine's parameters
+            s.snd_engine = (uint8_t)(s.rpm >> 8);
+            s.snd_ctrl = 0x20;
+            anim_step_f579();                                       // 75FC jmp F579
             return;
         default:
             unsupported_pc = 0x7470;
@@ -285,7 +304,7 @@ void ORCar::state0(const TickInput& in, const Road& road)
     s.wx = (int32_t) r1;                                            // 725E
     s.wz = seg.z;                                                   // 7262
     s.wy = seg.y;                                                   // 7267
-    // 726C: 3A[R20] := the car's sprite (sprites)
+    s.pal_index = r16(PAL_INDEX + 2u * s.car);                      // 726C-7270: the body's palette index
     s.timer = 8;                                                    // 7278
     if (!in.demo) s.timer = 0x95;                                   // 7285 (728C, 7294: the camera)
     // 729C jsr A278: the car's parameters
@@ -345,7 +364,14 @@ void ORCar::state0(const TickInput& in, const Road& road)
     s.crash_push_decay = r16(p + 4);                                // 7F75
     s.crash_gravity = r16(p + 6);                                   // 7F7B
     s.crash_table = p + 8;                                          // 7F81
-    // 72CB-72F1: the countdown, sounds, sprites, the car record
+    // 72CB-72E0: the race's countdown
+    // 72E5 jsr 1219C: the engine's parameters at the start
+    s.snd_car = r8_(SND_ENGINE + s.car);                            // 121B5
+    s.snd_box = s.trans ? 0x30 : 0x10;                              // 121C2-121CF
+    s.snd_engine = 1;                                               // 121D6
+    s.snd_ctrl = 0xA0;                                              // 121DE
+    frame_select(in);                                               // 72EB jsr 7A7A
+    // 72F1 br 77BD: the car record
 }
 
 // $7358: the handling and the tick's tail
@@ -354,9 +380,120 @@ void ORCar::handling(const TickInput& in, const Road& road)
     a39c(in, road);                                                 // 7358-7361
     // 7367 jsr A89E: the camera
     if (s.state == 5) s.wheel[0] = 0;                               // 736D
-    // 737A-7392: $7B74 (camera dip and lag), $79A0, $77BD (the car record), $FF8E, $102CE, $121E8
-    // 7398 br 7A7A: with the contact flag set, the animation step only
-    if (s.flags & 4) anim_step_f579();                              // 7A7E -> 7B39 jmp F579
+    // 737A bsr 7B74: the camera's dip and lag; its flag for the sprite object only ($209145)
+    camera_flag(in);
+    // 737D-738C: $79A0, $77BD (the car record), $FF8E, $102CE
+    // 7392 jsr 121E8: the engine's parameters
+    s.snd_engine = (uint8_t)(s.rpm >> 8);                           // 121FD-12205
+    s.snd_ctrl = 0x20;                                              // 1220C
+    frame_select(in);                                               // 7398 br 7A7A
+}
+
+// $7A7A: the car's sprite frame (38[R20]) and sub-frame (40[R20]): with a contact, the animation
+// (the crash's frames) steps; sliding, a slide frame by its direction and amount; spinning the
+// wheels with the force forward, the wheelspin frame; otherwise the base frame for the hill, its
+// sub-frame the steering frame, which follows the steering angle one step a tick
+void ORCar::frame_select(const TickInput& in)
+{
+    uint32_t r9 = s.car;                                            // 7A7A
+    if (s.flags & 4) { anim_step_f579(); return; }                  // 7A7E -> 7B39 jmp F579
+    if (s.sliding)                                                  // 7A85
+    {
+        uint32_t r8 = (uint16_t) s.slide;                           // 7ADA movz.hw B8[R20]
+        r9 = lo16(r9, r9 << 4);                                     // 7ADF shl.h #4
+        uint8_t b8 = (uint8_t) r8;
+        if ((int8_t) s.in_steer < 0)                                // 7AE2 test.b D2[R20]; bge 7AFC
+        {
+            if ((int8_t) b8 < 0) b8 = (uint8_t)(0u - b8);           // 7AE8-7AEC
+            r9 = (r9 & ~0xFFu) | ((r9 + b8) & 0xFF);                // 7AEF add.b
+            r9 = r16(FRAME_SLIDE_L + 2 * (r9 & 0xFFFF));            // 7AF2
+        }
+        else
+        {
+            if ((int8_t) b8 > 0) b8 = (uint8_t)(0u - b8);           // 7AFC-7B00
+            b8 = (uint8_t)(0u - b8);                                // 7B03
+            r9 = (r9 & ~0xFFu) | ((r9 + b8) & 0xFF);                // 7B06 add.b
+            r9 = r16(FRAME_SLIDE_R + 2 * (r9 & 0xFFFF));            // 7B09
+        }
+        goto t7b11;
+    }
+    if (s.force > 0 && s.spin)                                      // 7A8A-7A93: test.h 94[R20]; ble
+    {
+        r9 = r16(FRAME_SPIN + 2 * r9);                              // 7AD0
+        goto t7b11;
+    }
+    {
+        uint16_t r0 = r16(FRAME_BASE + 2 * r9);                     // 7A95
+        r0 = (uint16_t)(r0 + hill_index(in.camera_pitch_now, in));  // 7A9D-7AA0
+        s.anim_frame = r0;                                          // 7AA3
+        uint8_t t = r8_(FRAME_STEER + (uint32_t)(int32_t) s.steer_angle);   // 7AA7-7AAC (a signed index)
+        uint8_t f = s.steer_frame;                                  // 7AB4
+        if (t != f) f = (uint8_t)(t < f ? f - 1 : f + 1);           // 7AB9-7AC4 (bl: unsigned)
+        s.anim_step = f;                                            // 7AC6
+        s.steer_frame = f;                                          // 7ACA
+        return;                                                     // 7ACF
+    }
+t7b11:
+    r9 = (uint16_t)(r9 + hill_index(in.camera_pitch_now, in));      // 7B11-7B14
+    if (s.anim_frame != (uint16_t) r9)                              // 7B17
+    {
+        s.anim_frame = (uint16_t) r9;                               // 7B1D
+        uint8_t b = r8_(r32(ANIM + 4 * (r9 & 0xFFFF)));             // 7B21-7B29
+        s.anim_rate = b;                                            // 7B2C
+        s.anim_count = b;                                           // 7B30
+        s.anim_step = 0;                                            // 7B34
+    }
+    anim_step_f579();                                               // 7B39 jmp F579
+}
+
+// $7B74 (the camera, state E0[R20]: 0 $7B93, 1 $7B97, 2 $7D3D), the part that sets $209145: when the
+// speed grew by more than $A0 since the last tick (not spinning, no contact)
+void ORCar::camera_flag(const TickInput& in)
+{
+    if (in.cam_state > 1) return;                                   // 7D3D: not transcribed (the flag is not written)
+    if (in.cam_e1) return;                                          // 7B97 -> 7D28
+    s.squat = 0;                                                    // 7B9E
+    int16_t r0 = (int16_t)(0 - s.speed_copy);                       // 7BA4 neg.h 2C[R20]
+    int16_t r1 = s.neg_speed;                                       // 7BA8
+    s.neg_speed = r0;                                               // 7BAD
+    r0 = (int16_t)(r0 - r1);                                        // 7BB2
+    if (s.flags & 4) return;                                        // 7BBA test1 #2, [R20]
+    if (r0 < 0 && !s.spin && r0 < -0xA0) s.squat = 0xFF;            // 7BC0, 7BD6-7BE5
+}
+
+// $F5D2: a frame's animation from its start (34, 36, 43[R20], the sprite's scale and a count, are
+// not the car's motion)
+void ORCar::anim_set_f5d2(uint16_t frame)
+{
+    s.anim_frame = frame;                                           // F5D2
+    uint8_t b = r8_(r32(ANIM + 4u * frame));                        // F5D6-F5DE
+    s.anim_rate = b;                                                // F5E1
+    s.anim_count = b;                                               // F5E5
+    s.anim_step = 0;                                                // F5FC
+}
+
+// $12124: a sound command into the player's queue ($208800: read index, write index, 32 bytes; the
+// frame interrupt's $3F8DA sends one a frame to $700700). The attract demo's filter does not apply
+void ORCar::sound_queue(uint8_t cmd)
+{
+    s.sq[s.sq_wr & 0x1F] = cmd;                                     // 1214A-12152
+    s.sq_wr = (uint8_t)((s.sq_wr + 1) & 0x1F);                      // 12156-1215C
+    if (snd.ncmd < 8) snd.cmd[snd.ncmd] = cmd;
+    snd.ncmd++;
+}
+
+// $12235: the tyre/skid sound's number to the sound board ($700718)
+void ORCar::sound_tyre(uint8_t num)
+{
+    snd.tyre = num;                                                 // 1224A
+    snd.tyre_writes++;
+}
+
+// $1222F: the same, unless the car is off the road
+void ORCar::sound_tyre_if_on_road(uint8_t num)
+{
+    if (s.offroad) return;                                          // 1222F-12234
+    sound_tyre(num);
 }
 
 // $7A4B
@@ -507,9 +644,11 @@ void ORCar::collision(const TickInput& in, const Road& road)
     // 8150: the crash
     s.state = 5; s.sub = 0; s.st_e = 0; s.st_f = 0;                 // 8150 mov.w #5, C[R20]
     s.flags |= 8;                                                   // 8155
-    // 8159-816A: the crash's sounds ($209134, $209135, $12124)
+    s.crash_snd = r8_(r19 + 0xD);                                   // 8159
+    s.crash_snd_wait = 0xA;                                         // 8160
+    sound_queue((uint8_t) r16(r19 + 0xC));                          // 8166-816A
     r9 = r16(r19 + 2 * r8);                                         // 8170: the crash frame (by side)
-    r1 = hill_index(in);                                            // 8175 bsr 7B3F
+    r1 = hill_index(in.camera_pitch, in);                           // 8175 bsr 7B3F
     r9 = (uint16_t)(r9 + r1);                                       // 8178
     s.anim_frame = (uint16_t) r9;                                   // 817B
     {
@@ -519,7 +658,8 @@ void ORCar::collision(const TickInput& in, const Road& road)
         s.anim_count = b;                                           // 818E
         s.anim_step = 0;                                            // 8192
     }
-    // 8197: 136[R23] := $FF (sound); fall into 819D
+    s.crash_dust = 0xFF;                                            // 8197 (the sprite object's crash dust)
+    // fall into 819D
     crash_tick(in);                                                 // both ends go to 734F
     handling(in, road);
 }
@@ -529,7 +669,8 @@ bool ORCar::crash_tick(const TickInput& in)
 {
     if (in.goal) goto t8263;                                        // 819D
     s.shaker = 0x10;                                                // 81A4-81A8
-    // 81B0-81C5: the crash's second sound ($209134, $209135)
+    if (s.crash_snd_wait != 0 && --s.crash_snd_wait == 0 && s.crash_snd != 0)   // 81B0-81C1
+        sound_queue(s.crash_snd);                                   // 81C5
     if (s.anim_rate == 0) goto t8263;                               // 81CB
     {
         s.in_accel = 0;                                             // 81D1
@@ -559,7 +700,7 @@ bool ORCar::crash_tick(const TickInput& in)
             r7 = s.crash_restitution;                               // 8239
             r9 *= r7;                                               // 823E
             r9 = divw(r9, 0xFFFFFF00);                              // 8241
-            // 8248-8250: a sound when it bounces
+            if (r9 != 0) sound_queue(0x31);                         // 8248-8250: a sound when it bounces
         }
         s.jump_v = (int16_t)(uint16_t) r9;                          // 8256
         s.jump = (int32_t) r8;                                      // 825B
@@ -617,10 +758,10 @@ void ORCar::anim_step_f579()
 }
 
 // $7B3F: the hill index of the car's frame, from the camera's pitch and the road's under the car
-uint8_t ORCar::hill_index(const TickInput& in)
+uint8_t ORCar::hill_index(uint16_t camera_pitch, const TickInput& in)
 {
     uint16_t r1 = 0;                                                // 7B3F
-    uint16_t r4 = in.camera_pitch;                                  // 7B42
+    uint16_t r4 = camera_pitch;                                     // 7B42
     r4 = (uint16_t)(r4 - 0xB0);                                     // 7B46
     uint16_t r2 = in.own_rec_pitch;                                 // 7B4B
     r4 = (uint16_t)(r4 << 4);                                       // 7B50
@@ -737,8 +878,8 @@ void ORCar::a39c(const TickInput& in, const Road& road)
         r8 = lo16(r8, r8 + r1);                                     // A54C
         r8 = lo16(r8, r8 + r0);                                     // A54F
         if (s.wheel[0] == 0) { s.wheel[1] = 3; s.wheel[2] = 3; s.wheel[0] = 3; }   // A552-A564
-        // A56A-A56D: R0 := 3, jsr 1222F (the tyre sound; it changes R10 only)
-        r0 = (r0 & ~0xFFu) | 3;
+        r0 = (r0 & ~0xFFu) | 3;                                     // A56A
+        sound_tyre_if_on_road(3);                                   // A56D jsr 1222F
         s.latvel = (int16_t)(uint16_t) r8;                          // A573
         r0 = lo16(r0, r8);                                          // A577
     }
@@ -964,11 +1105,11 @@ void ORCar::aac9(const TickInput& in, uint32_t r7, uint32_t r8, uint32_t r9, uin
     goto ac55;
 ab0f:
     if (in.brake == 0) goto ab80;                                   // AB0F test.b 102[R25]
-    // AB15-AB2E: the tyre sound (AE2F[car]) unless sliding
+    if (!s.sliding) sound_tyre(r8_(SND_LOCK + s.car));              // AB15-AB2E: unless sliding
     if (s.wheel[0] == 0) { s.wheel[1] = 2; s.wheel[2] = 2; s.wheel[0] = 3; }   // AB30-AB42
     goto ab80;
 ab52:
-    // AB52-AB62: the tyre sound unless sliding
+    if (!s.sliding) sound_tyre_if_on_road(1);                       // AB52-AB62: unless sliding
     r9 = r32(r12 + 0x14);                                           // AB64: the force while spinning
     if (s.wheel[0] == 0) { s.wheel[1] = 1; s.wheel[2] = 1; s.wheel[0] = 3; }   // AB68-AB7A
 ab80:
@@ -1117,6 +1258,7 @@ void ORCar::b764(const Road& road)
 void ORCar::b93d(const TickInput&)
 {
     s.shaker = r8_(SHAKER + s.car);                                 // B949
+    sound_tyre(r8_(SND_GRAVEL + s.car));                            // B955-B95D: the gravel sound
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1124,6 +1266,7 @@ void ORCar::b93d(const TickInput&)
 // ------------------------------------------------------------------------------------------------
 void ORCar::gearbox_tick(const TickInput& in)
 {
+    snd = SoundOut();
     s.gearbox_state = in.gearbox_state;
     switch (s.gearbox_state)                                        // C379: table $C384
     {
@@ -1136,7 +1279,11 @@ void ORCar::gearbox_tick(const TickInput& in)
     default:                                                        // ED50: drawn only
         return;
     }
-    if (s.shift_smoke != 0) s.shift_smoke--;                        // C3C4-C3CA (C3CE: a sound)
+    if (s.shift_smoke != 0)                                         // C3C4
+    {
+        s.shift_smoke--;                                            // C3CA
+        sound_tyre_if_on_road(1);                                   // C3CE-C3D1
+    }
     uint32_t r0 = s.gears_m1;                                       // C3D7
     uint32_t r1 = s.gear;                                           // C3DB
     uint8_t r2 = in.shift_edges;                                    // C3DF

@@ -37,6 +37,9 @@ const uint16_t S16_PALETTE_ENTRIES = 0x1000;
 // Crossover: colours of a frame from another board (Video::set_external): the board's own
 // 0x2000, then 0x1000 for OutRun's sprites drawn into it; the border colour follows them
 const uint32_t EXT_COLOURS = 0x3000;
+// Crossover: a foreign car's own colours (OutRunners' MAD POWER on OutRun's courses), frame-buffer values
+// EXT_COLOURS + 1 + 0 .. XCAR_COLOURS - 1
+const uint32_t XCAR_COLOURS = 0x1000;
 
 // Number of stages
 const uint16_t STAGES = 15;

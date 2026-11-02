@@ -41,6 +41,7 @@
 #include "crossover/shmode.hpp"
 #include "crossover/homode.hpp"
 #include "crossover/ormode.hpp"
+#include "crossover/madpower.hpp"
 
 // ------------------------------------------------------------------------------------------------
 // Initialize Shared Variables
@@ -236,6 +237,7 @@ static void tick()
             break;
 
         case STATE_INIT_MENU:
+            madpower.want = madpower.enabled = false;   // crossover: the race setup chooses again
             oinputs.init();
             outrun.outputs->init();
             menu->init();
@@ -406,10 +408,10 @@ int main(int argc, char* argv[])
         (config.crossover.track == 20 && !homode.available()) ||
         (config.crossover.track >= 21 && !ormode.available()))
         config.crossover.track = 0;
-    // Hang-On's bike: its own course only; MAD POWER: OutRunners' courses only (for now). OutRunners' courses
-    // take MAD POWER, OutRun's Ferrari or Super Hang-On's bike
+    // Hang-On's bike: its own course only; MAD POWER: OutRun's and OutRunners' courses (not Super Hang-On's or
+    // Hang-On's). OutRunners' courses take MAD POWER, OutRun's Ferrari or Super Hang-On's bike
     if (config.crossover.vehicle == 2 && config.crossover.track != 20) config.crossover.vehicle = 0;
-    if (config.crossover.vehicle == 3 && config.crossover.track < 21) config.crossover.vehicle = 0;
+    if (config.crossover.vehicle == 3 && config.crossover.track >= 16 && config.crossover.track < 21) config.crossover.vehicle = 0;
     bike.enabled = config.crossover.vehicle == 1 && bike.ready;
     xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
 

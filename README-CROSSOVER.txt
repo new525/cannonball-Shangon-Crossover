@@ -52,6 +52,19 @@ Changes since 0.7.0 (not yet released)
   first stage to the 1/60 s. BIKE SIZE applies on OutRunners' courses too.
 - On OutRunners' courses MAD POWER's gravel and wheelspin sounds no longer
   play under the Ferrari (or the bike) when it leaves the road.
+- OutRunners' MAD POWER on OutRun's courses (VEHICLE: OUTRUNNERS MAD POWER
+  with OutRun's full route or any single OutRun stage). As Super Hang-On's
+  bike rides them, MAD POWER drives with its own code: OutRunners' handling,
+  sprite frames, crash and sound parameters, rebuilt in C++ and checked
+  against its emulated board tick by tick (no differences). OutRun's world
+  (road, traffic, scenery, checkpoints and forks, timer, goal) follows it.
+  It is drawn with OutRunners' own sprites and colours, and its engine,
+  tyres and crashes come from OutRunners' sound board (no OutRunners music).
+  Its acceleration on OutRun's first stage is the same at every 1/30 s as on
+  OutRunners' first course (made level for the comparison); it tops out at
+  451 km/h (automatic) or 471 km/h (its 6-speed manual box: separate gear
+  buttons setting, GEAR1 down, GEAR2 up), which OutRun's speedometer shows.
+  Needs every file of MAME's orunnersj set.
 
 
 Changes in 0.7.0
@@ -263,7 +276,7 @@ Main menu > PLAY GAME opens the race setup:
     START RACE
     VEHICLE   OutRun's Ferrari, Super Hang-On's bike, Hang-On's bike
               (HANG ON BIKE: Hang-On's course only), or OutRunners' MAD
-              POWER (OutRunners' courses only, for now)
+              POWER (OutRun's and OutRunners' courses)
     BIKE SIZE 80 percent (default), 50 to 90 percent, or FULL SIZE
               (OutRun's and OutRunners' courses; the bike is full size on
               Super Hang-On's and Hang-On's)
@@ -378,6 +391,26 @@ Design choices (not original behaviour of either game):
   for a car). After the goal, OutRunners' scripted goal run carries the
   bike. Off-road dust is OutRun's smoke, as on OutRun's courses. Details in
   docs\CROSSOVER-OUTRUNNERS.md (section 8) in the source.
+- MAD POWER on OutRun's courses: OutRun's road becomes the road OutRunners'
+  car code reads: one OutRunners segment is 303/272 of an OutRun road
+  position (the same distance per km/h in both games), each segment's
+  heading the direction of OutRun's road path there (turned the other way on
+  the mirrored road of a fork), the road's half-width OutRun's asphalt edge
+  x 11/6 (the cars' half-widths 24 and 44: MAD POWER is the Ferrari's width,
+  so OutRun's collision tests are unchanged), level (OutRun's car has no
+  slope force), with the surface of OutRunners' first course. Speed: km/h =
+  OutRunners' speed / 136. Collisions: OutRun's tests decide; a roadside
+  object gives MAD POWER's own scenery bounce, a traffic car its response to
+  a car of its race of its own weight. Its off-road (drag, shaking, gravel
+  sound, dust) is its own. OutRun's camera stays fixed to the car: MAD POWER
+  is drawn at OutRunners' scale 1 (its size on OutRunners' start line, the
+  Ferrari's size), at the place OutRunners' projection gives it there, in
+  the Ferrari's place in OutRun's sprite list; its hill frame follows
+  OutRun's own uphill/level/downhill decision. OutRunners' start line holds
+  while OutRun counts down; time up, the goal, the bonus run and the ending
+  are OutRun's. Its sound board plays its engine, tyres and crashes; OutRun's
+  board plays the world. Details in docs\CROSSOVER-OUTRUNNERS.md (section 9)
+  in the source.
 
 
 Not done yet
@@ -385,7 +418,12 @@ Not done yet
 - Hang-On's bike on OutRunners' courses: it exists only as Hang-On's own
   program on its emulated board, and its tasks have not been rebuilt as code
   that can run in another game's world, as Super Hang-On's were. MAD POWER
-  on the other games' courses.
+  on Super Hang-On's and Hang-On's courses.
+- MAD POWER on OutRun's courses: the wheels flying off in a crash and the
+  start line's player marker are not drawn; OutRun's ending shows MAD POWER
+  standing with the Ferrari's passengers' animation, and the attract mode
+  shows the Ferrari; OutRun's HUD shows no gear for its manual box; OutRun's
+  hills give it no slope force.
 - With the Ferrari or the bike on OutRunners' courses: OutRunners' own
   pictures of the car stay MAD POWER (the ending's picture, the map's and
   HUD's car icons); the HUD's gearbox shows AUTO; the flying wreck and
