@@ -55,7 +55,18 @@ struct FrameResampler
             }
             pos += step;
         }
-        size_t used = std::min((size_t) pos, n);
+        if (pos >= (double) n)
+        {
+            // Ran dry (the last samples of a board that has stopped, drained): what was missing was
+            // held at the last sample. The read position must not carry past the samples that
+            // were there: a board started again would have each frame's samples skipped by the
+            // shortfall (it held about 717 of 735 samples after Cool Riders' track had drained,
+            // and that frozen value with a click at every frame once the track was played again).
+            buf.clear();
+            pos = 0;
+            return;
+        }
+        size_t used = (size_t) pos;
         buf.erase(buf.begin(), buf.begin() + 2 * (long) used);
         pos -= (double) used;
     }
