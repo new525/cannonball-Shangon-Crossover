@@ -5,7 +5,8 @@
 This project takes Cannonball and adds Super Hang-On (1987) and Hang-On (1985) to it. You can
 ride Super Hang-On's bike on OutRun's courses, drive OutRun's Ferrari on Super Hang-On's courses,
 race Hang-On's course with the Ferrari or either game's bike, drive OutRunners' courses with its MAD
-POWER, OutRun's Ferrari or Super Hang-On's bike, drive MAD POWER on OutRun's courses, and race to the music of all three games, plus Cool Riders' cover of
+POWER, OutRun's Ferrari or Super Hang-On's bike, drive MAD POWER on OutRun's, Super Hang-On's and
+Hang-On's courses, and race to the music of all three games, plus Cool Riders' cover of
 Hang-On's theme and OutRunners' covers of OutRun's music. Super Hang-On's, Hang-On's and
 OutRunners' courses run on emulated copies of their own boards, and each tune plays on an emulated
 copy of its own game's sound board.
@@ -65,7 +66,8 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 | OutRun's Ferrari on OutRunners' courses (handling, crash, smoke, engine sound; OutRunners' world) | Done |
 | Super Hang-On's bike on OutRunners' courses (physics, crash, knockback, supercharger, engine sound) | Done |
 | OutRunners' MAD POWER on OutRun's courses (its own handling, sprites, crash and sound board) | Done |
-| Hang-On's bike on OutRunners' courses; MAD POWER on Super Hang-On's and Hang-On's courses | Planned |
+| OutRunners' MAD POWER on Super Hang-On's and Hang-On's courses | Done |
+| Hang-On's bike on OutRunners' courses | Planned |
 | Bike versions of OutRun's start and ending scenes | Planned |
 
 ---
@@ -255,6 +257,24 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
     OutRun's sprite list, at OutRunners' scale 1 (the Ferrari's size).
   - Its engine, tyre and crash sounds from OutRunners' sound board, driven as OutRunners' main CPU
     drives it, without its music.
+- **MAD POWER on Super Hang-On's and Hang-On's courses** (`crossover/shferrari.*`,
+  `crossover/hovehicle.*`): where those boards hand their vehicle to the Ferrari, they can hand it to
+  MAD POWER, with the same car code in OutRun's car slot. Details in
+  [`docs/CROSSOVER-OUTRUNNERS.md`](docs/CROSSOVER-OUTRUNNERS.md) section 10:
+  - The road: the board's own road path (the same format as OutRun's) gives the segments' headings and
+    distance as on OutRun's courses; the half-width is the board's road edge (300 on Super Hang-On's
+    courses, 260 on Hang-On's) x 11/6; level. Its acceleration is the same at every tick as on OutRun's
+    first stage until the first contact (21 s and 436 km/h on Africa, automatic).
+  - Collisions: the boards' own tests decide. A roadside object gives MAD POWER's scenery bounce; a
+    rival bike is hit by the Ferrari's rule (MAD POWER is the Ferrari's width) and answered as a car of
+    its race, at the rival's own lateral position, lateral speed and speed.
+  - Drawn with OutRunners' sprites and colours at the bike's place in the board's sprite list (its
+    colours added to the board's frame); nearer objects pass in front of it.
+  - Its sounds from OutRunners' sound board; the board's bike engine and effects are silenced, as for
+    the Ferrari, and its engine is switched off when the race ends.
+  - Found on the way: Super Hang-On's goal stopped at its bonus count with the Ferrari (the bike's crash
+    objects woke up in the goal sequence and stopped the goal run); it now runs on to the ranking and
+    the menu with the Ferrari and MAD POWER.
 - **68000 timing**: Musashi now takes the same number of cycles as MAME 0.264's 68000 on every
   instruction tested (104,854 cases) and takes interrupts at the same points. This brought the
   emulated Hang-On board much closer to MAME (see *Hang-On's course* above).
@@ -310,8 +330,7 @@ roms\orunners\   epr-15550.ic31, mpr-15551.ic1, mpr-15552.ic2   (OutRunners)
 2. Choose **PLAY GAME**. The race setup screen opens:
    - **VEHICLE**: OutRun's Ferrari, Super Hang-On's bike, *HANG ON BIKE*, Hang-On's own bike,
      which is offered for Hang-On's course only, or *OUTRUNNERS MAD POWER*, OutRunners' car, offered
-     for OutRun's and OutRunners' courses. OutRunners' courses take MAD POWER, the Ferrari or Super
-     Hang-On's bike.
+     for every course. OutRunners' courses take MAD POWER, the Ferrari or Super Hang-On's bike.
    - **BIKE SIZE**: 80 percent by default; anything from 50 percent up to *FULL SIZE* (as in
      Super Hang-On) in steps of 10. Super Hang-On's bike takes up much more of the screen than
      OutRun's Ferrari, and a smaller bike shows more of the road ahead. It applies on OutRun's and
@@ -322,8 +341,8 @@ roms\orunners\   epr-15550.ic31, mpr-15551.ic1, mpr-15552.ic2   (OutRunners)
    - **TRACK**: OutRun's full route (pick a road at each fork), any single OutRun stage (raced
      with the time-trial rules; laps and traffic as set under GAME MODES > TIME TRIAL), or one
      of Super Hang-On's courses: *SUPER HANG ON AFRICA* (Beginner, 6 stages), *ASIA* (Junior,
-     10), *AMERICA* (Senior, 14) or *EUROPE* (Expert, 18), with either vehicle, or Hang-On's
-     course, *HANG ON*, with any of the three, or OutRunners' *OUTRUNNERS FULL COURSE* (its map;
+     10), *AMERICA* (Senior, 14) or *EUROPE* (Expert, 18), with the Ferrari, Super Hang-On's bike or
+     MAD POWER, or Hang-On's course, *HANG ON*, with any of the four, or OutRunners' *OUTRUNNERS FULL COURSE* (its map;
      the side of the road you are on at a checkpoint picks the way) or *OUTRUNNERS KENYA*, with
      MAD POWER, the Ferrari or Super Hang-On's bike.
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks, Cool Riders'

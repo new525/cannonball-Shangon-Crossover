@@ -97,6 +97,7 @@ struct MadRoad : orcar::Road
     uint8_t zone8(uint32_t a) const override { return rom[a & 0x1FFFFF]; }
 };
 MadRoad road;
+CrossoverMadPower::PathFn path_fn = nullptr;    // Super Hang-On's or Hang-On's path (the same format), else OutRun's
 
 // OutRun's path: its direction (atan2 of the unit vector) at road position p (positions, fractional),
 // in 12-bit units (4096 a turn), relative to `ref` (unwrapped around it)
@@ -106,7 +107,9 @@ double path_angle(double p)
     uint32_t i = (uint32_t) p;
     double t = p - i;
     auto ang = [](uint32_t k) {
-        double x = trackloader.readPath(k << 2), y = trackloader.readPath((k << 2) + 2);
+        double x, y;
+        if (path_fn) { x = path_fn(nullptr, k << 2); y = path_fn(nullptr, (k << 2) + 2); }
+        else         { x = trackloader.readPath(k << 2); y = trackloader.readPath((k << 2) + 2); }
         return std::atan2(x, y) * 4096.0 / (2.0 * M_PI);
     };
     double a0 = ang(i), a1 = ang(i + 1);
@@ -169,7 +172,12 @@ void CrossoverMadPower::reset()
     entries.clear();
     if (loaded) std::fill(image.begin(), image.end(), 0);
     video.sprite_layer->set_foreign(enabled && loaded ? &CrossoverMadPower::blit : nullptr, this);
-    // the sound board: powered on, its program started; the race's commands and parameters follow
+    sound_reset();
+}
+
+// The sound board: powered on, its program started; the race's commands and parameters follow
+void CrossoverMadPower::sound_reset()
+{
     writes.clear(); cmds.clear();
     snd_on = false;
     if (enabled && board)
@@ -183,6 +191,51 @@ void CrossoverMadPower::reset()
         next_time = board->now();
         snd_on = true;
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+// Super Hang-On's and Hang-On's courses (docs/CROSSOVER-OUTRUNNERS.md section 10)
+// ------------------------------------------------------------------------------------------------
+void CrossoverMadPower::begin_board(PathFn path)
+{
+    board_path = path_fn = path;
+    enabled = loaded && path;
+    started = false;
+    have_hit = false;
+    frame_kind = -1;
+    shift_prev = 0;
+    rank_flag = 0;
+    accel_cut = hold = false;
+    last_x = 0;
+    entries.clear();
+    if (loaded) std::fill(image.begin(), image.end(), 0);
+    video.sprite_layer->set_foreign(nullptr, nullptr);       // drawn into the board's frame, not OutRun's list
+    sound_reset();
+}
+
+void CrossoverMadPower::end_board()
+{
+    engine_off();
+    board_path = path_fn = nullptr;
+    enabled = false;
+    accel_cut = hold = false;
+}
+
+void CrossoverMadPower::engine_off()
+{
+    snd_write(SH_CTRL, 0);
+}
+
+void CrossoverMadPower::rival_hit(int16_t lateral, int16_t latvel, uint16_t speed)
+{
+    if (!started || (have_hit && hit_kind == 0)) return;
+    have_hit = true;
+    hit_kind = 2;
+    hit_lateral = lateral;
+    hit_latvel = latvel;
+    hit_speed = speed;
+    if (dbg()) fprintf(stderr, "madpower: f%d rival hit: lateral %d (own %d), lateral speed %d, %d km/h\n", harness.frame,
+                       lateral, car->s.lateral, latvel, speed / SPEED_PER_KMH);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -249,6 +302,7 @@ void CrossoverMadPower::tick()
     in.steer = (uint8_t)(0xFF - adc);
     in.accel = (uint8_t) std::max(0, std::min(255, (int) oinputs.acc_adjust));
     in.brake = (uint8_t) std::max(0, std::min(255, (int) oinputs.brake_adjust));
+    if (accel_cut || hold) in.accel = 0;
     // the manual box (the separate gear buttons setting, as on OutRunners' courses): GEAR2 up, GEAR1 down
     uint8_t shift = 0;
     if (config.controls.gear == config.controls.GEAR_SEPARATE)
@@ -306,9 +360,12 @@ void CrossoverMadPower::tick()
         frame_kind = kind;
         rec_prev = orcar::Record::publish(s);
         oinitengine.car_increment = 0;
+        last_x = x;
         return;                             // state 0 is a tick of its own, as on OutRunners' board
     }
-    if (kind != frame_kind || (kind == 0 && change != 0))
+    // (on Super Hang-On's and Hang-On's courses the board may move the car: Super Hang-On steers it to the
+    // centre after the goal, sub_0B430)
+    if (kind != frame_kind || (kind == 0 && change != 0) || (board_path && x != last_x))
     {
         s.lateral = (int16_t) std::lround(-(double)(x - road_center) * LAT_OR / LAT_OUT);
         frame_kind = kind;
@@ -322,6 +379,7 @@ void CrossoverMadPower::tick()
     build_segments();
     uint16_t seg_before = s.seg_count;
     uint8_t state_before = s.state;
+    if (hold) { s.speed = 0; s.speed32 = 0; }
     c.tick(in, road);
     c.gearbox_tick(in);
     if (c.unsupported() && dbg()) fprintf(stderr, "madpower: unsupported path $%X\n", c.unsupported());
@@ -352,6 +410,7 @@ void CrossoverMadPower::tick()
     oferrari.set_ferrari_bounds();          // OutRun's limit (MAD POWER's own, its half-width + $60, is tighter)
     if (oinitengine.car_x_pos != x)
         s.lateral = (int16_t) std::lround(-(double)(oinitengine.car_x_pos - road_center) * LAT_OR / LAT_OUT);
+    last_x = oinitengine.car_x_pos;
     oinitengine.car_increment = (int32_t)(((uint32_t) s.speed << 16) / SPEED_PER_KMH);
     oferrari.car_inc_old = (uint16_t)(oinitengine.car_increment >> 16);
     // OutRun's wheel state stays on the road: MAD POWER's off-road dust and sounds are its own
@@ -482,6 +541,25 @@ void CrossoverMadPower::blit(void* ctx, uint16_t* target, int w, int h, int x_of
         }
 }
 
+// Super Hang-On's and Hang-On's courses: the image into the board's overlay (crossover/shvideo, crossover/hovideo),
+// at the place it has on OutRun's screen (as the Ferrari's sprites there): a colour as $4000 + its entry (the board's
+// video makes it the frame-buffer value EXT_COLOURS + 1 + entry, MAD POWER's colours), a shadow as $1000 (the board's
+// own shadow)
+void CrossoverMadPower::to_overlay(uint16_t* ov, int w, int h, int x_off) const
+{
+    if (!loaded || !enabled) return;
+    for (int y = 0; y < IMG_H && y < h; y++)
+        for (int x = 0; x < IMG_W; x++)
+        {
+            uint16_t p = image[(size_t) y * IMG_W + x];
+            if (!p) continue;
+            int tx = x + x_off;
+            if (tx < 0 || tx >= w) continue;
+            uint32_t rgb;
+            ov[(size_t) y * w + tx] = s32->colour(p, rgb) ? (uint16_t)(0x4000 | (p & 0x0FFF)) : (uint16_t) 0x1000;
+        }
+}
+
 // ------------------------------------------------------------------------------------------------
 // Sound: OutRunners' board, as its main CPU drives it for player 1 (monitor A)
 // ------------------------------------------------------------------------------------------------
@@ -494,7 +572,8 @@ void CrossoverMadPower::snd_write(uint32_t off, uint8_t v)
 void CrossoverMadPower::mix(int32_t* out, int samples_n, int fps)
 {
     if (!snd_on || !board) return;
-    if (!enabled || !(outrun.game_state >= GS_START1 && outrun.game_state <= GS_BONUS)) { writes.clear(); cmds.clear(); }
+    // (on Super Hang-On's and Hang-On's courses the vehicle's code switches the engine off when the race ends)
+    if (!enabled || !(board_path || (outrun.game_state >= GS_START1 && outrun.game_state <= GS_BONUS))) { writes.clear(); cmds.clear(); }
     if (fps <= 0) fps = 60;
     const int64_t frame60 = ORSound::CLOCK / 60;
     double cyc = (double) ORSound::CLOCK / fps + frame_frac;

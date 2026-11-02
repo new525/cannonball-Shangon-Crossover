@@ -28,6 +28,11 @@
     Units shared by the two games (see crossover/bike.hpp): track position, 16.16 km/h speed,
     lateral X (+ = left), curve type/radius.
 
+    OutRunners' MAD POWER drives here the same way (vehicle MAD_POWER): crossover/madpower in OutRun's car
+    slot as on OutRun's courses, with Super Hang-On's world faked into OutRun's variables as for the Ferrari;
+    its image drawn at the bike's place in the sprite list, its sound on OutRunners' board, a rival's
+    contact answered as a car of its race. docs/CROSSOVER-OUTRUNNERS.md section 10.
+
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
 #pragma once
@@ -42,7 +47,9 @@ extern "C" {
 class SHFerrari
 {
 public:
-    bool enabled = false;                   // the Ferrari drives this session's course
+    enum Vehicle { FERRARI, MAD_POWER };
+    bool    enabled = false;                // another game's vehicle drives this session's course
+    Vehicle vehicle = FERRARI;
 
     void begin();                           // after the board's run-up (SHMode::start)
     void end();                             // SHMode::stop
@@ -63,7 +70,7 @@ private:
     uint16_t road_x[512];                   // OutRun's road X table on Super Hang-On's path
     uint32_t road_x_pos = 0xFFFFFFFF;       // path position it was built for
 
-    struct RivalHit { uint32_t slot; int side; int speed; };
+    struct RivalHit { uint32_t slot; int side; int speed; int16_t lat, latvel; };
     RivalHit hits[8];
     int      n_hits = 0;
 
@@ -81,6 +88,12 @@ private:
     void rival_contact(uint32_t a5);
     int  rival_speed(uint32_t a5);
     void silence_packet();
+    void tick_madpower();
+    void rival_lateral(uint32_t a5);
+    struct RivalLat { uint32_t slot; int16_t lat, latvel; uint32_t frame; };
+    RivalLat rival_lat[16];                 // the rivals' lateral positions at the last frame's test (MAD POWER)
+    uint32_t board_frame = 0;
+    uint32_t crash_entry[4] = {};          // the tasks seen in the bike's crash slots while racing
 };
 
 extern SHFerrari shferrari;

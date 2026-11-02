@@ -2,6 +2,7 @@
     Screen of the emulated Hang-On board. See hovideo.hpp.
 ***************************************************************************/
 #include "crossover/hovideo.hpp"
+#include "globals.hpp"
 #include "crossover/hoboard.hpp"
 #include "crossover/romset.hpp"
 
@@ -282,7 +283,8 @@ void HOVideo::draw_sprites(HOBoard& b)
             {
                 uint16_t o = overlay[i];
                 if (!o) continue;
-                if (o == 0x1000) spr[i] = (uint16_t)((pri2 << 10) | 0x3f0 | 0xa);
+                if (o & 0x4000)  spr[i] = (uint16_t)(0xC000 | (pri2 << 12) | (o & 0xfff));  // a foreign car's colour
+                else if (o == 0x1000) spr[i] = (uint16_t)((pri2 << 10) | 0x3f0 | 0xa);
                 else             spr[i] = (uint16_t)(0x8000 | (pri2 << 11) | (o & 0x7ff));
             }
             overlay_placed = true;
@@ -367,7 +369,11 @@ void HOVideo::render(HOBoard& b)
         if (p == 0xffff) continue;
         if (p & 0x8000)
         {
-            if ((1 << ((p >> 11) & 3)) > pri[i]) pixels[i] = (uint16_t)(0x2800 + (p & 0x7ff));
+            if (p & 0x4000)                                // a foreign car's colour (MAD POWER's, crossover/madpower)
+            {
+                if ((1 << ((p >> 12) & 3)) > pri[i]) pixels[i] = (uint16_t)(EXT_COLOURS + 1 + (p & 0xfff));
+            }
+            else if ((1 << ((p >> 11) & 3)) > pri[i]) pixels[i] = (uint16_t)(0x2800 + (p & 0x7ff));
             continue;
         }
         int priority = p >> 10;

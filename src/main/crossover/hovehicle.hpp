@@ -30,6 +30,11 @@
     hit or a rival's contact answered as Super Hang-On answers them, its dust drawn by Hang-On's dust task
     (the counterpart of Super Hang-On's own).
 
+    OutRunners' MAD POWER (crossover/madpower) runs in OutRun's car slot the same way, with Hang-On's world in
+    place of OutRun's: its road from Hang-On's path and edge (260), a scenery hit or a rival's contact answered
+    as MAD POWER answers them, its image at the bike's place in the sprite list, its sound on OutRunners'
+    board (docs/CROSSOVER-OUTRUNNERS.md section 10).
+
     Hang-On's addresses are listed (with the code they were read from) in docs/CROSSOVER-HANGON.md.
     Units are Super Hang-On's (the same as OutRun's: track position, 16.16 km/h, lateral X).
 
@@ -45,7 +50,7 @@ class HOVehicle
 public:
     // The vehicle on Hang-On's course when it is not Hang-On's own bike: OutRun's Ferrari, or Super Hang-On's
     // bike (crossover/bike: its reconstructed tasks and sprites, in OutRun's car slot as on OutRun's courses)
-    enum Vehicle { FERRARI, SH_BIKE };
+    enum Vehicle { FERRARI, SH_BIKE, MAD_POWER };
     bool    enabled = false;                // another game's vehicle drives this session's course
     Vehicle vehicle = FERRARI;
 
@@ -67,7 +72,12 @@ private:
     uint16_t road_x[512];                   // OutRun's road X table on Hang-On's path
     uint32_t road_x_pos = 0xFFFFFFFF;       // path position it was built for
 
-    struct RivalHit { uint32_t slot; int side; int speed; };
+    struct RivalHit { uint32_t slot; int side; int speed; int16_t lat, latvel; };
+    struct RivalLat { uint32_t slot; int16_t lat, latvel; uint32_t frame; };
+    RivalLat rival_lat[16];                 // the rivals' lateral positions at the last frame's test (MAD POWER)
+    uint32_t board_frame = 0;
+    void rival_lateral(uint32_t a5);
+    void tick_madpower();
     RivalHit hits[8];
     int      n_hits = 0;
 

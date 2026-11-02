@@ -65,6 +65,14 @@ Changes since 0.7.0 (not yet released)
   451 km/h (automatic) or 471 km/h (its 6-speed manual box: separate gear
   buttons setting, GEAR1 down, GEAR2 up), which OutRun's speedometer shows.
   Needs every file of MAME's orunnersj set.
+- MAD POWER on Super Hang-On's courses and Hang-On's course (VEHICLE:
+  OUTRUNNERS MAD POWER with SUPER HANG ON AFRICA, ASIA, AMERICA, EUROPE or
+  HANG ON): it takes the Ferrari's place on those boards, with the same code
+  as on OutRun's courses. Its acceleration there is the same at every 1/30 s
+  as on OutRun's first stage until it first touches something.
+- Fixed: with the Ferrari, Super Hang-On's goal stopped at the bonus count
+  (the game never went on to the ranking); it now goes on to the ranking,
+  name entry and the menu (with MAD POWER too).
 
 
 Changes in 0.7.0
@@ -276,7 +284,7 @@ Main menu > PLAY GAME opens the race setup:
     START RACE
     VEHICLE   OutRun's Ferrari, Super Hang-On's bike, Hang-On's bike
               (HANG ON BIKE: Hang-On's course only), or OutRunners' MAD
-              POWER (OutRun's and OutRunners' courses)
+              POWER (every course)
     BIKE SIZE 80 percent (default), 50 to 90 percent, or FULL SIZE
               (OutRun's and OutRunners' courses; the bike is full size on
               Super Hang-On's and Hang-On's)
@@ -285,8 +293,9 @@ Main menu > PLAY GAME opens the race setup:
               the order of Cannonball's time-trial course map). A single
               stage is raced with the time-trial rules; laps and traffic are
               set under GAME MODES > TIME TRIAL. Or one of Super Hang-On's
-              courses: AFRICA, ASIA, AMERICA, EUROPE (either vehicle), or
-              Hang-On's course: HANG ON (any of the three vehicles), or
+              courses: AFRICA, ASIA, AMERICA, EUROPE (the Ferrari, Super
+              Hang-On's bike or MAD POWER), or Hang-On's course: HANG ON
+              (any of the four vehicles), or
               OUTRUNNERS FULL COURSE / OUTRUNNERS KENYA (MAD POWER, the
               Ferrari or Super Hang-On's bike; not Hang-On's bike).
     MUSIC     any of the tracks below (Music), previewed as you choose, or
@@ -411,14 +420,29 @@ Design choices (not original behaviour of either game):
   are OutRun's. Its sound board plays its engine, tyres and crashes; OutRun's
   board plays the world. Details in docs\CROSSOVER-OUTRUNNERS.md (section 9)
   in the source.
+- MAD POWER on Super Hang-On's and Hang-On's courses: the board's own road
+  path gives the road as OutRun's does (same format); the road's half-width
+  is the board's road edge (300 on Super Hang-On's, 260 on Hang-On's) x
+  11/6; level. The boards' own tests decide collisions: a roadside object
+  gives MAD POWER's scenery bounce; a rival bike is hit by the Ferrari's rule
+  (MAD POWER is the Ferrari's width) and answered as a car of its race, at
+  the rival's own position, sideways speed and speed. It is drawn with its
+  own sprites and colours at the bike's place in the board's sprite list.
+  Its sound board plays its engine, tyres and crashes; the board's bike
+  sounds are silenced as for the Ferrari, and its engine stops when the race
+  ends. Time up, the goal and the ending are the board's (Super Hang-On's
+  ending shows its own rider). Details in docs\CROSSOVER-OUTRUNNERS.md
+  (section 10) in the source.
 
 
 Not done yet
 ------------
 - Hang-On's bike on OutRunners' courses: it exists only as Hang-On's own
   program on its emulated board, and its tasks have not been rebuilt as code
-  that can run in another game's world, as Super Hang-On's were. MAD POWER
-  on Super Hang-On's and Hang-On's courses.
+  that can run in another game's world, as Super Hang-On's were.
+- MAD POWER on OutRun's, Super Hang-On's and Hang-On's courses: no slope
+  force from the hills; the wheels flying off in a crash and the
+  start line's player marker are not drawn.
 - MAD POWER on OutRun's courses: the wheels flying off in a crash and the
   start line's player marker are not drawn; OutRun's ending shows MAD POWER
   standing with the Ferrari's passengers' animation, and the attract mode

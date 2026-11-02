@@ -1244,9 +1244,8 @@ void Menu::xover_cycle(int dir)
     if (SELECTED(ENTRY_X_VEHICLE))
     {
         // OutRun's Ferrari, Super Hang-On's bike (its ROMs), Hang-On's bike (its ROMs; Hang-On's course
-        // only), OutRunners' MAD POWER (the full orunnersj set; OutRun's and OutRunners' courses). On
-        // OutRunners' courses: MAD POWER, the Ferrari or Super Hang-On's bike (Hang-On's bike exists only on
-        // its own board).
+        // only), OutRunners' MAD POWER (the full orunnersj set; every course). On OutRunners' courses: MAD
+        // POWER, the Ferrari or Super Hang-On's bike (Hang-On's bike exists only on its own board).
         if (!bike.ready && !homode.available() && !ormode.available())
         {
             config.crossover.vehicle = 0;
@@ -1258,8 +1257,6 @@ void Menu::xover_cycle(int dir)
         while ((v == 1 && !bike.ready) || (v == 2 && !homode.available()) || (v == 3 && !ormode.available()));
         config.crossover.vehicle = v;
         if (v == 2) config.crossover.track = XOVER_HO_TRACK;            // its own course
-        // MAD POWER: OutRun's and OutRunners' courses (not Super Hang-On's or Hang-On's yet)
-        if (v == 3 && config.crossover.track >= XOVER_OR_TRACKS && !is_orr_track(config.crossover.track)) config.crossover.track = XOVER_ORR_FULL;
         if (v == 2 && is_orr_track(config.crossover.track)) config.crossover.track = 0;    // Hang-On's bike: its course only
     }
     else if (SELECTED(ENTRY_X_BIKESIZE))
@@ -1274,7 +1271,6 @@ void Menu::xover_cycle(int dir)
         do t = ((t + dir) % n + n) % n; while (!xover_track_ok(t));
         config.crossover.track = t;
         if (t != XOVER_HO_TRACK && config.crossover.vehicle == 2) config.crossover.vehicle = 0;   // Hang-On's bike: its course only
-        if (t >= XOVER_OR_TRACKS && !is_orr_track(t) && config.crossover.vehicle == 3) config.crossover.vehicle = 0;   // MAD POWER: OutRun's and OutRunners' courses
     }
     else if (SELECTED(ENTRY_X_MUSIC))
     {
@@ -1297,9 +1293,11 @@ void Menu::xover_start()
     if (config.crossover.vehicle == 2 && (!homode.available() || config.crossover.track != XOVER_HO_TRACK)) config.crossover.vehicle = 0;
     bike.enabled = config.crossover.vehicle == 1;
     xaudio.sh_vehicle = bike.enabled && xaudio.ready(CrossoverAudio::SHANGON);
-    // OutRunners' MAD POWER on OutRun's courses (crossover/madpower): its ROMs are loaded on the first race
-    madpower.want = config.crossover.vehicle == 3 && config.crossover.track < XOVER_OR_TRACKS && madpower.load();
-    if (config.crossover.vehicle == 3 && config.crossover.track < XOVER_OR_TRACKS && !madpower.want) config.crossover.vehicle = 0;
+    // OutRunners' MAD POWER on OutRun's, Super Hang-On's and Hang-On's courses (crossover/madpower): its ROMs are
+    // loaded on the first race
+    const bool mp_cb = config.crossover.vehicle == 3 && config.crossover.track <= XOVER_HO_TRACK;
+    madpower.want = mp_cb && config.crossover.track < XOVER_OR_TRACKS && madpower.load();
+    if (mp_cb && !madpower.load()) config.crossover.vehicle = 0;
     osoundint.queue_sound(sound::FM_RESET);             // stop a music preview
     config.save();
 
@@ -1321,15 +1319,16 @@ void Menu::xover_start()
     }
     if (config.crossover.track == XOVER_HO_TRACK)
     {
-        // OutRun's Ferrari or Super Hang-On's bike on Hang-On's course; Hang-On's own bike needs nothing
+        // OutRun's Ferrari, Super Hang-On's bike or MAD POWER on Hang-On's course; Hang-On's own bike needs nothing
         hovehicle.enabled = config.crossover.vehicle != 2;
-        hovehicle.vehicle = bike.enabled ? HOVehicle::SH_BIKE : HOVehicle::FERRARI;
+        hovehicle.vehicle = config.crossover.vehicle == 3 ? HOVehicle::MAD_POWER : bike.enabled ? HOVehicle::SH_BIKE : HOVehicle::FERRARI;
         homode.start(config.crossover.music);
         cannonball::state = cannonball::STATE_HANGON;
     }
     else if (config.crossover.track >= XOVER_OR_TRACKS)
     {
-        shferrari.enabled = !bike.enabled;     // OutRun's Ferrari on Super Hang-On's course
+        shferrari.enabled = !bike.enabled;     // OutRun's Ferrari or MAD POWER on Super Hang-On's course
+        shferrari.vehicle = config.crossover.vehicle == 3 ? SHFerrari::MAD_POWER : SHFerrari::FERRARI;
         shmode.start(config.crossover.track - XOVER_OR_TRACKS, config.crossover.music);
         cannonball::state = cannonball::STATE_SHANGON;
     }

@@ -31,6 +31,10 @@
       as its main CPU drives it ($700710-$700718, the queue to $700700), no music.
     docs/CROSSOVER-OUTRUNNERS.md section 9 has the addresses, the conversions and the checks.
 
+    The same car drives Super Hang-On's and Hang-On's courses on their emulated boards (crossover/shferrari,
+    crossover/hovehicle: begin_board), with those boards' worlds in OutRun's variables, their road paths
+    (OutRun's format) in place of OutRun's and the image drawn into their frames (section 10).
+
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
 #pragma once
@@ -64,6 +68,19 @@ public:
     void traffic_hit(const oentry* traffic);        // OutRun's traffic test hit the car
     void mix(int32_t* out, int samples, int fps);   // its sound board, once per audio frame
 
+    // Super Hang-On's and Hang-On's courses (crossover/shferrari, crossover/hovehicle): the same car in OutRun's
+    // car slot, with those boards' worlds faked into OutRun's variables there; the road path is theirs (OutRun's
+    // format: 4 bytes a position, x then y), the image goes into their frames as an overlay
+    typedef int16_t (*PathFn)(void* ctx, uint32_t off);
+    void begin_board(PathFn path);      // the board's race is about to start
+    void end_board();                   // the session ends (the engine off)
+    bool on_board() const { return board_path != nullptr; }
+    bool accel_cut = false;             // board: no accelerator (its timer at 0, as the Ferrari there)
+    bool hold = false;                  // board: stopped past the goal line (speed 0 each tick, as the Ferrari there)
+    void rival_hit(int16_t lateral, int16_t latvel, uint16_t speed);   // board: a rival bike (OutRunners' units)
+    void engine_off();                  // board: $700712 = 0, as OutRunners does for a car not racing
+    void to_overlay(uint16_t* ov, int w, int h, int x_off) const;      // board: the image (see the .cpp)
+
     // for the HUD, tests and traces
     int16_t speed_kmh() const;
     int16_t car_x_relative() const;     // OutRun X relative to the centre of the car's road
@@ -92,6 +109,8 @@ private:
     int16_t hit_lateral = 0, hit_latvel = 0;
     uint16_t hit_speed = 0;
     uint8_t shift_prev = 0, rank_flag = 0;
+    PathFn  board_path = nullptr;
+    int16_t last_x = 0;                 // board: the X the last tick left (moved by the board: the lateral follows)
     std::vector<uint16_t> entries;      // the sprite object's entries this tick
     std::vector<uint16_t> image;        // the car's image (S32 15-bit pixels)
     void build_segments();
@@ -110,6 +129,7 @@ private:
     bool    snd_on = false;
     uint8_t snd_last[4] = {};
     void snd_write(uint32_t off, uint8_t v);
+    void sound_reset();
 };
 
 extern CrossoverMadPower madpower;

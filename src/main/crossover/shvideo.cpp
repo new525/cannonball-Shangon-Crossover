@@ -2,6 +2,7 @@
     Screen of the emulated Super Hang-On board. See shvideo.hpp.
 ***************************************************************************/
 #include "crossover/shvideo.hpp"
+#include "globals.hpp"
 #include "crossover/shboard.hpp"
 #include "crossover/romset.hpp"
 
@@ -316,7 +317,8 @@ void SHVideo::draw_sprites(SHBoard& b)
             {
                 uint16_t o = overlay[i];
                 if (!o) continue;
-                if (o == 0x1000) spr[i] = (uint16_t)((pri2 << 10) | 0x3f0 | 0xa);       // shadow
+                if (o & 0x4000)  spr[i] = (uint16_t)(0xC000 | (pri2 << 12) | (o & 0xfff));  // a foreign car's colour
+                else if (o == 0x1000) spr[i] = (uint16_t)((pri2 << 10) | 0x3f0 | 0xa);       // shadow
                 else             spr[i] = (uint16_t)(0x8000 | (pri2 << 11) | (o & 0x7ff));
             }
             overlay_placed = true;
@@ -406,7 +408,11 @@ void SHVideo::render(SHBoard& b)
         if (p == 0xffff) continue;
         if (p & 0x8000)                                    // overlay pixel
         {
-            if ((1 << ((p >> 11) & 3)) > pri[i]) pixels[i] = (uint16_t)(0x2800 + (p & 0x7ff));
+            if (p & 0x4000)                                // a foreign car's colour (MAD POWER's, crossover/madpower)
+            {
+                if ((1 << ((p >> 12) & 3)) > pri[i]) pixels[i] = (uint16_t)(EXT_COLOURS + 1 + (p & 0xfff));
+            }
+            else if ((1 << ((p >> 11) & 3)) > pri[i]) pixels[i] = (uint16_t)(0x2800 + (p & 0x7ff));
             continue;
         }
         int priority = (p >> 10) & 3;

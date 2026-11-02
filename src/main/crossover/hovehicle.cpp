@@ -30,6 +30,7 @@
 #include "engine/oentry.hpp"
 #include "engine/audio/osoundint.hpp"
 #include "crossover/bike.hpp"
+#include "crossover/madpower.hpp"
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
@@ -122,6 +123,10 @@ static int16_t ho_path_word(void*, uint32_t off)
 
 static bool dbg() { static int d = getenv("CB_HOVEHICLE_DEBUG") ? 1 : 0; return d; }
 
+// MAD POWER (docs/CROSSOVER-OUTRUNNERS.md section 10): lateral units OutRun's (Hang-On's) x 11/6; Hang-On's road
+// edge for its bike (sub_0B57C: off the road at |X| > 260)
+static const int LAT_OR = 11, LAT_OUT = 6, SPEED_PER_KMH = 136, HO_EDGE = 260;
+
 // ------------------------------------------------------------------------------------------------
 // Start and end
 // ------------------------------------------------------------------------------------------------
@@ -155,10 +160,20 @@ void HOVehicle::begin()
         bike.reset();
         bike.set_course(true, ho_path_word);
     }
+    std::memset(rival_lat, 0, sizeof rival_lat);
+    board_frame = 0;
     oinitengine.car_x_pos = oinitengine.car_x_old = 0;
     oinitengine.car_increment = 0;
     oinitengine.rd_split_state = OInitEngine::SPLIT_NONE;
     osoundint.engine_data[sound::ENGINE_VOL] = 0x3F;   // as OInitEngine::init
+    if (vehicle == MAD_POWER)
+    {
+        // OutRunners' car in OutRun's car slot; OutRun's engine and tyre sounds off (its board plays them)
+        madpower.begin_board(ho_path_word);
+        osoundint.engine_data[sound::ENGINE_PITCH_H] = 0;
+        osoundint.engine_data[sound::ENGINE_PITCH_L] = 0;
+        osoundint.engine_data[sound::ENGINE_VOL] = 0;
+    }
     video.sprite_layer->reset();
 
     std::fill(road_x, road_x + 512, 0);
@@ -184,6 +199,7 @@ void HOVehicle::end()
     hovideo.overlay = nullptr;
     hovideo.tag_active = false;
     if (!enabled) return;
+    if (vehicle == MAD_POWER) madpower.end_board();
     bike.set_course(false, nullptr);
     osoundint.engine_data[sound::ENGINE_PITCH_H] = 0;
     osoundint.engine_data[sound::ENGINE_PITCH_L] = 0;
@@ -205,9 +221,11 @@ void HOVehicle::on_pc(uint32_t pc)
         {
             uint32_t a5 = hoboard.main_reg(M68K_REG_A5) & 0xFFFFFF, a0 = hoboard.main_reg(M68K_REG_A0) & 0xFFFFFF;
             if (in_sound_task) { in_sound_task = false; silence_packet(); }
+            if (a5 == SLOT_SOUND && a0 == TASK_SOUND) board_frame++;
             bool was = racing;
             uint16_t mode = RW(W_MODE);
             racing = RW(W_INGAME) != 0 && mode >= 1 && mode <= 3;
+            if (was && !racing && vehicle == MAD_POWER) madpower.engine_off();      // the race is over
             if (racing && !was)                                   // on the start line: where the game put its vehicle
             {
                 oinitengine.car_x_pos = oinitengine.car_x_old = (int16_t) RW(V_X);
@@ -226,8 +244,10 @@ void HOVehicle::on_pc(uint32_t pc)
         case PC_RIVAL_CMP:
             // d0 = allowance + 10, d1 = |rival x - $160|. OutRun's rule for the Ferrari against a car: hit
             // within 11/8 of the half-width the allowance gives (as on Super Hang-On's courses). The bike keeps
-            // Hang-On's rule (Super Hang-On's is the same, $750A).
-            if (racing && vehicle == FERRARI)
+            // Hang-On's rule (Super Hang-On's is the same, $750A). MAD POWER is the Ferrari's width
+            // (docs/CROSSOVER-OUTRUNNERS.md 9.4): the Ferrari's rule.
+            if (racing && vehicle == MAD_POWER) rival_lateral(hoboard.main_reg(M68K_REG_A5) & 0xFFFFFF);
+            if (racing && vehicle != SH_BIKE)
             {
                 int32_t half = (int16_t)(hoboard.main_reg(M68K_REG_D0) & 0xFFFF) - 10;
                 int32_t w = half * 11 / 8;
@@ -248,14 +268,14 @@ void HOVehicle::on_pc(uint32_t pc)
         case PC_RIVAL_SOUND:
             if (racing)
             {
-                if (vehicle == SH_BIKE) bike.sh_sound(0x89);              // Super Hang-On's, $7554
-                else                    osoundint.queue_sound(sound::REBOUND);
+                if (vehicle == SH_BIKE)      bike.sh_sound(0x89);         // Super Hang-On's, $7554
+                else if (vehicle == FERRARI) osoundint.queue_sound(sound::REBOUND);   // MAD POWER: its own crash sounds
                 hoboard.set_main_reg(M68K_REG_PC, PC_RIVAL_SOUND_END);
             }
             break;
 
         case PC_DUST_DRAW:
-            if (racing && vehicle == FERRARI) hoboard.set_main_reg(M68K_REG_PC, PC_DUST_DRAW_END);
+            if (racing && vehicle != SH_BIKE) hoboard.set_main_reg(M68K_REG_PC, PC_DUST_DRAW_END);   // their own dust
             break;
 
         case PC_SOUND_QUEUE:
@@ -354,6 +374,7 @@ void HOVehicle::bike_task(uint32_t a5)
         }
         else
         {
+            if (vehicle == MAD_POWER) madpower.engine_off();      // gone: its engine off
             WW(V_EXIT_DONE, 0xFFFF);
             WW(V_GOAL, 0);
             WW(V_RETIRE, 0);
@@ -387,7 +408,10 @@ void HOVehicle::publish(uint32_t a5)
     }
     else
     {
-        WW(V_OFFROAD, oferrari.wheel_state == OFerrari::WHEELS_OFF ? 0xFFFF : 0);
+        if (vehicle == MAD_POWER)                                 // Hang-On's own rule for its vehicle ($B57C)
+            WW(V_OFFROAD, std::abs((int) oinitengine.car_x_pos) > HO_EDGE ? 0xFFFF : 0);
+        else
+            WW(V_OFFROAD, oferrari.wheel_state == OFerrari::WHEELS_OFF ? 0xFFFF : 0);
         WW(V_KNOCK, 0);
         WW(V_CRASH, 0);
         WB(V_SPR_LEAN, 0); WB(V_SPR_LEAN + 1, 0);
@@ -463,6 +487,7 @@ void HOVehicle::world_to_outrun()
 
 void HOVehicle::tick()
 {
+    if (vehicle == MAD_POWER) { tick_madpower(); return; }
     world_to_outrun();
     uint32_t pos0 = oroad.road_pos;
 
@@ -546,6 +571,40 @@ void HOVehicle::tick()
     }
 }
 
+// MAD POWER: OutRunners' car code (crossover/madpower) in OutRun's car slot, the world as for the Ferrari
+void HOVehicle::tick_madpower()
+{
+    world_to_outrun();
+    uint32_t pos0 = oroad.road_pos;
+    // a scenery hit (Hang-On's test, every frame of an overlap): MAD POWER's own response (kind 0)
+    if (olevelobjs.collision_sprite) { madpower.scenery_hit(); olevelobjs.collision_sprite = 0; }
+    // a rival's contact: a car of its race (kind 2): its lateral position and lateral speed (Hang-On's $34,
+    // the same units and centre as X, + = right as OutRunners' lateral; its change a frame x 2 for the 30 Hz
+    // tick), its speed
+    for (int i = 0; i < n_hits; i++)
+        madpower.rival_hit((int16_t)(hits[i].lat * LAT_OR / LAT_OUT), (int16_t)(hits[i].latvel * 2 * LAT_OR / LAT_OUT),
+                           (uint16_t) std::max(0, std::min(0xFFFF, hits[i].speed * SPEED_PER_KMH)));
+    n_hits = 0;
+    madpower.accel_cut = ostats.time_counter == 0;               // time over: no accelerator, as the Ferrari
+    madpower.hold = RW(V_RETIRE) != 0;                            // past the goal line: stopped, as the Ferrari
+    madpower.tick();
+    if (RW(V_RETIRE)) oinitengine.car_increment = 0;
+
+    // its distance for this tick, given to the track over the next two board frames
+    owed += oroad.road_pos - pos0;
+    owed_frames = 2;
+
+    if (dbg())
+    {
+        static int n = 0;
+        if ((++n % 30) == 0)
+            fprintf(stderr, "hovehicle: MAD POWER tick %d x %d spd %d pos %08x curve %d/%d\n", n, oinitengine.car_x_pos,
+                    oinitengine.car_increment >> 16, RL(V_POS), oinitengine.road_type, oinitengine.road_curve);
+        static uint16_t last_mode = 0xFFFF;
+        if (RW(W_MODE) != last_mode) { fprintf(stderr, "hovehicle: mode %d\n", RW(W_MODE)); last_mode = RW(W_MODE); }
+    }
+}
+
 // OutRun's road builder (ORoad::setup_x_data, verified as sho_road_build_outrun) over Hang-On's path (the
 // second CPU's $7F0F0, a pointer into its ROM; same path format as Super Hang-On's): OFerrari::set_curve_adjust
 // reads its slice 170. Rebuilt when the position changes, keeping the slices it does not reach, as OutRun does.
@@ -582,7 +641,28 @@ void HOVehicle::rival_contact(uint32_t a5)
     for (int i = 0; i < n_hits; i++) if (hits[i].slot == a5) return;     // once per OutRun tick
     if (n_hits >= 8) return;
     int16_t x = (int16_t)(RW(a5 + 0x0A) - 0x160);                  // screen x from the centre (+ = right)
-    hits[n_hits++] = { a5, x < 0 ? -1 : 1, rival_speed(a5) };
+    int16_t lat = (int16_t) RW(a5 + 0x34), v = 0;
+    for (const RivalLat& r : rival_lat) if (r.slot == a5) v = r.latvel;
+    hits[n_hits++] = { a5, x < 0 ? -1 : 1, rival_speed(a5), lat, v };
+    if (dbg()) fprintf(stderr, "hovehicle: rival contact: slot %06x screen dx %d lateral $34 %d (v %d) line %x, X %d\n", a5, x, lat, v,
+                       RW(a5 + 0x0C), oinitengine.car_x_pos);
+}
+
+// A rival's lateral position ($34, steered by its task $A9D0-$AAC8) at each frame's contact test, for its
+// lateral speed (its change since the last frame)
+void HOVehicle::rival_lateral(uint32_t a5)
+{
+    int16_t lat = (int16_t) RW(a5 + 0x34);
+    RivalLat* e = nullptr;
+    for (RivalLat& r : rival_lat) if (r.slot == a5) { e = &r; break; }
+    if (!e) for (RivalLat& r : rival_lat) if (r.slot == 0 || board_frame - r.frame > 2) { e = &r; e->slot = a5; e->frame = 0; break; }
+    if (!e) return;
+    if (e->frame != board_frame)
+    {
+        e->latvel = e->frame + 1 == board_frame ? (int16_t)(lat - e->lat) : 0;
+        e->lat = lat;
+        e->frame = board_frame;
+    }
 }
 
 // A rival's speed in km/h ($AB3C-$ABA6). Its position changes per frame by
@@ -611,7 +691,8 @@ void HOVehicle::after_frame()
 {
     if (!enabled) return;
     std::memset(overlay, 0, sizeof overlay);
-    if (racing) video.sprite_layer->render_to(overlay, hovideo.width, HOVideo::H, hovideo.xoff, 8);
+    if (racing && vehicle == MAD_POWER) madpower.to_overlay(overlay, hovideo.width, HOVideo::H, hovideo.xoff);
+    else if (racing) video.sprite_layer->render_to(overlay, hovideo.width, HOVideo::H, hovideo.xoff, 8);
     hovideo.overlay = racing ? overlay : nullptr;
 }
 

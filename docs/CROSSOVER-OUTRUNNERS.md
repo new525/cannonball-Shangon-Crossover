@@ -17,7 +17,8 @@ in a race).
 OutRunners' courses are in the program too, on an emulated copy of the whole board (section 6):
 **OUTRUNNERS FULL COURSE** (the game's own map, your choice at each checkpoint) and **OUTRUNNERS
 KENYA** (its Kenya stage alone), with OutRunners' car **MAD POWER**, OutRun's Ferrari (section 7) or
-Super Hang-On's bike (section 8). MAD POWER also drives OutRun's courses (section 9).
+Super Hang-On's bike (section 8). MAD POWER also drives OutRun's courses (section 9) and Super Hang-On's
+and Hang-On's (section 10).
 
 Sets: MAME `orunners`, `orunnersu`, `orunnersj`. Reference: MAME 0.264. The music needs only the three
 sound ROMs, which are the same in all three sets; the courses need every file of `orunnersj`
@@ -762,13 +763,6 @@ hits and the sound board; `CB_MP_MUTE_BOARD` mutes MAD POWER's board (testing).
 
 ### 9.9 Not done / known issues
 
-- **Super Hang-On's and Hang-On's courses** with MAD POWER. They run on their own emulated boards, with
-  OutRun's Ferrari put on them by `crossover/shferrari` / `crossover/hovehicle`. MAD POWER would take
-  their place: the road adapter of 9.2 over their road paths (OutRun's format), their road edges (300
-  and 260 around one road) x 11/6 for the half-width, their rivals as cars of its race and their
-  roadside test for scenery, its image drawn into their frames at the vehicle's place in their sprite
-  lists (their frames use the external palette, `Video::set_external`: MAD POWER's colours would have to
-  join it), and its sound board beside theirs. The menu does not offer them.
 - The wheels flying off in a crash are not drawn (their timing is: the wheels come back when they would).
 - The start-line marker is not drawn.
 - OutRun's ending runs with MAD POWER's image standing still and the Ferrari's passengers' animation;
@@ -777,3 +771,132 @@ hits and the sound board; `CB_MP_MUTE_BOARD` mutes MAD POWER's board (testing).
 - No slope force from OutRun's hills (design decision, 9.2).
 - MAD POWER's engine level from its board, against OutRunners' own race, was compared only roughly
   (9.7).
+
+## 10. MAD POWER on Super Hang-On's and Hang-On's courses (`crossover/shferrari.*`, `crossover/hovehicle.*`)
+
+VEHICLE: OUTRUNNERS MAD POWER with TRACK: SUPER HANG ON AFRICA / ASIA / AMERICA / EUROPE or HANG ON.
+Those courses run on their own emulated boards (`crossover/shmode`, `crossover/homode`), where OutRun's
+Ferrari is put by `crossover/shferrari` and `crossover/hovehicle` (README.md; `docs/CROSSOVER-HANGON.md`
+section 3): the board runs the game unmodified and its world (road, scenery, rivals, timer, checkpoints,
+score, goal, rankings); where its main CPU reaches its own bike, instruction hooks hand the vehicle's
+part to Cannonball's OutRun code in OutRun's car slot, with the board's world faked into OutRun's
+variables (`world_to_outrun`: road position, curve, road width, heights, timer). MAD POWER takes the
+Ferrari's place there (`SHFerrari::MAD_POWER`, `HOVehicle::MAD_POWER`): its car slot is
+`CrossoverMadPower::tick` exactly as on OutRun's courses (section 9), with the board's road in OutRun's
+variables, its image into the board's frame, its sound on OutRunners' board. The hooks, the speed and
+distance hand-over (OutRun's units: road position, 16.16 km/h, X), the start-line blink, the goal exit and
+the bike's sound dropped are the Ferrari's, unchanged.
+
+### 10.1 The road (design decisions)
+
+| | Super Hang-On | Hang-On | MAD POWER |
+|---|---|---|---|
+| Path | the second CPU's `$0604F0` | the second CPU's `$7F0F0` | OutRun's path format in both (4 bytes a position, a unit vector): `CrossoverMadPower::begin_board` gives `MadRoad` the board's path in place of OutRun's (`path_angle`); the segments, headings and distance as in 9.2 |
+| Road edge | 300 (`$7F30`: off the road at \|X\| > 300) | 260 (`$B57C`) | the half-width x 11/6 (550 and 477), from OutRun's road width set as for the Ferrari (`$40` + `$EC`, `$18` + `$EC`) by `compute_frame`; one road, centre 0 |
+| Heights | the road's height table (`$261200`) | flat | only the hill index of the car's frame (OutRun's decision, 9.5, on the heights the Ferrari gets there); the road is level for the car (9.2) |
+| Off-road flag | `$260098` | `$C7E098` | written from the board's own rule for its bike: \|X\| beyond its road edge; MAD POWER's drag, gravel and dust are its own |
+
+The board moves its vehicle itself once: Super Hang-On steers it to the centre after the goal
+(`sub_0B430`, in the speed task as replaced for the Ferrari). On these boards a change of X between ticks
+that MAD POWER did not make becomes its lateral position again (`last_x`).
+
+### 10.2 Collisions (design decisions)
+
+The board's tests decide, MAD POWER's responses (`$7F87`) follow at its next tick, as on OutRun's
+courses (9.4):
+
+| Board | MAD POWER |
+|---|---|
+| Roadside object: Super Hang-On's test `$6EFA` (\|object x - `$160`\| within its width at depths `$109-$13F`, while `$260094` = 0), Hang-On's `$9E68-$9EAA` (the same at screen lines `$D0-$E0`, while `$C7E094` = 0): `$260084` / `$C7E084` counts every frame of an overlap | kind 0, scenery (the bounce by its speed, "Ouch!", "CRASH"), every tick the count moved |
+| Rival bike: Super Hang-On's `$750A` (depth >= `$120`), Hang-On's `$A922`: \|rival screen x - `$160`\| within its half-width + 10 | the Ferrari's rule (11/8 of the half-width: MAD POWER is the Ferrari's width, 9.4); kind 2, a car of its race of its own weight: its lateral position the rival's own (`$34`: the board's X units and centre, + = right as OutRunners' lateral, so x 11/6; the screen x is `$160` + the road's x at its depth + `$34` x depth / 224 in Super Hang-On, `sub_07A98`, / 112 in Hang-On, `$AEC2`; checked at contacts: Super Hang-On X 94, `$34` -66, 28 units apart, screen 23 pixels at depth `$BF`), its lateral speed `$34`'s change since the last frame (2 or 3 a frame as the rival steers, `$75A0-$765E` / `$A9D0-$AAC8`) x 2 for the 30 Hz tick, x 11/6; its speed in km/h (as the Ferrari's, `S - 1.6 x d0`) x 136 |
+
+The board's knock-back (`$260088`) and contact sound (`$89`) are not used, as for the Ferrari (MAD
+POWER's crash sounds come from its board).
+
+### 10.3 Drawing and colours
+
+- **Place:** the image (`CrossoverMadPower::render`: OutRunners' entries for the car, scale 1) at the place
+  it has on OutRun's screen (as the Ferrari's sprites there), in the board's frame at the bike's entry of
+  its depth-sorted sprite list (the Ferrari's tag), with that entry's priority: nearer objects pass in
+  front of it.
+- **Colours:** the board videos' overlay (`SHVideo` / `HOVideo::overlay`) takes a third kind of pixel:
+  `$4000` + a palette entry of MAD POWER's (`$000-$FFF`), which the frame gets as `EXT_COLOURS + 1` +
+  the entry: MAD POWER's colours, loaded with its ROMs (`Video::set_car_colours`, section 9.5), after the
+  board's (`Video::set_external`); a shadow pixel is the board's own shadow (`$1000`, as the Ferrari's).
+  `Video::rgb_of` (screenshots) knows them too.
+- The "Ouch!" and "CRASH" signs are drawn over the car, as OutRunners draws them (they cover most of it
+  for the first frames of a contact).
+
+### 10.4 Sound (design decisions)
+
+OutRunners' board as on OutRun's courses (9.6). The board's bike engine (the sound packet's player bytes)
+and the bike's effects (`$8A-$8D`) are dropped as for the Ferrari, and its contact sound `$89` too; OutRun's
+engine stays silent (volume and pitch 0; OutRun's car sound code is not run). When the race ends (the
+board leaves its race modes) or the vehicle leaves the course after the goal, MAD POWER's engine is
+switched off (`$700712` = 0, as OutRunners does for a car that is not racing).
+
+### 10.5 The goal and time up (design decisions)
+
+- **Time up:** the timer at 0 gives MAD POWER no accelerator (the Ferrari's rule there); the board's game
+  over, ranking and name entry follow, then the menu.
+- **Super Hang-On:** after the goal line the board steers the vehicle to the centre and takes it off the
+  course (`$6124`, `$7E1E`); its goal run, ending and name entry follow with Super Hang-On's own rider.
+- **Hang-On:** past the goal line Hang-On stops its vehicle (speed 0 every frame, `$8588`): MAD POWER's
+  speed is set 0 there each tick (`hold`), as the Ferrari's; then the exit, the ending and the name entry.
+
+### 10.6 Found on the way: Super Hang-On's goal with another vehicle
+
+With the Ferrari (and so MAD POWER) Super Hang-On's goal stopped at its bonus count. The bike's crash
+objects (slots 3-6) were skipped only while racing (modes 1 and 2); in the goal sequence (mode 3) they ran
+again, saw the scenery count `$260084` differ from their copy (`$9FE6`: Super Hang-On's scenery test had
+counted the vehicle's hits while they were off), and started a crash; its end switches the bike's task back
+on (`$A09C`), and that task, finding the vehicle retired, clears the speed (`$7E2C`) that the goal run
+(slot 35, `$B50A`: `$53`) needs to bring the rider to the end of its run (`$B588`: `$26` up to `$1FF0`),
+so `$6041E` never came. The crash slots now stay skipped for the rest of the game while they hold the
+tasks seen in them in the race (`SHFerrari::on_task`). The Ferrari reaches the ranking and the menu too
+now; before the goal nothing changed (the regression runs below).
+
+### 10.7 Checked
+
+Harness runs (`-headless -script`), Linux build, widescreen, 60 fps, `CB_MP_TRACE` per tick (section 9.7).
+
+- **Acceleration, automatic** (full throttle from the start line, steered to the centre of the road),
+  against MAD POWER on OutRun's stage 1 (no traffic, 9.7): identical speed, gear and engine speed at every
+  tick from the start, through curves, until the first contact: Super Hang-On's Africa 639 ticks (21.3 s,
+  to 435.8 km/h; then a rival), Hang-On's course 322 ticks (10.7 s, to 353.2 km/h; then a rival). 50, 100,
+  150, 200, 250, 300 and 330 km/h at 1.53, 3.10, 4.40, 5.70, 7.00, 8.40 and 9.53 s, 400 km/h at 14.80 s,
+  as on OutRun's stage 1.
+- **Acceleration, manual** (shifts up at ticks 40, 80, 120, 160 and 200 after the start, as in 9.7):
+  identical for 536 ticks on Africa (17.9 s, to 468.7 km/h; then a rival) and 389 ticks on Hang-On's course
+  (13.0 s, to 451.8 km/h; then it ran wide off the asphalt in a curve, where OutRun's stage 1 is straight);
+  50 to 330 km/h at 1.50, 2.60, 3.70, 4.77, 5.83, 6.87 and 7.57 s.
+- The program's 30 fps mode gives the same speeds at every tick (the whole runs, 686 and 685 ticks).
+- **To the goal** (normal time, steered at the road's centre): Africa's six stages, goal at frame 9894,
+  45 ticks of rival contact and 1 of scenery contact (17 crashes), then Super Hang-On's goal run, ending,
+  ranking and name entry, then the menu; Hang-On's five stages, goal at frame 16890, 76 ticks of rival
+  contact and 9 of scenery contact (27 crashes), then the ending, ranking and name entry, then the menu.
+  Top speeds 437 and 433 km/h (Super Hang-On's speedometer shows its speed x 279/240, as for the
+  Ferrari; Hang-On's shows the speed).
+- **Game over** (the brake held from 15 s): time up, game over, ranking, the menu, on both boards.
+- Snapshots on both boards: the start, at speed, curves, rival contacts ("CRASH", "Ouch!"), scenery
+  contacts, the goal, the ranking, the menu.
+- **Sound:** MAD POWER's board's part of the output (with and without it, `CB_MP_MUTE_BOARD`): RMS 249-746
+  over 2 s windows as the car accelerates on both boards (on OutRun's courses 286-735); 0 once the car has
+  stopped (its engine speed follows the accelerator to 0, as on OutRunners' board).
+- **Unchanged:** the Ferrari and Super Hang-On's bike on Super Hang-On's Africa, and the Ferrari, Super
+  Hang-On's bike and Hang-On's bike on Hang-On's course (3,000 frames each, seven snapshots, the WAV), MAD
+  POWER on OutRun's stage 1 and on OutRunners' Kenya: byte-identical before and after (Hang-On's bike is
+  offered on its own course only); `tools/orcartest` `run_all.sh`: 26 runs, 0 differences (83,811 /
+  83,784 car and gear-box ticks re-synced, 76,099 / 76,072 free-running, 166,114 sprite-object draws);
+  `tools/orbtest` session 1 (3,000 frames): RAM identical at every frame, 798,342 I/O accesses identical,
+  6 of 6 snapshots; `tools/s32vtest` replays: 214 of 214 screens exact.
+- The Windows build compiles.
+
+### 10.8 Not done / known issues
+
+- As on OutRun's courses (9.9): the wheels flying off and the start-line marker are not drawn; no slope
+  force from the boards' hills; no gear on the HUD (Super Hang-On's and Hang-On's have none).
+- Super Hang-On's goal run and ending show its own rider and bike (as with the Ferrari).
+- The boards' worlds were made for bikes (Super Hang-On's: 279 km/h with its supercharger); at MAD POWER's
+  speeds (up to 451 km/h automatic) their scenery and rivals approach by their own rules, checked only by
+  the runs of 10.7.

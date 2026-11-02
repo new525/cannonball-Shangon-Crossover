@@ -159,7 +159,11 @@ void Video::set_shadow_intensity(float f)
 // RenderBase::convert_palette() do (shadow pixels are offset by S16_PALETTE_ENTRIES).
 uint32_t Video::rgb_of(uint16_t pixel)
 {
-    if (ext_px) return pixel <= EXT_COLOURS ? ext_rgb[pixel] : 0;
+    if (ext_px)
+    {
+        if (pixel > EXT_COLOURS && pixel <= EXT_COLOURS + XCAR_COLOURS) return car_rgb[pixel - EXT_COLOURS - 1];  // crossover: MAD POWER on another board
+        return pixel <= EXT_COLOURS ? ext_rgb[pixel] : 0;
+    }
     return own_rgb(pixel);
 }
 

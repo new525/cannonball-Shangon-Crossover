@@ -76,6 +76,10 @@ back at frame 60 of the next run-up.
 - **Super Hang-On's bike**: it runs in OutRun's car slot exactly as on OutRun's courses
   (`crossover/bike`, Super Hang-On's reconstructed tasks, crash and sound board), with Hang-On's
   world in place of OutRun's.
+- **OutRunners' MAD POWER**: in OutRun's car slot as on OutRun's courses (`crossover/madpower`),
+  with the Ferrari's hooks below; its road from Hang-On's path and edge, the rivals answered as cars
+  of its race, its image and colours in Hang-On's frame, its sound board
+  (`docs/CROSSOVER-OUTRUNNERS.md` section 10).
 
 The main CPU is hooked where Hang-On reaches its own bike:
 
