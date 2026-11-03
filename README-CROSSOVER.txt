@@ -25,6 +25,10 @@ Changes since 0.8.1 (not yet released)
   stops when the game stops its own music (before Super Hang-On's ranking
   music, and in Hang-On's last seconds before GAME OVER); it used to play on
   over the game's own music.
+- MAD POWER on OutRun's, Super Hang-On's and Hang-On's courses now has its
+  wheelspin, sliding, gravel and crash sounds: only its engine reached its
+  sound board before. Its engine was already OutRunners' own, at OutRunners'
+  own level (quieter than the music, as in OutRunners).
 
 
 Changes in 0.8.1

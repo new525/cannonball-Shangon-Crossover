@@ -42,6 +42,8 @@
 //   calls                      start counting call targets (BSR/CALL/JSR); "callsend" prints the counts
 //   callsend
 //   draw mask                  screens to draw from now on
+//   chips file                 every YM3438 / MultiPCM write of the sound board from now on (ORSound::chip_log)
+//   audio file                 the sound board's left-speaker streams from now on (file.ym, file.pcm: floats)
 //   exit
 #include "crossover/orboard.hpp"
 #include "crossover/v60/v60d.hpp"
@@ -307,6 +309,7 @@ int do_run(int argc, char** argv)
     std::string covpath;
     FILE* out = b.out;
 
+    FILE* audio_ym = nullptr; FILE* audio_pcm = nullptr;
     auto at_frame = [&](int f)
     {
         b.cur_frame = (uint32_t) f;
@@ -415,9 +418,24 @@ int do_run(int argc, char** argv)
                 b.calls_on = false;
             }
             else if (k == "draw" && a.size() >= 2) b.draw_mask = (uint8_t) atoi(a[1].c_str());
+            else if (k == "chips" && a.size() >= 2) b.sound().chip_log = fopen(a[1].c_str(), "w");
+            else if (k == "audio" && a.size() >= 2)
+            {
+                // the sound board's left-speaker streams from now on, raw floats (MAME's scale): <file>.ym
+                // (the YM3438's output 1, 55,930 Hz) and <file>.pcm (the MultiPCM's output 1, 44,642 Hz)
+                b.sound().ym0.clear(); b.sound().ym1.clear(); b.sound().pcm0.clear(); b.sound().pcm1.clear();
+                audio_ym = fopen((a[1] + ".ym").c_str(), "wb"); audio_pcm = fopen((a[1] + ".pcm").c_str(), "wb");
+            }
             else if (k == "exit") done = true;
         }
         b.update_hook();
+        if (audio_ym)
+        {
+            b.sound().flush_streams();
+            fwrite(b.sound().ym1.data(), sizeof(float), b.sound().ym1.size(), audio_ym);
+            fwrite(b.sound().pcm1.data(), sizeof(float), b.sound().pcm1.size(), audio_pcm);
+        }
+        b.sound().ym0.clear(); b.sound().ym1.clear(); b.sound().pcm0.clear(); b.sound().pcm1.clear();
         fflush(out);
     };
     b.on_frame = [&](uint64_t n) { at_frame((int) n + 1); };

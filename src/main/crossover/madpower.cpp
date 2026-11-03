@@ -163,6 +163,7 @@ bool CrossoverMadPower::load()
     video.set_car_colours(rgb.data());
     board.reset(new ORSound());
     if (!board->init(soundcpu, samples)) { board.reset(); std::cerr << "MAD POWER: sound board not started" << std::endl; }
+    if (board && getenv("CB_MP_CHIPS")) board->chip_log = fopen(getenv("CB_MP_CHIPS"), "w");     // testing: its chip writes
     ym.reset(new FrameResampler());
     pcm.reset(new FrameResampler());
     image.assign((size_t) IMG_W * IMG_H, 0);
@@ -449,7 +450,14 @@ void CrossoverMadPower::tick()
     uint8_t state_before = s.state;
     if (hold) { s.speed = 0; s.speed32 = 0; }
     c.tick(in, road);
+    // the car's sound writes of this tick (the tyre sound $700718, the queued commands): ORCar keeps the last
+    // object's only (gearbox_tick starts a new SoundOut), and on the board the car's object runs before the
+    // gear box's in the frame: the car's first, then the gear box's
+    const orcar::SoundOut car_snd = c.snd;
     c.gearbox_tick(in);
+    orcar::SoundOut snd = car_snd;
+    if (c.snd.tyre_writes) { snd.tyre_writes += c.snd.tyre_writes; snd.tyre = c.snd.tyre; }
+    for (int i = 0; i < c.snd.ncmd && snd.ncmd < 8; i++) snd.cmd[snd.ncmd++] = c.snd.cmd[i];
     if (c.unsupported() && dbg()) fprintf(stderr, "madpower: unsupported path $%X\n", c.unsupported());
     if (state_before == 1 && s.state != 1) rank_flag = 0xFF;                // $7311: $20831C := $FF
 
@@ -489,8 +497,8 @@ void CrossoverMadPower::tick()
     // the sound board: the parameters as the car's tick wrote them, the tyre sound, the queued commands
     snd_write(SH_ENGINE, s.snd_engine);
     snd_write(SH_CTRL, s.snd_ctrl);
-    if (c.snd.tyre_writes) snd_write(SH_TYRE, c.snd.tyre);
-    for (int i = 0; i < c.snd.ncmd && i < 8; i++) cmds.push_back(c.snd.cmd[i]);
+    if (snd.tyre_writes) snd_write(SH_TYRE, snd.tyre);
+    for (int i = 0; i < snd.ncmd && i < 8; i++) cmds.push_back(snd.cmd[i]);
 
     // the sprite object (later in OutRunners' frame): the record of the last tick, then its $14374 objects
     orcar::SpriteInput si;
@@ -655,12 +663,14 @@ void CrossoverMadPower::mix(int32_t* out, int samples_n, int fps)
     while (!writes.empty())
     {
         board->main_write(std::max(writes.front().t, board->now()), writes.front().off, writes.front().data);
+        if (board->chip_log) fprintf(board->chip_log, "%lld main %04x %02x\n", (long long) std::max(writes.front().t, board->now()), writes.front().off, writes.front().data);
         writes.pop_front();
     }
     // the frame interrupt ($3F8DA): one queued command a 60 Hz frame to $700700
     for (int64_t t = start; t < next_time && !cmds.empty(); t += frame60)
     {
         board->main_write(std::max(t, board->now()), SH_CMD, cmds.front());
+        if (board->chip_log) fprintf(board->chip_log, "%lld main %04x %02x\n", (long long) std::max(t, board->now()), SH_CMD, cmds.front());
         cmds.pop_front();
     }
     board->run_until(next_time);
@@ -668,6 +678,13 @@ void CrossoverMadPower::mix(int32_t* out, int samples_n, int fps)
     {
         static int k = 0; double e = 0; for (float v : board->pcm1) e += v * v; for (float v : board->ym1) e += v * v;
         if (k++ % 60 == 0) fprintf(stderr, "madpower snd: t %lld state %d energy %.4f writes pending %zu cmds %zu\n", (long long) next_time, outrun.game_state, e, writes.size(), cmds.size());
+    }
+    static FILE* raw_ym = getenv("CB_MP_RAW") ? fopen((std::string(getenv("CB_MP_RAW")) + ".ym").c_str(), "wb") : nullptr;
+    static FILE* raw_pcm = getenv("CB_MP_RAW") ? fopen((std::string(getenv("CB_MP_RAW")) + ".pcm").c_str(), "wb") : nullptr;
+    if (raw_ym && enabled)                  // testing: its left-speaker streams, raw (as tools/ortrace "audio")
+    {
+        fwrite(board->ym1.data(), sizeof(float), board->ym1.size(), raw_ym);
+        fwrite(board->pcm1.data(), sizeof(float), board->pcm1.size(), raw_pcm);
     }
     for (float v : board->ym1) { float x = v * YM_ROUTE * GAIN_OR * 32768.0f; ym->push(x, x); }
     for (float v : board->pcm1) { float x = v * PCM_ROUTE * GAIN_OR * 32768.0f; pcm->push(x, x); }

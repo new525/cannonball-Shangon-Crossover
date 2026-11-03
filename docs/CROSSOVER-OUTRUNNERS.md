@@ -715,6 +715,58 @@ writes to the car's parameters in a race (`ortrace`, every write to `$700700-$70
 a race: `$700700` commands, `$700710-$700714`, `$700718`, and player 2's engine off). The program's
 OutRun sound board plays the world (music, traffic, voices); OutRun's engine and tyre sounds are off.
 
+The tyre sound and the commands are taken from both of the car's objects each tick: the car's (its tick)
+and then the gear box's, in the board's order. Until this fix only the gear box's reached the board
+(`orcar::ORCar::gearbox_tick` starts a new `SoundOut`, and the adapter read it after both): the car had no
+wheelspin, slide or gravel sound and no crash or bounce sounds, only its engine (9.6.1).
+
+#### 9.6.1 Compared with the board (the bug report "no audible sound on the other games' tracks")
+
+`tools/ortrace` (new commands `chips` and `audio`: every YM3438 and MultiPCM write of the sound board, and
+its left-speaker streams) on OutRunners' pre-stage with MAD POWER (automatic, full throttle from frame 2900),
+against MAD POWER on OutRun's stage 1 (no traffic, full throttle; `CB_MP_CHIPS`, `CB_MP_RAW`: the same logs
+of its board):
+- **The main CPU's writes:** `vwatch $700000-$7FFFFF` from power-on to frame 3400 (62,297 writes). For
+  player 1: the commands (`$700700`, all through the frame interrupt `$3F8EE`), the engine
+  (`$700710-$700713`: `$1219C` at the start, `$121E8` each tick), the box (`$700714`) and the tyre sound
+  (`$700718`). The commands around the race's start (`$90`, `$2D`, `$24`, `$0A`, `$3D`, `$21`, `$3E`, `$2E`,
+  `$03`) come from the race flow (`$19686`, `$192DB`) and the general objects (`$14747`), none from the car's
+  code; `$1F` before the race stops the attract's sounds (MAD POWER's board starts from power-on). The rest
+  are player 2's (`$7008xx`), one byte at `$700918`, and the main CPU's own use of `$701F00-$701FFF` (a
+  word at `$701F00` from `$1168E`, four from `$20E0A0-$20E0AC` at `$701F74` / `$701FF0` each frame,
+  `$1147F-$11491`), which the sound program does not read (no `$FFxx` reference in `epr-15550`'s code but
+  constants). MAD POWER writes the same player-1 parameters at the same ticks: the engine every tick, the
+  tyre sound on the same 109 ticks of wheelspin from the start (value 1), now.
+- **The chips:** player 1's engine is MultiPCM slot 29 on both (pan `$70`: the left speaker, as monitor A),
+  set every tick: total level (`5`), pitch (`2`, `3`), LFO (`6`) and `$A` by the engine speed. Mean level by
+  engine speed (`$700710`): board 85, 77, 70, 64, 58, 53, 49, 45, 44, 45, 47 for 0-175 in steps of 16, MAD
+  POWER 89, 77, 70, 64, 58, 54, 49, 45, 44, 45, 47; the pitch the same. The wheelspin is slot 27 (sample 7)
+  on both, on at the start and off 225 frames later on the board, 221 for MAD POWER. The YM3438 plays nothing
+  in a race (only its timers run); MAD POWER's board neither.
+- **The output** (the left speaker, ORMode's mix: the YM3438 x 0.40, the MultiPCM x 1.0, x 0.17), each half
+  second from the wheelspin's start, with the board's other sounds held off (`$1F` written each frame):
+  board 1081, 1128, 1176, 1174, 1182, 1201, 1212, 953, 587, 624, 672, 722, 758, 757, 750, 727; MAD POWER
+  1264, 1176, 1171, 1176, 1192, 1201, 1214, 779, 590, 629, 659, 701, 737, 757, 756, 760 (the wheelspin's
+  end 4 frames apart). By engine speed from 64 on, before the fix as well, 587-756 against 568-756: the
+  engine was always the board's. The level stays ORMode's (x 0.17).
+- **The board's other sounds:** a single `$1F` (as `CB_OR_STOP_MUSIC`) in the race does not stop them: slots
+  0-26 go on keying notes, and the left speaker stays at 1,916-2,703 a second (2,216-3,607 without the
+  `$1F`); held each frame, 636-1,203. So OutRunners' own race, on this measure, is mostly its music; player
+  1's engine is 590-760 at speed there too.
+
+**Measured in the program** (the WAV less a `CB_MP_MUTE_BOARD` run of the same inputs, the left channel, RMS
+a second, seconds 5-16; the rest is OutRun's or the board's music and world):
+
+| | before | after | the rest |
+|---|---|---|---|
+| OutRun's stage 1, no traffic | 405 582 581 621 421 385 451 542 629 698 754 749 | 405 582 581 849 1179 1175 1198 847 630 699 755 751 | 2,221-3,472 |
+| Super Hang-On's Africa | 613 380 399 467 563 648 735 756 734 698 674 649 625 606 582 (5-19 s) | 990 1164 1170 1203 692 650 734 755 734 701 671 821 647 1626 816 | 1,177-3,153 |
+| Hang-On's course | 615 384 395 465 561 644 730 756 736 699 676 727 757 743 712 (5-19 s) | 964 1172 1173 1204 714 648 732 755 736 702 674 1945 755 744 711 | 1,383-3,164 |
+
+The engine at speed is unchanged (and the board's); the wheelspin after the start (about 1,180) and the
+crash sounds (1,626, 1,945 in the seconds of a contact) are new. For comparison the Ferrari's own sounds on
+OutRun's stage 1 are about 1,280 at speed (coordinator's measurement, the same method).
+
 ### 9.7 Checked
 
 Harness runs (`-headless -script`), Linux build. `CB_MP_TRACE=<file>` writes a line per tick (frame,
@@ -752,7 +804,8 @@ WAV). With the slope, OutRun's stage 1 is level for its first 129 ticks (its fir
   frame (body and crash dust): 5,914 of 5,925, the other 11 under the HUD band at the top of the screen.
 - **Sound:** MAD POWER's board's part of the output (the WAV with and without it, `CB_MP_MUTE_BOARD`,
   the difference): RMS 286-735 over 2 s windows as the car accelerates; the board's own engine writes
-  from a race replayed into a standalone board give 890-1,210 while accelerating, the same order.
+  from a race replayed into a standalone board give 890-1,210 while accelerating, the same order. (The
+  closer comparison, and the tyre and crash sounds that did not reach the board then: 9.6.1.)
 - **Unchanged:** `tools/orcartest` `run_all.sh` (with the new comparisons, `docs/OUTRUNNERS-RE.md`
   13.8): 26 runs, 0 differences; `tools/orbtest` session 1 (3,000 frames): RAM identical at every frame,
   798,342 I/O accesses identical, 6 of 6 snapshots; `tools/s32vtest` replays: 214 of 214 screens exact;
