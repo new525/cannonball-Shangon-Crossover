@@ -303,6 +303,12 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
 - **Menu**: *PLAY GAME* opens a race setup screen (vehicle, bike size, track, music).
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
+- **From CannonBall-SE and CannonBall-DX** (forks of Cannonball under the same licence; rewritten
+  here, not copied): ROMs read from MAME's zips (`crossover/romzip.*`, with miniz); OutRun's Sega PCM
+  at the chip's rate, 31,250 Hz (it played 2.4% sharp); the corrected PCM ROM optional, with Sega/M2's
+  preferred; the high-score fixes (ED with TIMING FIXES, saving when the entry times out); the
+  traffic brake-check fix as an option (TRAFFIC BRAKE FIX, off by default); undefined behaviour
+  removed in the tilemap scroll and traffic code with the same results.
 
 Super Hang-On, Hang-On, Cool Riders and OutRunners ROMs are optional. Without them, Cannonball runs as normal
 with the Ferrari, and each missing set only removes that game's part.
@@ -329,7 +335,10 @@ No game ROMs are included. You need your own copies, as zip-extracted files from
 | OutRunners | music: the 3 sound ROMs `epr-15550.ic31`, `mpr-15551.ic1`, `mpr-15552.ic2` of `orunners`, `orunnersu` or `orunnersj`; courses and MAD POWER: every file of `orunnersj` | `roms\orunners\` |
 
 Each folder has a `roms.txt` listing the exact files and their CRC32s. Files are recognised by
-CRC32 first and by name second, so they don't need to be renamed.
+CRC32 first and by name second, so they don't need to be renamed. A folder can also hold MAME's
+zips as they are (`outrun.zip` in `roms\`, `shangon1.zip` in `roms\shangon1\`, ...); every
+`.zip` in it is read, and loose files are used first. For a clone set, put the parent's zip next
+to it (`shangon.zip` with `shangon1.zip`, `orunners.zip` with `orunnersj.zip`).
 
 The folder should end up like this:
 
@@ -485,7 +494,7 @@ non-commercial, redistributions may not be sold, and modified versions must be d
 their full source code. Each release zip therefore includes this program's source and the source
 of the libraries it ships with (SDL2, the Boost headers used, winpthreads).
 
-The Z80 core and Musashi are MIT-licensed, ymfm is BSD-3-Clause, and the MAME-derived parts are
+The Z80 core, Musashi and miniz are MIT-licensed, ymfm is BSD-3-Clause, and the MAME-derived parts are
 BSD-3-Clause; SoftFloat (bundled with Musashi) has its own permissive notice.
 The licence texts are in the release zip's `licenses` folder and next to the code.
 

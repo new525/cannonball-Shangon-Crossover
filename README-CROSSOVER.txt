@@ -15,6 +15,40 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
+Changes since 0.9.0 (not yet released)
+--------------------------------------
+Fixes and features taken from CannonBall-SE and CannonBall-DX (forks of
+Cannonball under the same licence), rewritten for this program:
+- ROMs can stay in MAME's zip files: every .zip in a ROM folder is read as
+  well as the loose files, and files are recognised the same way (CRC32
+  first, then name; loose files are used first). A clone set's zip works
+  next to its parent's (shangon1.zip with shangon.zip, orunnersj.zip with
+  orunners.zip), and so does a merged set. A ROM path in config.xml may
+  also name a single .zip. The optional fixed PCM ROM opr-10188.71f, which
+  only MAME's enhanced sets have, can be added as a loose file next to
+  outrun.zip.
+- OutRun's sampled sounds and drums (the Sega PCM chip) play at the chip's
+  real rate, 31,250 Hz (as in MAME); they were 2.4% sharp. Low-pitched
+  samples are no longer flattened by a rounding error (up to 3% at 44,100
+  Hz).
+- FIX SAMPLES (fix_samples, on by default) no longer stops the program
+  starting when opr-10188.71f is missing: it warns and uses the original
+  opr-10188.71. Of the corrected ROMs, Sega/M2's official one (MAME's
+  outruneh, CRC C2DE09B2) is now used before CannonBall's patched one
+  (outruneha, 37598616). The menu shows which one is loaded.
+- High-score entry: with TIMING FIXES on, choosing ED no longer leaves the
+  table on screen for hours (its timer wrapped round to 9999). A new high score is now saved when the
+  entry's time runs out, not only when the entry is finished.
+- New option TRAFFIC BRAKE FIX (SETTINGS > GAME ENGINE > ENHANCEMENTS;
+  <fix_traffic> in config.xml), OFF by default, which is the original game:
+  a traffic car could brake sharply as you drove alongside it with nothing
+  ahead of it. PARTIAL: a new traffic car no longer inherits the previous
+  car's "car ahead" speed (CannonBall-SE). FULL: also, it only slows to the
+  car ahead's speed when other traffic is close (CannonBall-DX).
+- Code clean-up (undefined behaviour in the tilemap scrolling and the
+  traffic slope frames), with the same results as before.
+
+
 Changes in 0.9.0
 ----------------
 - OUTRUNNERS RADIO replaces the four OutRunners songs in the music
@@ -309,8 +343,12 @@ Setting up
 The crossover ROM sets are optional: without Super Hang-On's ROMs you drive
 the Ferrari, and each missing set only removes that game's part (its
 courses, vehicle and music; for Cool Riders and OutRunners, their tracks).
-ROM files are recognised by CRC32 first, then by name, so the names don't
-have to match exactly.
+Each folder can hold the loose files or MAME's zips as they are (outrun.zip
+in roms\, shangon1.zip in roms\shangon1\, and so on); every .zip in the
+folder is read. For a clone set, put its parent's zip next to it:
+shangon.zip with shangon1.zip, orunners.zip with orunnersj.zip. ROM files
+are recognised by CRC32 first, then by name, so the names don't have to
+match exactly; loose files are used before files in zips.
 
 
 Race setup menu
@@ -559,7 +597,8 @@ source folder contains:
                                           (upstream v11.0.1)
 Other components: Z80 core by Nicolas Allemand (MIT), 68000 core Musashi by
 Karl Stenerud (MIT; it bundles John R. Hauser's SoftFloat), ymfm by Aaron Giles
-(BSD-3-Clause, as shipped in MAME 0.264), and parts derived from MAME
+(BSD-3-Clause, as shipped in MAME 0.264), miniz by Rich Geldreich (MIT;
+reads the ROM zips), and parts derived from MAME
 (BSD-3-Clause): the FD1089 decryption, the Sega PCM sample generation, the
 Super Hang-On and Hang-On boards' video (tilemaps, road, sprites and
 mixing, transcribed from MAME's drivers), the SH-1 core (MAME's SH-2 family
