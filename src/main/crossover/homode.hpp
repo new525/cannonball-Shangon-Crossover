@@ -29,6 +29,7 @@ public:
     bool finished = false;
 
 private:
+    void stop_other_music();               // the track chosen in place of the race music
     bool ok = false;
     int  acc = 0;
     bool was_ingame = false;

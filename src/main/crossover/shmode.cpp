@@ -149,6 +149,14 @@ void SHMode::start(int course, int music_index)
     show_frame();
 }
 
+// The track chosen in the race setup, whichever board or player plays it (as stop() does)
+void SHMode::stop_other_music()
+{
+    xaudio.stop_music();
+    osoundint.queue_sound(sound::FM_RESET);
+    cannonball::audio.clear_wav();
+}
+
 void SHMode::stop()
 {
     if (!active) return;
@@ -182,6 +190,10 @@ void SHMode::tick()
     {
         packet.clear();
         shboard.run_frame();
+        // The game stops its music (sound command $00, FM_RESET in the OutRun family's sound
+        // programs: at the end of a game, before its ranking music $83): the track playing in place of
+        // its race music stops too
+        if (other_music >= 0 && !packet.empty() && packet[0] == 0x00) stop_other_music();
         if (other_music >= 0 && !packet.empty())
             for (uint8_t m : SH_MUSIC)
                 if (packet[0] == m)

@@ -120,6 +120,14 @@ void HOMode::start(int music_index)
     show_frame();
 }
 
+// The track chosen in the race setup, whichever board or player plays it (as stop() does)
+void HOMode::stop_other_music()
+{
+    xaudio.stop_music();
+    osoundint.queue_sound(sound::FM_RESET);
+    cannonball::audio.clear_wav();
+}
+
 void HOMode::stop()
 {
     if (!active) return;
@@ -154,6 +162,9 @@ void HOMode::tick()
         hoboard.run_frame();
         hovehicle.after_frame();            // OutRun's sprites, drawn into the frame by hovideo
         hovideo.render(hoboard);
+        // The game stops its music (sound command $00, FM_RESET in the OutRun family's sound
+        // programs): the track playing in place of its race music stops too
+        if (other_music >= 0 && !packet.empty() && packet[0] == 0x00) stop_other_music();
         if (other_music >= 0 && !packet.empty() && packet[0] == HO_RACE_MUSIC)
         {
             packet[0] = 0x80;
