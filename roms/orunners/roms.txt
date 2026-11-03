@@ -7,7 +7,10 @@ Place the OutRunners ROMs in this folder: files of MAME set orunnersj,
 - Its courses and car (OUTRUNNERS FULL COURSE, OUTRUNNERS KENYA, MAD
   POWER) need every file, of orunnersj: the program's hooks were read from
   the Japanese version's code.
-Files are found by CRC32 first, then by name.
+Files are found by CRC32 first, then by name, as loose files or in the .zip
+files in this folder: MAME's orunnersj.zip with its parent orunners.zip
+(orunnersj.zip alone holds only its own two program ROMs), or a merged
+orunners.zip. Loose files are used first.
 -------------------------------------------------------------------------------
 epr-15550.ic31     CRC32 0205d2ed  (soundcpu, the sound Z80's program)
 mpr-15551.ic1      CRC32 4894bc73  (sega, MultiPCM samples)

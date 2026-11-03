@@ -13,8 +13,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <fstream>
-#include <iterator>
 
 // segas32.cpp
 static const uint32_t V70_CLOCK = 20000000;                 // MULTI32_CLOCK/2 (XTAL 40 MHz)
@@ -32,14 +30,6 @@ ORBoard::~ORBoard() {}
 // ------------------------------------------------------------------------------------------------
 // ROMs
 // ------------------------------------------------------------------------------------------------
-static bool read_file(const std::string& p, std::vector<uint8_t>& out)
-{
-    std::ifstream f(p, std::ios::binary);
-    if (!f) return false;
-    out.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
-    return true;
-}
-
 bool ORBoard::load_roms(const std::string& dir, Roms& r, std::string& error)
 {
     // ROM_REGION( 0x200000, "mainpcb:maincpu", 0 ): ROM_LOAD32_WORD_x4 / ROM_LOAD32_WORD: the 16-bit
@@ -55,7 +45,7 @@ bool ORBoard::load_roms(const std::string& dir, Roms& r, std::string& error)
     for (auto& f : files)
     {
         std::vector<uint8_t> d;
-        if (!read_file(rom_path(dir, f.name), d) || d.size() != f.length) { error = std::string("cannot read ") + f.name; return false; }
+        if (!read_rom(dir, f.name, d) || d.size() != f.length) { error = "cannot read " + rom_file(dir, f.name).where(); return false; }
         for (int k = 0; k < f.reloads; k++)
             for (uint32_t i = 0; i < f.length; i += 2)
             {
@@ -64,10 +54,10 @@ bool ORBoard::load_roms(const std::string& dir, Roms& r, std::string& error)
                 r.maincpu[dst + 1] = d[i + 1];
             }
     }
-    if (!read_file(rom_path(dir, "epr-15550.ic31"), r.soundcpu) || r.soundcpu.size() != 0x80000) { error = "cannot read epr-15550.ic31"; return false; }
+    if (!read_rom(dir, "epr-15550.ic31", r.soundcpu) || r.soundcpu.size() != 0x80000) { error = "cannot read " + rom_file(dir, "epr-15550.ic31").where(); return false; }
     std::vector<uint8_t> p1, p2;
-    if (!read_file(rom_path(dir, "mpr-15551.ic1"), p1) || p1.size() != 0x200000) { error = "cannot read mpr-15551.ic1"; return false; }
-    if (!read_file(rom_path(dir, "mpr-15552.ic2"), p2) || p2.size() != 0x200000) { error = "cannot read mpr-15552.ic2"; return false; }
+    if (!read_rom(dir, "mpr-15551.ic1", p1) || p1.size() != 0x200000) { error = "cannot read " + rom_file(dir, "mpr-15551.ic1").where(); return false; }
+    if (!read_rom(dir, "mpr-15552.ic2", p2) || p2.size() != 0x200000) { error = "cannot read " + rom_file(dir, "mpr-15552.ic2").where(); return false; }
     r.sega = p1;
     r.sega.insert(r.sega.end(), p2.begin(), p2.end());
     return S32Video::load_orunnersj_regions(dir, r.gfx1, r.sprites, error);

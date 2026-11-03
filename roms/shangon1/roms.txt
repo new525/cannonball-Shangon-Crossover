@@ -1,7 +1,10 @@
 -------------------------------------------------------------------------------
 Place the Super Hang-On ROMs in this folder: the files of MAME set
 shangon1, "Super Hang-On (mini ride-on) (FD1089B 317-0034)" (MAME 0.264).
-Files are found by CRC32 first, then by name.
+Files are found by CRC32 first, then by name, as loose files or in the .zip
+files in this folder: MAME's shangon1.zip (with its parent shangon.zip if
+shangon1.zip holds only the files that differ), or a merged shangon.zip.
+Loose files are used first.
 -------------------------------------------------------------------------------
 epr-10636.133      CRC32 e52721fe  (maincpu)
 epr-10634.118      CRC32 08feca97  (maincpu)

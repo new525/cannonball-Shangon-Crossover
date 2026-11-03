@@ -278,6 +278,10 @@ set(src_crossover
     "${main_cpp_base}/crossover/s32video.hpp"
     "${main_cpp_base}/crossover/s32video.cpp"
     "${main_cpp_base}/crossover/rompath.hpp"
+    "${main_cpp_base}/crossover/romzip.hpp"
+    "${main_cpp_base}/crossover/romzip.cpp"
+    "${main_cpp_base}/crossover/miniz/miniz.h"
+    "${main_cpp_base}/crossover/miniz/miniz.c"
     "${main_cpp_base}/crossover/v60/v60.hpp"
     "${main_cpp_base}/crossover/v60/v60.cpp"
     "${main_cpp_base}/crossover/v60/v60d.hpp"
@@ -358,6 +362,16 @@ endif()
 if(OPENGLES)
     add_definitions(-DWITH_OPENGLES)
 endif()
+
+# miniz (crossover/miniz, unmodified 3.1.2) only reads ROMs from zips (crossover/romzip.cpp):
+# compression, archive writing, its stdio file functions, file times and the zlib names are
+# left out. These change what miniz.h declares, so they apply to every file of the target.
+target_compile_definitions(cannonball PRIVATE
+    MINIZ_NO_DEFLATE_APIS              # miniz.h then also defines MINIZ_NO_ARCHIVE_WRITING_APIS
+    MINIZ_NO_STDIO
+    MINIZ_NO_TIME
+    MINIZ_NO_ZLIB_COMPATIBLE_NAMES
+)
 
 # -----------------------------------------------------------------------------
 # Library Setup
