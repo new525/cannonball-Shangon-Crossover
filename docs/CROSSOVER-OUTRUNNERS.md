@@ -198,7 +198,7 @@ board (`tools/ortrace`, `run_all.sh` reruns them).
   - a coin during the boot, START as soon as the boot is over (`$208080` = 2, frame 679);
   - at the car select, the wheel turned left until its cursor (`$209060`) is on MAD POWER (car 0),
     then the accelerator to confirm; on the transmission screen, the wheel held right for the
-    manual box (the program's separate-gear-buttons setting), and the accelerator;
+    manual box (the race setup's GEARBOX = MANUAL), and the accelerator;
   - for OUTRUNNERS KENYA, the route node and stage bytes `$2080A0-$2080A6` written before the race
     setup, so the race starts on the Kenya stage (course 41);
   - the entry countdown (`$20FB1A`, `$20FC1A`), which waits for a second player, shortened to 2;
@@ -639,9 +639,9 @@ race with MAD POWER, as the board's are for OutRunners' courses).
 | Surface | | the course node's zone lists | the pre-stage's (node 0): its lists end at once, so beyond the asphalt's edges the wheel kind is 7, and no zones on it |
 
 Inputs: the controls as crossover/ormode puts OutRun's onto OutRunners' cabinet (the wheel over the
-ADC's travel, `$208100` = `$FF` - ADC; the pedals 0-`$FF`); the separate gear buttons setting gives
-MAD POWER's 6-speed manual box (GEAR2 up, GEAR1 down; their new presses each tick), otherwise its
-automatic. One player alone: rank 0, the car ahead is itself (no catch-up).
+ADC's travel, `$208100` = `$FF` - ADC; the pedals 0-`$FF`); the race setup's GEARBOX = MANUAL
+(`crossover.or_manual`) gives MAD POWER's 6-speed manual box (GEAR2 up, GEAR1 down; their new presses
+each tick), AUTOMATIC its automatic. One player alone: rank 0, the car ahead is itself (no catch-up).
 
 ### 9.3 The start, time up and the goal (design decisions)
 

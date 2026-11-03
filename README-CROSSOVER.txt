@@ -15,6 +15,18 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
+Changes since 0.8.1 (not yet released)
+--------------------------------------
+- New race setup option GEARBOX (AUTOMATIC / MANUAL), shown while
+  OUTRUNNERS MAD POWER is the vehicle: MANUAL gives its 6-speed box (GEAR1
+  down, GEAR2 up) whatever the gear button setting. It used to follow the
+  separate gear buttons setting.
+- On Super Hang-On's and Hang-On's courses, the chosen music track now
+  stops when the game stops its own music (before Super Hang-On's ranking
+  music, and in Hang-On's last seconds before GAME OVER); it used to play on
+  over the game's own music.
+
+
 Changes in 0.8.1
 ----------------
 - MAD POWER now feels the hills: on OutRun's courses and on Super Hang-On's,
@@ -297,6 +309,8 @@ Main menu > PLAY GAME opens the race setup:
     VEHICLE   OutRun's Ferrari, Super Hang-On's bike, Hang-On's bike
               (HANG ON BIKE: Hang-On's course only), or OutRunners' MAD
               POWER (every course)
+    GEARBOX   OutRunners' MAD POWER only: AUTOMATIC, or MANUAL (its 6-speed
+              box: GEAR1 down, GEAR2 up)
     BIKE SIZE 80 percent (default), 50 to 90 percent, or FULL SIZE
               (OutRun's and OutRunners' courses; the bike is full size on
               Super Hang-On's and Hang-On's)

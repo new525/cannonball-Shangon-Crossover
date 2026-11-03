@@ -910,6 +910,28 @@ void Menu::refresh_menu()
 {
     int16_t cursor_backup = cursor;
 
+    // Race setup: the GEARBOX row, below VEHICLE, only while an OutRunners car is the vehicle
+    if (menu_selected == &menu_xover)
+    {
+        auto find = [&](const char* label) {
+            for (int i = 0; i < (int) menu_xover.size(); i++)
+                if (menu_xover[i].compare(0, strlen(label), label) == 0) return i;
+            return -1;
+        };
+        int g = find(ENTRY_X_GEARBOX), v = find(ENTRY_X_VEHICLE);
+        bool want = config.crossover.vehicle == 3;
+        if (want && g < 0 && v >= 0)
+        {
+            menu_xover.insert(menu_xover.begin() + v + 1, ENTRY_X_GEARBOX);
+            if (cursor_backup > v) cursor_backup++;
+        }
+        else if (!want && g >= 0)
+        {
+            menu_xover.erase(menu_xover.begin() + g);
+            if (cursor_backup > g) cursor_backup--;
+        }
+    }
+
     for (cursor = 0; cursor < (int) menu_selected->size(); cursor++)
     {
         // Get option that was selected
@@ -993,6 +1015,7 @@ void Menu::refresh_menu()
             if (SELECTED(ENTRY_X_VEHICLE))          set_menu_text(ENTRY_X_VEHICLE, config.crossover.vehicle == 1 ? "SUPER HANG ON BIKE" :
                                                                        config.crossover.vehicle == 2 ? "HANG ON BIKE" :
                                                                        config.crossover.vehicle == 3 ? "OUTRUNNERS MAD POWER" : "OUTRUN FERRARI");
+            else if (SELECTED(ENTRY_X_GEARBOX))     set_menu_text(ENTRY_X_GEARBOX, config.crossover.or_manual ? "MANUAL" : "AUTOMATIC");
             else if (SELECTED(ENTRY_X_BIKESIZE))    set_menu_text(ENTRY_X_BIKESIZE, config.crossover.bike_scale >= 100 ? "FULL SIZE" : Utils::to_string(config.crossover.bike_scale) + " PERCENT");
             else if (SELECTED(ENTRY_X_TRACK))       set_menu_text(ENTRY_X_TRACK, xover_track_label(config.crossover.track));
             else if (SELECTED(ENTRY_X_MUSIC))
@@ -1259,6 +1282,11 @@ void Menu::xover_cycle(int dir)
         if (v == 2) config.crossover.track = XOVER_HO_TRACK;            // its own course
         if (v == 2 && is_orr_track(config.crossover.track)) config.crossover.track = 0;    // Hang-On's bike: its course only
     }
+    else if (SELECTED(ENTRY_X_GEARBOX))
+    {
+        // OutRunners' cars: the automatic, or the manual box (MAD POWER's six gears)
+        config.crossover.or_manual = !config.crossover.or_manual;
+    }
     else if (SELECTED(ENTRY_X_BIKESIZE))
     {
         // 100 (arcade size) down to 50 percent in steps of 10
@@ -1313,7 +1341,7 @@ void Menu::xover_start()
         ormode.start(config.crossover.track == XOVER_ORR_KENYA ? ORMode::KENYA : ORMode::FULL_COURSE,
                      config.crossover.vehicle == 0 ? ORMode::FERRARI :
                      config.crossover.vehicle == 1 ? ORMode::SH_BIKE : ORMode::MAD_POWER,
-                     config.controls.gear == config.controls.GEAR_SEPARATE);
+                     config.crossover.or_manual != 0);
         if (ormode.active) cannonball::state = cannonball::STATE_OUTRUNNERS;
         return;
     }

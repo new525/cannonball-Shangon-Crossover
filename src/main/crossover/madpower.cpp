@@ -368,9 +368,9 @@ void CrossoverMadPower::tick()
     in.accel = (uint8_t) std::max(0, std::min(255, (int) oinputs.acc_adjust));
     in.brake = (uint8_t) std::max(0, std::min(255, (int) oinputs.brake_adjust));
     if (accel_cut || hold) in.accel = 0;
-    // the manual box (the separate gear buttons setting, as on OutRunners' courses): GEAR2 up, GEAR1 down
+    // the manual box (the race setup's GEARBOX, as on OutRunners' courses): GEAR2 up, GEAR1 down
     uint8_t shift = 0;
-    if (config.controls.gear == config.controls.GEAR_SEPARATE)
+    if (config.crossover.or_manual)
         shift = (uint8_t)((input.is_pressed(Input::GEAR2) ? 0x10 : 0) | (input.is_pressed(Input::GEAR1) ? 0x20 : 0));
     in.shift_edges = (uint8_t)(shift & ~shift_prev);
     shift_prev = shift;
@@ -415,7 +415,7 @@ void CrossoverMadPower::tick()
         s = orcar::State();
         s.flags = 1;
         s.car = 0;
-        s.trans = config.controls.gear == config.controls.GEAR_SEPARATE ? 1 : 0;
+        s.trans = config.crossover.or_manual ? 1 : 0;
         heading = 0; seg_frac = 0; pos_acc = 0;
         build_segments();
         c.tick(in, road);
