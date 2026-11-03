@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.8.0 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.8.1 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -15,8 +15,8 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
-Changes since 0.8.0 (not yet released)
---------------------------------------
+Changes in 0.8.1
+----------------
 - MAD POWER now feels the hills: on OutRun's courses and on Super Hang-On's,
   it slows down climbing and speeds up going down, with OutRunners' own slope
   code. The slope comes from each game's own hill data, scaled so that a hill
@@ -499,7 +499,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.8.0-src.zip     this program (git tag v0.8.0,
+  superscaler-crossover-0.8.1-src.zip     this program (git tag v0.8.1,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in
