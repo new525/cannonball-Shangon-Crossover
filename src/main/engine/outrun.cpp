@@ -577,6 +577,7 @@ void Outrun::main_switch()
             // If countdown has expired
             if (decrement_timers())
             {
+                ohiscore.timed_out();
                 //ROM:0000B700                 bclr    #5,(ppi1_value).l                   ; Turn screen off (not activated until PPI written to)
                 oferrari.car_ctrl_active = true; // 0 : Allow road updates
                 init_jump_table();
@@ -699,6 +700,11 @@ bool Outrun::decrement_timers()
     // Fix timer counting extra second
     if (config.engine.fix_timer)
     {
+        // ED on the name entry sets the time to 0 to end the screen at once, which the original timer
+        // does (0 - 1 is below 0); counted down from 0 this one wrapped to 99 and the screen stayed.
+        if (game_state == GS_BEST2 && ostats.time_counter == 0)
+            return true;
+
         if (--ostats.frame_counter > 0)
             return false;
 

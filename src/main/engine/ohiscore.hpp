@@ -38,6 +38,7 @@ public:
     void setup_pal_best();
     void setup_road_best();
     void display_scores();
+    void timed_out();
 
 private:
     const static uint16_t TILE_PROPS = 0x8030;

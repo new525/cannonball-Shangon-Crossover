@@ -246,6 +246,14 @@ void OHiScore::check_name_entry()
     }
 }
 
+// The name entry's time ran out: save a new score whose entry wasn't finished. Scores were only saved
+// when the entry was finished, so a score left on the clock was lost from disk (from CannonBall-SE).
+void OHiScore::timed_out()
+{
+    if (score_pos != -1 && state != STATE_DONE)
+        config.save_scores(outrun.cannonball_mode == Outrun::MODE_ORIGINAL);
+}
+
 // Get Address in text ram at which to output score
 // Source: 0xD542
 uint32_t OHiScore::get_score_adr()
