@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.8.1 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.9.0 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -15,8 +15,8 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
-Changes since 0.8.1 (not yet released)
---------------------------------------
+Changes in 0.9.0
+----------------
 - OUTRUNNERS RADIO replaces the four OutRunners songs in the music
   selection: OutRunners' own in-race radio, ported from its code, with its
   ten songs and its DJ (Mega Radio Station), changed mid-race with the d-pad
@@ -550,7 +550,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.8.1-src.zip     this program (git tag v0.8.1,
+  superscaler-crossover-0.9.0-src.zip     this program (git tag v0.9.0,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in
