@@ -34,6 +34,7 @@ public:
     bool load_revb_roms(bool);
     bool load_japanese_roms();
     int load_pcm_rom(bool);
+    bool pcm_fixed = false;     // the corrected last PCM ROM is loaded (fix_samples on and one found)
     bool load_ym_data(const char* filename);
 
 private:

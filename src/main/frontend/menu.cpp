@@ -498,7 +498,7 @@ void Menu::tick_menu()
         }
         else if (SELECTED(ENTRY_FIXSAMPLES))
         {
-            int rom_type = !config.sound.fix_samples;
+            int rom_type = !roms.pcm_fixed;
 
             if (roms.load_pcm_rom(rom_type == 1) == 0)
             {
@@ -960,7 +960,7 @@ void Menu::refresh_menu()
             if (SELECTED(ENTRY_MUTE))               set_menu_text(ENTRY_MUTE, config.sound.enabled ? "ON" : "OFF");
             else if (SELECTED(ENTRY_ADVERTISE))     set_menu_text(ENTRY_ADVERTISE, config.sound.advertise ? "ON" : "OFF");
             else if (SELECTED(ENTRY_PREVIEWSND))    set_menu_text(ENTRY_PREVIEWSND, config.sound.preview ? "ON" : "OFF");
-            else if (SELECTED(ENTRY_FIXSAMPLES))    set_menu_text(ENTRY_FIXSAMPLES, config.sound.fix_samples ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIXSAMPLES))    set_menu_text(ENTRY_FIXSAMPLES, roms.pcm_fixed ? "ON" : "OFF");
         }
         else if (menu_selected == &menu_controls)
         {
@@ -995,7 +995,7 @@ void Menu::refresh_menu()
         else if (menu_selected == &menu_enhancements || menu_selected == &menu_s_enhance)
         {
             if (SELECTED(ENTRY_PREVIEWSND))         set_menu_text(ENTRY_PREVIEWSND, config.sound.preview ? "ON" : "OFF");
-            else if (SELECTED(ENTRY_FIXSAMPLES))    set_menu_text(ENTRY_FIXSAMPLES, config.sound.fix_samples ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIXSAMPLES))    set_menu_text(ENTRY_FIXSAMPLES, roms.pcm_fixed ? "ON" : "OFF");
             else if (SELECTED(ENTRY_ATTRACT))       set_menu_text(ENTRY_ATTRACT, config.engine.new_attract ? "ON" : "OFF");
             else if (SELECTED(ENTRY_OBJECTS))       set_menu_text(ENTRY_OBJECTS, config.engine.level_objects ? "ENHANCED" : "ORIGINAL");
             else if (SELECTED(ENTRY_PROTOTYPE))     set_menu_text(ENTRY_PROTOTYPE, config.engine.prototype ? "ON" : "OFF");

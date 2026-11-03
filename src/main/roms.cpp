@@ -83,8 +83,14 @@ bool Roms::load_revb_roms(bool fixed_rom)
     status += LOAD(pcm, ("opr-10191.68", 0x20000, 0x08000, 0x20a284ab, RomLoader::NORMAL, VERBOSE));
     status += LOAD(pcm, ("opr-10190.69", 0x30000, 0x08000, 0x7cab70e2, RomLoader::NORMAL, VERBOSE));
     status += LOAD(pcm, ("opr-10189.70", 0x40000, 0x08000, 0x01366b54, RomLoader::NORMAL, VERBOSE));
-    status += LOAD(pcm, ("opr-10188.71", 0x50000, 0x08000, 0xbad30ad9, RomLoader::NORMAL, VERBOSE));
-    status += load_pcm_rom(fixed_rom);
+    // The last PCM ROM: a corrected one when fix_samples is on and one is found, otherwise the original.
+    // A missing corrected ROM used to stop the program starting (fallback as in CannonBall-SE).
+    if (load_pcm_rom(fixed_rom) != 0)
+    {
+        if (fixed_rom)
+            std::cout << "Warning: fix_samples is on, but no corrected PCM ROM (opr-10188.71f) was found: using the original opr-10188.71" << std::endl;
+        status += fixed_rom ? load_pcm_rom(false) : 1;
+    }
 
     // If status has been incremented, a rom has failed to load.
     return status == 0;
@@ -122,14 +128,25 @@ int Roms::load_pcm_rom(bool fixed_rom)
     int status = 0;
     if (fixed_rom)
     {
-        status = LOAD(pcm, ("opr-10188.71f", 0x50000, 0x08000, 0x37598616, RomLoader::NORMAL, false));
-        if (status == 1)
-            status = LOAD(pcm, ("opr-10188.71f", 0x50000, 0x08000, 0xC2DE09B2, RomLoader::NORMAL, VERBOSE));
+        // Sega/M2's official corrected ROM first (MAME 0.264 set outruneh), then the unofficial one CannonBall's
+        // patch makes (MAME set outruneha). Names as CannonBall's patch and MAME call them (the names are only
+        // used when ROMs are found by name, crc32 off).
+        static const struct { const char* name; int crc; } FIXED[] = {
+            { "opr-10188.71f",             (int) 0xC2DE09B2 },
+            { "enhanced_203_opr-10188.71", (int) 0xC2DE09B2 },
+            { "opr-10188.71f",             (int) 0x37598616 },
+            { "enhanced_103_opr-10188.71", (int) 0x37598616 },
+        };
+        status = 1;
+        for (int i = 0; i < 4 && status == 1; i++)
+            status = LOAD(pcm, (FIXED[i].name, 0x50000, 0x08000, FIXED[i].crc, RomLoader::NORMAL, false));
     }
     else
     {
         status = LOAD(pcm, ("opr-10188.71", 0x50000, 0x08000, 0xbad30ad9, RomLoader::NORMAL, VERBOSE));
     }
+
+    if (status == 0) pcm_fixed = fixed_rom;
 
     //return LOAD(pcm, (fixed_rom ? "opr-10188.71f" : "opr-10188.71", 0x50000, 0x08000, fixed_rom ? 0x37598616 : 0xbad30ad9, RomLoader::NORMAL)) == 0;
     return status;
