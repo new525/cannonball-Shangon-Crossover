@@ -979,6 +979,13 @@ void ORoad::do_horizon_adjust()
 // Source Address: 0x1F00
 void ORoad::set_road_y()
 {
+    // crossover: the slope record (see oroad.hpp); c0 and c1 are filled in by set_y_2044 / set_y_horizon
+    xo_slope.flat  = (horizon_base + horizon_offset) << 4;
+    xo_slope.ctrl2 = (uint8_t) height_ctrl2;
+    xo_slope.lookup = height_lookup_wrk;
+    xo_slope.index  = height_index;
+    xo_slope.c0 = xo_slope.c1 = xo_slope.flat;
+    xo_slope.hf = 0; xo_slope.v = 0;
     switch (height_ctrl2)
     {
         // Set Normal Y Coordinate
@@ -1056,6 +1063,7 @@ void ORoad::set_y_interpolate()
 
     const int16_t next_height_value = trackloader.read16(trackloader.heightmap_data, a1_lookup);
     height_final = (next_height_value * (height_start - 0x100)) >> 4;
+    xo_slope.v = next_height_value; xo_slope.hf = height_final;  // crossover: the slope record
 
     // 1faa 
     int32_t horizon_copy = (horizon_base + horizon_offset) << 4;
@@ -1077,6 +1085,8 @@ void ORoad::set_y_2044()
         change_per_entry = 0x10000;
 
     d5_o = change_per_entry;
+    if (counter == 0) xo_slope.c0 = change_per_entry;        // crossover: the slope record
+    else if (counter == 1) xo_slope.c1 = change_per_entry;
 
     // ------------------------------------------------------------------------
     // Get length of this road section in scanlines
@@ -1219,6 +1229,7 @@ void ORoad::set_y_horizon()
     
     int32_t d1 = (horizon_mod * (height_start - 0x100)) >> 4;
     int32_t d2 = ((horizon_base + horizon_offset) << 4) + d1;
+    xo_slope.c0 = xo_slope.c1 = d2;                         // crossover: the slope record
     
     uint32_t total_height = 0;
 

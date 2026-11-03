@@ -89,6 +89,7 @@ private:
     int  rival_speed(uint32_t a5);
     void silence_packet();
     void tick_madpower();
+    int16_t hill_pitch() const;            // the road's pitch at the vehicle (OutRunners' units) from Super Hang-On's hill
     void rival_lateral(uint32_t a5);
     struct RivalLat { uint32_t slot; int16_t lat, latvel; uint32_t frame; };
     RivalLat rival_lat[16];                 // the rivals' lateral positions at the last frame's test (MAD POWER)

@@ -635,7 +635,7 @@ race with MAD POWER, as the board's are for OutRunners' courses).
 | Distance | road position 16.16, the path's index | segments of `$8000` | one segment = 303/272 OutRun positions; the car's advance (segments crossed + its place in the segment, the place as a fraction of the segment's length at its lateral position, which is OutRunners' own inside-line rule) moves OutRun's road position (fractions carried) |
 | Road edge | asphalt half-width `$EC` around a road's centre (`OFerrari::check_wheels`), `road_width` + `$EC` for one wide road | the segment's half-width `+$12` | half-width x 11/6 (433 on a road of OutRun's narrowest width); the road the car is on as for the bike (`CrossoverBike::compute_road_frame`: split roads, the two roads drawn as one) |
 | Heading | the path: a unit vector per position, its angle atan2(x, y) grows in right curves | the segment's heading (12-bit), grows in a right turn | each segment's heading = the car's heading + the path's turn (4096 a turn) from the car to the segment's start (interpolated between positions); on OutRun's mirrored road at a fork (`rd_split_state` set, X < 0: OutRun mirrors its own curve push there) the turns are the other way |
-| Pitch, heights | OutRun's car has no slope force; its heights only draw the road | `+2` pitch (the slope's force), `+C` heights | level: pitch 0, heights 0 (design decision) |
+| Pitch, heights | OutRun's car has no slope force; its height sections only draw the road | `+2` pitch (the slope's force: sin(pitch) / 2; + = down), `+C` heights (+ = up, -128 x sin(pitch) a segment) | the pitch at the car from OutRun's height sections (9.10, design decision), for the car's segment and those after it; heights down the ring from it |
 | Surface | | the course node's zone lists | the pre-stage's (node 0): its lists end at once, so beyond the asphalt's edges the wheel kind is 7, and no zones on it |
 
 Inputs: the controls as crossover/ormode puts OutRun's onto OutRunners' cabinet (the wheel over the
@@ -690,7 +690,11 @@ sound for it.
   0), in the middle of OutRun's screen, at scale 1 (MAD POWER on its start line: 88 x 51 pixels, the
   Ferrari's 90 x 42); a crash's jump raises it by its height (world units are pixels at scale 1). Its
   frame's hill index (`$7B3F`) is OutRun's own decision for its car (`road_y[$1E8] - road_y[$1F0]`:
-  above `$12` uphill, index 0; `$12` level, 1; below, downhill, 2).
+  above `$12` uphill, index 0; `$12` level, 1; below, downhill, 2). OutRunners' index is not the road's
+  pitch: it is the camera's pitch less the road's at the car ((camera - `$B0` - road) x 16 / `$300`),
+  the road as the camera sees it; the camera here is OutRun's, and OutRun's decision is the same thing
+  for OutRun's camera (the screen slope of the road at the car), so it stays with the slope of 9.10
+  (the record's pitch passed to `$7B3F` is 0, the camera's pitch carries OutRun's decision).
 - **In the list:** the image is drawn at the Ferrari's entry (`priority` `$1FD`), so nearer objects are
   drawn over it, as OutRun draws them over the Ferrari.
 - **Not drawn:** the player marker OutRunners shows on its start line, the wheels flying off in a crash
@@ -717,6 +721,11 @@ Harness runs (`-headless -script`), Linux build. `CB_MP_TRACE=<file>` writes a l
 OutRun state, car state, km/h, X, lateral, half-width, road position, road control, road width, split
 state, mirror, heading, off-road, gear, engine speed, frame, sub-frame, jump); `CB_MP_DEBUG` logs the
 hits and the sound board; `CB_MP_MUTE_BOARD` mutes MAD POWER's board (testing).
+
+The acceleration and top-speed checks below were made with the road level (before 9.10; now
+`CB_MP_LEVEL=1`, which gives byte for byte the program of those checks: stage 1, four snapshots and the
+WAV). With the slope, OutRun's stage 1 is level for its first 129 ticks (its first hill, height section
+211, begins at frame 779).
 
 - **Acceleration, automatic** (OutRun's stage 1, no traffic, full throttle from the start, steered
   along its road): against MAD POWER on OutRunners' pre-stage (the board under `tools/ortrace`, the
@@ -768,9 +777,75 @@ hits and the sound board; `CB_MP_MUTE_BOARD` mutes MAD POWER's board (testing).
 - OutRun's ending runs with MAD POWER's image standing still and the Ferrari's passengers' animation;
   there is no MAD POWER version of OutRun's start and ending scenes. The attract mode shows the Ferrari.
 - OutRun's HUD shows no gear for MAD POWER's manual box.
-- No slope force from OutRun's hills (design decision, 9.2).
 - MAD POWER's engine level from its board, against OutRunners' own race, was compared only roughly
   (9.7).
+- The slope on OutRun's courses is a reading of OutRun's 2D hills (9.10): their steepest values give
+  climbs steeper than any on OutRunners' own course (9.10.4).
+
+### 9.10 The slope (`CrossoverMadPower::outrun_pitch`, `ORoad::xo_slope`)
+
+OutRunners' handling feels the road's pitch: the force on the car is sin(pitch) / 2 less the drag
+(`$A400-$A40C`, 16384 = 1.0), and the ring's world height falls 128 x sin(pitch) a segment. On its
+pre-stage (ring dumped at frame 3200 under `tools/ortrace`) the pitch at the car is 240 and rising to 480,
+the height falls 45 a segment at 240: a positive pitch is a descent, and the board's car there is faster
+than on the same course made level (273 against 257 km/h at frame 3300, 430 frames after its start), as the force says.
+`tools/orcartest` (unchanged, 0 differences) runs the car on OutRunners' own courses with their hills
+(full course, Kenya): that is the model on real slopes.
+
+The adapter now gives the car's segment and the segments after it the pitch at the car (12-bit, + = down)
+and the heights down the ring from it; `CB_MP_LEVEL=1` gives the level road of before (testing).
+
+**9.10.1 The scale (design decision).** A road at a slope, seen from a camera on the road behind it, moves
+the far road by (focal length x tan(slope)) pixels. A hill that looks as steep in two games moves the far
+road as far; so tan(pitch) = (the host's shift in pixels) / OutRunners' focal length:
+- **OutRunners:** 192 pixels. Its projection (`$102CE`) scales a point by the table `$19A340` at its depth z
+  (`$10437-$1044B`: screen = coordinate x T[z] >> 12), and T[z] = 192 x 4096 / z (T[256] = `$C00`,
+  T[1024] = `$300`, T[2048] = `$180`).
+- **OutRun:** its road heights `road_y` are 1/16 pixel above the bottom line, 512 entries from the car to the
+  horizon, each the last plus the section's change per entry (`ORoad::set_y_2044`: road_y = total << 4 >> 16,
+  the level change `(horizon_base + horizon_offset) << 4`, `$2400` on stage 1: the road's 72 pixels). A change
+  of c per entry on the whole road (a road at a slope) moves its far end 512 x c / 65536 = c / 128 pixels:
+  tan(pitch) = c / 128 / 192.
+- **Super Hang-On** (section 10): 64 pixels (10.1).
+
+**9.10.2 OutRun's hills (design decisions).** OutRun's height sections (`ORoad::setup_road_y`, data read by
+`init_height_seg`) are 2D: each section's values (from entry 6 on; entries 0-5 are 0) change the road's
+per-entry height change from one stretch of the road ahead to the next (`read_next_height`: c(k+1) = value
+<< 4 + c(k)), and the road at the car is drawn level with OutRun's camera. As the car nears a value's
+stretch, that stretch's change shrinks by `height_final` (value x (`height_start` - `$100`) >> 4, 0 to
+about 16 x value) and is 0 when the car reaches it: the camera has turned into the slope. So, read as a
+road under a camera that rides it:
+- the slope at the car is the values reached in this section (each 16 x value x 255 / 256) plus
+  `height_final` of the one being reached, plus any tilt of the road at the car itself (`c0` - level: the
+  hold of sections 2);
+- values held at a fixed distance ahead (the delay sections, `ctrl2` 1, and 3 from entry 6: their
+  stretch does not come nearer) change the road ahead, not the car's slope; a horizon move (`ctrl2` 4,
+  Gateway) is OutRun's camera, not a slope;
+- a section begins on a level road (OutRun's picture: the road at the car and ahead level). The values of a
+  section need not add up to 0 (stage 1: section 211 ends 576 down, 213 1,152 up): OutRun's camera is level
+  again at the next section and its picture does not show the difference; the adapter brings the slope back
+  to level over the length of the section's last value.
+`ORoad::set_road_y` keeps, per frame, the change at the car and the next (`c0`, `c1`), the level change, the
+section (`height_lookup_wrk`), its entry (`height_index`), the value and `height_final`
+(`ORoad::xo_slope`; OutRun reads none of it). Sections met on the 15 stages: `ctrl2` 0 on all, 1 on stages
+1, 2, 6, 8, 9, 12, 13 and 14 (the time-trial map's order), 3 on 7, 4 on 2 and 6.
+
+**9.10.3 The hill frame.** Unchanged (9.5): OutRunners' hill index is the road as its camera sees it, and the
+camera is OutRun's.
+
+**9.10.4 Checked** (Linux build, harness runs, the pitch now the trace's last column):
+- **The pitch met:** OutRun's 15 single stages (4,000 frames each, full throttle): -640 to +418 (-56 to +37
+  degrees; - = up); the full route -549 to +418. OutRunners' own full course (the ring at every 150 frames of
+  `tools/ortrace` e15's route, 17,152 segments): -360 to +500 (-32 to +44 degrees). OutRun's steepest, -546 to -640, are its
+  biggest values (1,152 to 2,304 on stages 1, 2, 5 and 15) taken one after another.
+- **Stage 1, no traffic, full throttle, against the level road** (same inputs): section 211 climbs from
+  frame 779 to -418 (36.6 degrees up) at frame 869 and falls to +233 (20.5 degrees down) at 983. On the climb
+  at 198.5 km/h the car gains 0.971 km/h a tick against 1.243 on the level at that speed (197.5 against 204.8
+  km/h at frame 869, 284.7 against 294.0 at 1013); down section 134 at 398 km/h, +323 (28.4 degrees down),
+  0.530 against 0.294 (406.7 against 402.5 km/h at 1425, from 3.1 behind at 1317).
+- **The full route** (as 9.7, the slope on): the goal at frame 17895 (17757 level), 38 ticks of traffic
+  contact and 1 of scenery, then the bonus, the ending and the ranking (frame 21000).
+- **Unchanged:** see 10.7.
 
 ## 10. MAD POWER on Super Hang-On's and Hang-On's courses (`crossover/shferrari.*`, `crossover/hovehicle.*`)
 
@@ -793,8 +868,28 @@ the bike's sound dropped are the Ferrari's, unchanged.
 |---|---|---|---|
 | Path | the second CPU's `$0604F0` | the second CPU's `$7F0F0` | OutRun's path format in both (4 bytes a position, a unit vector): `CrossoverMadPower::begin_board` gives `MadRoad` the board's path in place of OutRun's (`path_angle`); the segments, headings and distance as in 9.2 |
 | Road edge | 300 (`$7F30`: off the road at \|X\| > 300) | 260 (`$B57C`) | the half-width x 11/6 (550 and 477), from OutRun's road width set as for the Ferrari (`$40` + `$EC`, `$18` + `$EC`) by `compute_frame`; one road, centre 0 |
-| Heights | the road's height table (`$261200`) | flat | only the hill index of the car's frame (OutRun's decision, 9.5, on the heights the Ferrari gets there); the road is level for the car (9.2) |
+| Hills | a vertical path run by the second CPU (10.1.1) | none (10.1.2) | the pitch at the car from Super Hang-On's path (10.1.1); level on Hang-On's course. The hill index of the car's frame is OutRun's decision on the heights the Ferrari gets there (9.5, 9.10.3) |
 | Off-road flag | `$260098` | `$C7E098` | written from the board's own rule for its bike: \|X\| beyond its road edge; MAD POWER's drag, gravel and dust are its own |
+
+**10.1.1 Super Hang-On's hills.** Unlike OutRun's, they are a 3D path: the second CPU runs a hill (its object
+at `$060420`; main `$260420`) when the main CPU sets its number (`$06004C`): state (`+4`) 1 takes the path
+from the table `$1A4C` (`+$C`), state 2 runs it with the distance into it (`+8`, positions in the high word,
+added `$060074` a frame) until its vectors end. The path is unit vectors of 4096, one a position, as the road's
+curve path: x the height (+ = up), y the distance along ((0, 4096) level). Its camera takes its direction
+from the two vectors at the vehicle (`$1650-$1674`, the sum of vectors p and p + 1) and projects the vectors
+ahead, two a step for 32 steps (`$16BC-$1706`): height x `$4000` / (along + `$300`) (`$174A-$1778`; along in
+1/32 of the vectors' units, `$300` = six positions), which `sub_01494` adds, / 16, to the level road (8 an
+entry) in the height table `$061200` the main CPU reads (/ 16 again: pixels): 64 pixels per unit of tan far
+ahead, the focal length. The pitch at the car: tan = height / along of the two vectors at the vehicle x 64 /
+192 (9.10.1), - = up (`SHFerrari::hill_pitch`). Africa (10,500 frames): -344 to +462 (-30 to +41 degrees); its
+first hill (21) runs vectors down to (-3331, 2384), 54 degrees in Super Hang-On's own projection: +280 here
+(25 degrees down).
+
+**10.1.2 Hang-On's road is flat.** Hang-On's second CPU (the road's processor: 351 instructions executed in a
+race) projects one path, the curves (`$C7F0F0`, `$ABA-$BD0`, the same projection as Super
+Hang-On's); it has no second, vertical path (Super Hang-On's `$1602-$178A` and its table `$1A4C` have no
+counterpart), and its height table stays the level road. MAD POWER's pitch there is 0, and its runs are
+byte-identical to before.
 
 The board moves its vehicle itself once: Super Hang-On steers it to the centre after the goal
 (`sub_0B430`, in the speed task as replaced for the Ferrari). On these boards a change of X between ticks
@@ -860,6 +955,8 @@ now; before the goal nothing changed (the regression runs below).
 
 Harness runs (`-headless -script`), Linux build, widescreen, 60 fps, `CB_MP_TRACE` per tick (section 9.7).
 
+- The acceleration checks below were made with the road level (`CB_MP_LEVEL=1` now, 9.7); on Hang-On's
+  course they hold with the slope too (level there).
 - **Acceleration, automatic** (full throttle from the start line, steered to the centre of the road),
   against MAD POWER on OutRun's stage 1 (no traffic, 9.7): identical speed, gear and engine speed at every
   tick from the start, through curves, until the first contact: Super Hang-On's Africa 639 ticks (21.3 s,
@@ -883,7 +980,18 @@ Harness runs (`-headless -script`), Linux build, widescreen, 60 fps, `CB_MP_TRAC
 - **Sound:** MAD POWER's board's part of the output (with and without it, `CB_MP_MUTE_BOARD`): RMS 249-746
   over 2 s windows as the car accelerates on both boards (on OutRun's courses 286-735); 0 once the car has
   stopped (its engine speed follows the accelerator to 0, as on OutRunners' board).
-- **Unchanged:** the Ferrari and Super Hang-On's bike on Super Hang-On's Africa, and the Ferrari, Super
+- **The slope on Africa** (full throttle, against the level road, same inputs): on the climb at frame 1798,
+  -329 (28.9 degrees up), the car gains 0.970 km/h a tick at 280.7 km/h against 1.184 on the level; down the
+  first hill at frame 1586, +328, 0.309 against 0.103 at 437.7 km/h. To the goal with the slope on: frame
+  10188 (9894 level), 82 ticks of rival contact, then the goal run, the ranking and the menu.
+- **Unchanged by the slope** (job 5, against the program before it, the audio fix `bf6da4d` included): the
+  Ferrari and Super Hang-On's bike on OutRun's stage 1 (1,500 frames) and full route (6,000 frames, four
+  snapshots), on Super Hang-On's Africa, on Hang-On's course (with Hang-On's bike) and on OutRunners'
+  Kenya; MAD POWER on Kenya and on Hang-On's course: byte-identical (snapshots and the WAV). MAD POWER on
+  OutRun's stage 1 with `CB_MP_LEVEL=1`: byte-identical to the program before. `tools/orcartest`
+  `run_all.sh` 0 differences (the same counts as below), `tools/orbtest` session 1 identical, `tools/s32vtest`
+  214 of 214, the Windows build compiles.
+- **Unchanged (section 10's own checks):** the Ferrari and Super Hang-On's bike on Super Hang-On's Africa, and the Ferrari, Super
   Hang-On's bike and Hang-On's bike on Hang-On's course (3,000 frames each, seven snapshots, the WAV), MAD
   POWER on OutRun's stage 1 and on OutRunners' Kenya: byte-identical before and after (Hang-On's bike is
   offered on its own course only); `tools/orcartest` `run_all.sh`: 26 runs, 0 differences (83,811 /
@@ -894,8 +1002,8 @@ Harness runs (`-headless -script`), Linux build, widescreen, 60 fps, `CB_MP_TRAC
 
 ### 10.8 Not done / known issues
 
-- As on OutRun's courses (9.9): the wheels flying off and the start-line marker are not drawn; no slope
-  force from the boards' hills; no gear on the HUD (Super Hang-On's and Hang-On's have none).
+- As on OutRun's courses (9.9): the wheels flying off and the start-line marker are not drawn; no gear on
+  the HUD (Super Hang-On's and Hang-On's have none).
 - Super Hang-On's goal run and ending show its own rider and bike (as with the Ferrari).
 - The boards' worlds were made for bikes (Super Hang-On's: 279 km/h with its supercharger); at MAD POWER's
   speeds (up to 451 km/h automatic) their scenery and rivals approach by their own rules, checked only by

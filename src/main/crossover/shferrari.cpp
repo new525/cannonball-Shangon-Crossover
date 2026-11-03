@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <algorithm>
+#include <cmath>
 
 #include "video.hpp"
 #include "hwvideo/hwsprites.hpp"
@@ -504,6 +505,7 @@ void SHFerrari::tick()
 // MAD POWER: OutRunners' car code (crossover/madpower) in OutRun's car slot, the world as for the Ferrari
 void SHFerrari::tick_madpower()
 {
+    madpower.board_pitch = hill_pitch();
     world_to_outrun();
     uint32_t pos0 = oroad.road_pos;
     // a scenery hit (Super Hang-On's test, every frame of an overlap): MAD POWER's own response (kind 0)
@@ -529,6 +531,25 @@ void SHFerrari::tick_madpower()
             fprintf(stderr, "shferrari: MAD POWER tick %d x %d spd %d pos %08x curve %d/%d\n", n, oinitengine.car_x_pos,
                     oinitengine.car_increment >> 16, RL(V_POS), oinitengine.road_type, oinitengine.road_curve);
     }
+}
+
+// The road's pitch at the vehicle from Super Hang-On's hills (docs/CROSSOVER-OUTRUNNERS.md 10.1). Its second CPU
+// runs a hill as a vertical path (its object at $060420: +4 state, 2 while a hill runs; +8 the distance into it,
+// positions in the high word; +$C the path, from the table $1A4C by the hill number $06004C): unit vectors of
+// 4096, x the height (+ = up) and y the distance along, one a position, like the road's curve path. Its camera
+// takes its direction from the two vectors at the vehicle ($1650-$1674) and projects the vectors ahead with a
+// focal length of 64 pixels ($174A-$1778, then / 256 into the height table $061200, sub_01494); OutRunners'
+// is 192 pixels: a hill that looks as steep has tan(pitch) = height / along x 64 / 192.
+int16_t SHFerrari::hill_pitch() const
+{
+    if (RB(0x260424) != 2) return 0;                              // no hill running: level
+    uint32_t a = (RL(0x26042C) + (uint32_t) RW(0x260428) * 4u) & 0xFFFFFF;
+    const std::vector<uint8_t>& r = shboard.sub_rom;
+    auto sw = [&](uint32_t o) { return o + 1 < r.size() ? (int)(int16_t)(r[o] << 8 | r[o + 1]) : 0; };
+    int up = sw(a) + sw(a + 4), along = sw(a + 2) + sw(a + 6);
+    if (along <= 0) return 0;
+    double t = (double) up / along * 64.0 / 192.0;
+    return (int16_t) std::lround(-std::atan(t) * 4096.0 / (2.0 * M_PI));
 }
 
 // OutRun's road builder (ORoad::setup_x_data, verified as sho_road_build_outrun) over Super Hang-On's

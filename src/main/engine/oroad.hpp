@@ -154,6 +154,13 @@ public:
     const static uint8_t VIEW_ELEVATED = 1;
     const static uint8_t VIEW_INCAR    = 2;
 
+    // Crossover (crossover/madpower): the road's elevation as this frame's road heights were built from it
+    // (set_road_y): the per-entry height change of the section at the car (c0) and of the next one (c1),
+    // the level reference ((horizon_base + horizon_offset) << 4), the height section's identity. Written
+    // only; OutRun reads none of it.
+    // (also the height value at the section's index, v, and its share so far, height_final, hf)
+    struct XoSlope { int32_t c0 = 0, c1 = 0, flat = 0, hf = 0; int16_t v = 0, index = 0; uint16_t lookup = 0; uint8_t ctrl2 = 0; } xo_slope;
+
 	ORoad();
 	~ORoad();
 	void init();

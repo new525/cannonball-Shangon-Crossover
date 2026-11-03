@@ -15,9 +15,10 @@
       segment), each segment's heading OutRun's path's direction (atan2 of its unit vector, 4096 a
       turn, both growing in right curves) at that distance from the car, mirrored on OutRun's
       mirrored road at a fork; the half-width OutRun's asphalt edge (its road_width + $EC around the
-      road the car is on, as for the bike) x 11/6; level (OutRun's car has no slope force; its
-      heights only draw the road); the pre-stage's surface lists (they end at once: kind 7 beyond
-      the edges).
+      road the car is on, as for the bike) x 11/6; the pitch at the car from OutRun's height sections
+      (outrun_pitch: its 2D hills read as a road under a camera that rides it, scaled so that a hill
+      that looks as steep in both games has the same pitch); the pre-stage's surface lists (they end
+      at once: kind 7 beyond the edges).
     - Units: lateral OutRun X x (-11/6) (the Ferrari's half-width 24, MAD POWER's 44: MAD POWER is
       the Ferrari's width, so OutRun's own collision tests apply unchanged); speed km/h x 136 (the
       speed shown by both games); the car's advance along the segments back to OutRun's road
@@ -77,6 +78,7 @@ public:
     bool on_board() const { return board_path != nullptr; }
     bool accel_cut = false;             // board: no accelerator (its timer at 0, as the Ferrari there)
     bool hold = false;                  // board: stopped past the goal line (speed 0 each tick, as the Ferrari there)
+    int16_t board_pitch = 0;            // board: the road's pitch at the car (OutRunners' 12-bit, + = down), from its hill data
     void rival_hit(int16_t lateral, int16_t latvel, uint16_t speed);   // board: a rival bike (OutRunners' units)
     void engine_off();                  // board: $700712 = 0, as OutRunners does for a car not racing
     void to_overlay(uint16_t* ov, int w, int h, int x_off) const;      // board: the image (see the .cpp)
@@ -103,6 +105,16 @@ private:
     double  heading = 0;                // the heading at the car (12-bit units, continuous: OutRun's path's turns added)
     double  seg_frac = 0;               // the car's place in its segment (0-1)
     double  pos_acc = 0;                // OutRun road position (16.16) fraction carried
+    // the slope (docs/CROSSOVER-OUTRUNNERS.md 9.10): OutRun's height sections as its camera takes them in
+    int16_t pitch = 0;                  // the road's pitch at the car this tick (12-bit, + = down)
+    double  dist = 0;                   // OutRun positions driven since the race began
+    double  sl_k = 0;                   // the height values passed in this height section (OutRun's change-per-entry units)
+    double  sl_close = 0, sl_close_at = 0, sl_close_len = 0;   // a section left on a slope, closed back to level
+    double  sl_entry_at = 0, sl_entry_len = 8;                 // where the current entry began, the last entry's length
+    bool    sl_have = false, sl_appr = false;
+    uint16_t sl_lookup = 0; int16_t sl_index = 0, sl_v = 0;
+    void    slope_reset();
+    int16_t outrun_pitch();
     int     mirror = 1;
     bool    have_hit = false;
     uint8_t hit_kind = 0;

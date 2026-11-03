@@ -64,6 +64,16 @@ static inline uint16_t pitch_for_hill(int h) { return (uint16_t)(0xB0 + h * 0x30
 // Sound: as crossover/ormode (MAME's left speaker, the race level x 0.17)
 static const float YM_ROUTE = 0.40f, PCM_ROUTE = 1.0f, GAIN_OR = 0.17f;
 static const uint32_t SH_ENGINE = 0x0710, SH_CTRL = 0x0712, SH_CAR = 0x0713, SH_BOX = 0x0714, SH_TYRE = 0x0718, SH_CMD = 0x0700;
+// The slope (docs/CROSSOVER-OUTRUNNERS.md 9.10). A road at a slope seen from its camera moves the far road
+// by (focal length x tan) pixels; a hill that looks as steep in both games moves it as far:
+// - OutRunners: focal length 192 pixels (its projection's reciprocal table $19A340: 192 x 4096 / depth);
+// - OutRun: a change of c per road entry (its heights road_y are 1/16 pixel, the change per entry << 12, 512
+//   entries to the horizon) moves the far road c / 128 pixels: tan = c / 128 / 192;
+// - Super Hang-On: its hills are a vertical path (unit vectors, x = height, y = along) projected with a focal
+//   length of 64 pixels (sub CPU $174A-$1778: height x $4000 / (along + $300), / 256 in pixels): tan = x / y x 64 / 192.
+static const double OR_SLOPE_DIV = 128.0 * 192.0;
+static inline int16_t pitch12(double tan_up) { return (int16_t) std::lround(-std::atan(tan_up) * 4096.0 / (2.0 * M_PI)); }
+
 // The foreign entry in OutRun's sprite list (hwsprites): bank 7, address $FFFF
 static const uint16_t FOREIGN_ADDR = 0xFFFF;
 
@@ -169,6 +179,7 @@ void CrossoverMadPower::reset()
     frame_kind = -1;
     shift_prev = 0;
     rank_flag = 0;
+    slope_reset();
     entries.clear();
     if (loaded) std::fill(image.begin(), image.end(), 0);
     video.sprite_layer->set_foreign(enabled && loaded ? &CrossoverMadPower::blit : nullptr, this);
@@ -206,6 +217,8 @@ void CrossoverMadPower::begin_board(PathFn path)
     shift_prev = 0;
     rank_flag = 0;
     accel_cut = hold = false;
+    board_pitch = 0;
+    slope_reset();
     last_x = 0;
     entries.clear();
     if (loaded) std::fill(image.begin(), image.end(), 0);
@@ -267,17 +280,69 @@ void CrossoverMadPower::build_segments()
     double p_car = oroad.road_pos / 65536.0;
     double a_car = path_angle(p_car);
     int hw = std::min(0x7FFF, (road_half * LAT_OR + LAT_OUT / 2) / LAT_OUT);
+    // the pitch at the car for the car's segment and those after it (the handling reads the car's segment's);
+    // world y down the ring as OutRunners' course builder sets it (-128 x sin(pitch) a segment, + = up)
+    double dy = -128.0 * std::sin(pitch * 2.0 * M_PI / 4096.0);
     for (int k = 0; k < NSEG; k++)
     {
         double p = p_car + (k - seg_frac) * POS_PER_SEG;
         double h = heading + mirror * wrap12(path_angle(p) - a_car);
         orcar::Segment g;
         g.heading = (uint16_t)((int32_t) std::lround(h) & 0xFFF);
-        g.pitch = 0;
-        g.x = g.z = g.y = 0;
+        g.pitch = (uint16_t)(pitch & 0xFFF);
+        g.x = g.z = 0;
+        g.y = (int32_t) std::lround(dy * k);
         g.half_width = (uint16_t) hw;
         road.seg[k] = g;
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+// The slope on OutRun's courses (docs/CROSSOVER-OUTRUNNERS.md 9.10)
+//
+// OutRun's hills are height sections read along the road (ORoad::setup_road_y): each section's values are
+// changes of the road's per-entry height change from one stretch to the next, seen from a camera that rides
+// the road: as the car nears a value's stretch, that stretch's change shrinks (height_final grows to it) and
+// the camera has turned into it when the car is there. The slope at the car is what the camera has taken:
+// the values passed in this section, the one being reached (height_final), and a tilt of the road at the car
+// itself (the section's hold, c0 - level). A section begins on a level road; one that ends on a slope is
+// brought back to level over the length of its last value (OutRun's picture does not show it: its camera is
+// level again at the next section). Values held at a fixed distance ahead (the delay sections, ctrl2 1 and
+// 3 from entry 6) are never reached: they change the road ahead, not the car's slope. A horizon move
+// (ctrl2 4, Gateway) is OutRun's camera, not a slope.
+// ------------------------------------------------------------------------------------------------
+void CrossoverMadPower::slope_reset()
+{
+    pitch = 0; dist = 0; sl_k = 0; sl_close = 0; sl_close_at = 0; sl_close_len = 0;
+    sl_entry_at = 0; sl_entry_len = 8; sl_have = false; sl_appr = false; sl_lookup = 0; sl_index = 0; sl_v = 0;
+}
+
+int16_t CrossoverMadPower::outrun_pitch()
+{
+    const ORoad::XoSlope& x = oroad.xo_slope;
+    bool appr = x.ctrl2 == 0 || (x.ctrl2 == 3 && x.index < 6);      // a value the car reaches
+    if (sl_have)
+    {
+        if (x.lookup != sl_lookup)
+        {
+            // a new section: the last one's slope (if any) is closed back to level
+            double left = sl_k + sl_close * std::max(0.0, 1.0 - (dist - sl_close_at) / std::max(1.0, sl_close_len));
+            sl_close = left; sl_close_at = dist; sl_close_len = std::max(1.0, sl_entry_len);
+            sl_k = 0;
+            sl_entry_at = dist;
+        }
+        else if (x.index != sl_index)
+        {
+            if (sl_appr) sl_k += (sl_v * 0xFF) >> 4;                  // the value reached: height_final's last
+            sl_entry_len = std::max(1.0, dist - sl_entry_at);
+            sl_entry_at = dist;
+        }
+    }
+    sl_have = true; sl_lookup = x.lookup; sl_index = x.index; sl_v = x.v; sl_appr = appr;
+    double near = x.ctrl2 == 4 ? 0.0 : (double)(x.c0 - x.flat);
+    double close = sl_close * std::max(0.0, 1.0 - (dist - sl_close_at) / std::max(1.0, sl_close_len));
+    double c = sl_k + near + (appr ? (double) x.hf : 0.0) + close;
+    return pitch12(c / OR_SLOPE_DIV);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -341,6 +406,9 @@ void CrossoverMadPower::tick()
     // there, OFerrari::set_curve_adjust) the path's turns are the other way; the car's heading continues
     mirror = (oinitengine.rd_split_state != 0 && x < 0) ? -1 : 1;
 
+    static const bool level = getenv("CB_MP_LEVEL") != nullptr;    // testing: the level road of before
+    pitch = level ? 0 : board_path ? board_pitch : outrun_pitch();
+
     if (!started)
     {
         // OutRunners' state 0 ($719C): the grid, the parameters, the torque table, the frame, the engine's start
@@ -400,6 +468,7 @@ void CrossoverMadPower::tick()
     pos_acc -= adv;
     oroad.road_pos += adv;
     oroad.road_pos_change = (int32_t) adv;
+    dist += adv / 65536.0;
     double p_new = oroad.road_pos / 65536.0;
     heading += mirror * wrap12(path_angle(p_new) - path_angle(p_old));
     // (OutRun sets its road position back to 0 at a new lap or stage between ticks: the heading follows the
@@ -445,10 +514,12 @@ void CrossoverMadPower::tick()
         static FILE* tf = fopen(trace, "w");
         if (tf)
         {
-            fprintf(tf, "%d %d %d %.3f %d %d %d %u %d %d %d %d %d %d %d %u %d %d %d\n", harness.frame, outrun.game_state, s.state,
+            fprintf(tf, "%d %d %d %.3f %d %d %d %u %d %d %d %d %d %d %d %u %d %d %d", harness.frame, outrun.game_state, s.state,
                     s.speed / (double) SPEED_PER_KMH, oinitengine.car_x_pos, s.lateral, (int) road.seg[0].half_width,
                     oroad.road_pos >> 16, oroad.road_ctrl, (int16_t)(oroad.road_width >> 16), oinitengine.rd_split_state, mirror,
                     s.heading, s.offroad, s.gear, s.rpm, s.anim_frame, s.anim_step, s.jump);
+            fprintf(tf, " %d", pitch);
+            fprintf(tf, "\n");
             fflush(tf);
         }
     }

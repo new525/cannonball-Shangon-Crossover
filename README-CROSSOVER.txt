@@ -15,6 +15,18 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
+Changes since 0.8.0 (not yet released)
+--------------------------------------
+- MAD POWER now feels the hills: on OutRun's courses and on Super Hang-On's,
+  it slows down climbing and speeds up going down, with OutRunners' own slope
+  code. The slope comes from each game's own hill data, scaled so that a hill
+  that looks as steep in both games has the same steepness for MAD POWER.
+  Hang-On's road is flat, so nothing changes there.
+- Sound boards: switching between music tracks (e.g. Cool Riders' track and
+  the OutRunners songs) no longer distorts a track played again after it had
+  stopped.
+
+
 Changes in 0.8.0
 ----------------
 - OutRunners' courses, on an emulated copy of its whole board (System Multi
@@ -406,8 +418,13 @@ Design choices (not original behaviour of either game):
   heading the direction of OutRun's road path there (turned the other way on
   the mirrored road of a fork), the road's half-width OutRun's asphalt edge
   x 11/6 (the cars' half-widths 24 and 44: MAD POWER is the Ferrari's width,
-  so OutRun's collision tests are unchanged), level (OutRun's car has no
-  slope force), with the surface of OutRunners' first course. Speed: km/h =
+  so OutRun's collision tests are unchanged), with the surface of
+  OutRunners' first course. Slopes: OutRun's hills are drawn in 2D (each
+  section bends the road ahead, and OutRun's camera turns into each bend as
+  the car gets there); read as a road under a camera that rides it, they
+  give the slope at the car, and a hill that looks as steep in both games
+  gets the same steepness (the far road moved as far on screen, against
+  OutRunners' focal length of 192 pixels). Speed: km/h =
   OutRunners' speed / 136. Collisions: OutRun's tests decide; a roadside
   object gives MAD POWER's own scenery bounce, a traffic car its response to
   a car of its race of its own weight. Its off-road (drag, shaking, gravel
@@ -423,7 +440,10 @@ Design choices (not original behaviour of either game):
 - MAD POWER on Super Hang-On's and Hang-On's courses: the board's own road
   path gives the road as OutRun's does (same format); the road's half-width
   is the board's road edge (300 on Super Hang-On's, 260 on Hang-On's) x
-  11/6; level. The boards' own tests decide collisions: a roadside object
+  11/6. Super Hang-On's hills are a real 3D path its second CPU runs: the
+  slope at the vehicle comes from it, scaled as on OutRun's courses (its
+  focal length 64 pixels against OutRunners' 192). Hang-On's road is flat.
+  The boards' own tests decide collisions: a roadside object
   gives MAD POWER's scenery bounce; a rival bike is hit by the Ferrari's rule
   (MAD POWER is the Ferrari's width) and answered as a car of its race, at
   the rival's own position, sideways speed and speed. It is drawn with its
@@ -440,14 +460,13 @@ Not done yet
 - Hang-On's bike on OutRunners' courses: it exists only as Hang-On's own
   program on its emulated board, and its tasks have not been rebuilt as code
   that can run in another game's world, as Super Hang-On's were.
-- MAD POWER on OutRun's, Super Hang-On's and Hang-On's courses: no slope
-  force from the hills; the wheels flying off in a crash and the
-  start line's player marker are not drawn.
-- MAD POWER on OutRun's courses: the wheels flying off in a crash and the
-  start line's player marker are not drawn; OutRun's ending shows MAD POWER
-  standing with the Ferrari's passengers' animation, and the attract mode
-  shows the Ferrari; OutRun's HUD shows no gear for its manual box; OutRun's
-  hills give it no slope force.
+- MAD POWER on OutRun's, Super Hang-On's and Hang-On's courses: the wheels
+  flying off in a crash and the start line's player marker are not drawn.
+- MAD POWER on OutRun's courses: OutRun's ending shows MAD POWER standing
+  with the Ferrari's passengers' animation, and the attract mode shows the
+  Ferrari; OutRun's HUD shows no gear for its manual box. OutRun's steepest
+  hill values give climbs steeper than any on OutRunners' own course (up to
+  56 degrees against 32).
 - With the Ferrari or the bike on OutRunners' courses: OutRunners' own
   pictures of the car stay MAD POWER (the ending's picture, the map's and
   HUD's car icons); the HUD's gearbox shows AUTO; the flying wreck and

@@ -245,11 +245,19 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   - The road: one OutRunners segment is 303/272 of an OutRun path position (the same distance per
     km/h in both games); each segment's heading OutRun's path's direction there (mirrored on the
     mirrored road of a fork); the half-width OutRun's asphalt edge x 11/6 (the cars' half-widths 24
-    and 44, so MAD POWER is the Ferrari's width and OutRun's collision tests apply unchanged); level
-    (OutRun's car has no slope force); the surface of OutRunners' pre-stage.
-  - Speed: km/h = OutRunners' speed / 136, shown by OutRun's speedometer. On OutRun's first stage its
-    acceleration is the same at every tick as on OutRunners' pre-stage made level (0 to 414 km/h);
-    top speed 451 km/h (automatic) or 471 (its 6-speed manual box, with the separate gear buttons).
+    and 44, so MAD POWER is the Ferrari's width and OutRun's collision tests apply unchanged); the
+    surface of OutRunners' pre-stage.
+  - Slopes: OutRun's hills reach MAD POWER's own slope code. OutRun draws its hills in 2D (each
+    height section bends the road ahead, and its camera turns into each bend as the car gets there);
+    read as a road under a camera that rides it, they give the slope at the car, and a hill that looks
+    as steep in both games gets the same pitch (the far road moved as far: OutRun's road heights against
+    OutRunners' focal length, 192 pixels from its projection's table). Uphill the car gains less speed,
+    downhill more (on stage 1's first climb, 37 degrees, 0.97 km/h a tick against 1.24 on the level road).
+    Section 9.10 has the method and the numbers.
+  - Speed: km/h = OutRunners' speed / 136, shown by OutRun's speedometer. On OutRun's first stage, with
+    the road level, its acceleration is the same at every tick as on OutRunners' pre-stage made level
+    (0 to 414 km/h); top speed 451 km/h (automatic) or 471 (its 6-speed manual box, with the separate
+    gear buttons).
   - Collisions: OutRun's tests decide; a roadside object gives MAD POWER's own scenery bounce, a
     traffic car its response to a car of its race (of its own weight).
   - Drawn with OutRunners' sprites and colours (decoded from its ROMs, rendered as MAME renders
@@ -263,8 +271,12 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   [`docs/CROSSOVER-OUTRUNNERS.md`](docs/CROSSOVER-OUTRUNNERS.md) section 10:
   - The road: the board's own road path (the same format as OutRun's) gives the segments' headings and
     distance as on OutRun's courses; the half-width is the board's road edge (300 on Super Hang-On's
-    courses, 260 on Hang-On's) x 11/6; level. Its acceleration is the same at every tick as on OutRun's
-    first stage until the first contact (21 s and 436 km/h on Africa, automatic).
+    courses, 260 on Hang-On's) x 11/6. With the road level, its acceleration is the same at every tick as
+    on OutRun's first stage until the first contact (21 s and 436 km/h on Africa, automatic).
+  - Slopes: Super Hang-On's hills are a real 3D path of vectors run by its second CPU; the slope at the
+    vehicle comes from it, scaled as on OutRun's courses (Super Hang-On's focal length 64 pixels against
+    OutRunners' 192). Hang-On's road is flat (its second CPU has no hill path), so MAD POWER drives it
+    level.
   - Collisions: the boards' own tests decide. A roadside object gives MAD POWER's scenery bounce; a
     rival bike is hit by the Ferrari's rule (MAD POWER is the Ferrari's width) and answered as a car of
     its race, at the rival's own lateral position, lateral speed and speed.
