@@ -87,7 +87,9 @@ SegaPCM::~SegaPCM()
 void SegaPCM::init(int32_t rate, int32_t fps)
 {
     this->sample_freq = rate;
-    downsample = (32000.0 / (double) rate);
+    // The chip outputs clock / 128 samples a second (MAME segapcm_device: 4 MHz / 128 = 31,250 Hz on
+    // OutRun's sound board, SOUND_CLOCK in MAME segaorun.cpp); this was 32,000, 2.4% sharp.
+    downsample = (31250.0 / (double) rate);
     SoundChip::init(STEREO, rate, fps);
 }
 
@@ -139,14 +141,21 @@ void SegaPCM::stream_update()
 
                 // Advance.
                 // Cannonball Change: Output at a fixed 44,100Hz. 
-                double increment = ((double)regs[7]) * downsample;
-                addr = (addr + (int) increment) & 0xffffff;
+                // The part of a step below the address's 1/256 sample is carried to the next step
+                // (it was dropped, which made sounds flatter the lower their pitch: at 44,100 Hz, together with
+                // the old 32,000 Hz, delta $10 played 3% flat and delta $80 1.4% sharp).
+                double increment = ((double)regs[7]) * downsample + frac[ch];
+                int whole = (int) increment;
+                frac[ch] = increment - whole;
+                addr = (addr + whole) & 0xffffff;
             }
 
             // store back the updated address and info
             regs[0x84] = addr >> 8;
             regs[0x85] = addr >> 16;
             low[ch] = regs[0x86] & 1 ? 0 : addr;
+            if (regs[0x86] & 1) frac[ch] = 0;
         }
+        else frac[ch] = 0;
     }
 }

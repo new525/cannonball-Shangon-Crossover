@@ -35,6 +35,7 @@ private:
     // PCM Chip Emulation
     uint8_t* ram;
     uint8_t* low;
+    double frac[16] = {};                   // each channel's step below 1/256 sample
     uint8_t* pcm_rom;
     int32_t max_addr;
     int32_t bankshift;
