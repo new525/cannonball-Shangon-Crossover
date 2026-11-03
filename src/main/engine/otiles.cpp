@@ -523,14 +523,16 @@ void OTiles::h_scroll_tilemaps()
         // Road position is used as an offset into the table. (Note it's reset at beginning of road split)
         h_scroll_lookup = roms.rom0.read16(H_SCROLL_TABLE + ((oroad.road_pos >> 16) << 1));
         
-        int32_t tilemap_h_target = h_scroll_lookup << 5;
+        // Shifts and the subtraction in unsigned 32-bit arithmetic: the same bits as before, without
+        // signed overflow (undefined behaviour; fix from CannonBall-SE, applied to both sites)
+        uint32_t tilemap_h_target = (uint32_t) h_scroll_lookup << 5;
         tilemap_h_target <<= 16;
-        int32_t tilemap_x = tilemap_h_target - (tilemap_h_scr << 5);
+        int32_t tilemap_x = (int32_t) (tilemap_h_target - ((uint32_t) tilemap_h_scr << 5));
         if (tilemap_x != 0) 
         {
             tilemap_x >>= 8;
             if (tilemap_x == 0) 
-                tilemap_h_scr = (tilemap_h_scr & 0xFFFF) | (h_scroll_lookup << 16);
+                tilemap_h_scr = (int32_t) (((uint32_t) tilemap_h_scr & 0xFFFF) | ((uint32_t) h_scroll_lookup << 16));
             else
                 tilemap_h_scr += tilemap_x;
         }
@@ -547,14 +549,14 @@ void OTiles::h_scroll_tilemaps()
         if (oinitengine.rd_split_state != OInitEngine::SPLIT_NONE && 
             oinitengine.rd_split_state <= 4) return;
 
-        int32_t tilemap_h_target = (oroad.tilemap_h_target << 5) & 0xFFFF;
+        uint32_t tilemap_h_target = ((uint32_t) oroad.tilemap_h_target << 5) & 0xFFFF;
         tilemap_h_target <<= 16;
-        int32_t tilemap_x = tilemap_h_target - (tilemap_h_scr << 5);
+        int32_t tilemap_x = (int32_t) (tilemap_h_target - ((uint32_t) tilemap_h_scr << 5));
         if (tilemap_x != 0) 
         {
             tilemap_x >>= 8;
             if (tilemap_x == 0) 
-                tilemap_h_scr = (tilemap_h_scr & 0xFFFF) | (oroad.tilemap_h_target << 16);
+                tilemap_h_scr = (int32_t) (((uint32_t) tilemap_h_scr & 0xFFFF) | ((uint32_t) oroad.tilemap_h_target << 16));
             else
                 tilemap_h_scr += tilemap_x;
         }   

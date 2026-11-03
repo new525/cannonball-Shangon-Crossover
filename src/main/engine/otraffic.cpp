@@ -468,7 +468,13 @@ void OTraffic::update_props(oentry* sprite)
     }
 
     // Calculate change in road y, so we can determine incline frame for traffic
-    int16_t y = oroad.road_y[oroad.road_p0 - (0x10 / 2)] - oroad.road_y[oroad.road_p0];
+    // With road_p0 at 0 the entry 8 before it is outside road_y. The arcade's code reads the RAM before
+    // road_y there (the end of $61400-$617FF, ORoad's road_unk). This read road_y[-8], undefined
+    // behaviour that happened to give road_unk's entry, as ORoad's members follow that RAM; road_unk is
+    // now read explicitly.
+    const int p_prev = oroad.road_p0 - (0x10 / 2);
+    const int16_t y_prev = p_prev >= 0 ? oroad.road_y[p_prev] : oroad.road_unk[ORoad::ARRAY_LENGTH + p_prev];
+    int16_t y = y_prev - oroad.road_y[oroad.road_p0];
 
     // 0 = No Incline, 10 = Flat Road/Incline
     int8_t incline = (y < 0x12) ? 0x10 : 0; // d1
