@@ -240,6 +240,15 @@ void ORMode::set_inputs()
     // a manual box: GEAR1 shifts down, GEAR2 up (the program's separate-buttons gear setting)
     b.set_shift_up(0, manual_box && input.is_pressed(Input::GEAR2));
     b.set_shift_down(0, manual_box && input.is_pressed(Input::GEAR1));
+    // The radio's buttons (P2_A, player 1), as OUTRUNNERS RADIO maps them on the other courses
+    // (crossover/radio): UP DJ/MUSIC, DOWN >>; LEFT <<, RIGHT >> when the steering is analogue
+    bool dj = input.is_pressed(Input::UP), next = input.is_pressed(Input::DOWN), prev = false;
+    if (input.analog)
+    {
+        prev = input.is_pressed(Input::LEFT);
+        next = next || input.is_pressed(Input::RIGHT);
+    }
+    b.in.p2_a = (uint8_t)(0xFF & ~((dj ? 0x01 : 0) | (prev ? 0x02 : 0) | (next ? 0x04 : 0)));
 }
 
 void ORMode::take_sound()
@@ -308,6 +317,15 @@ void ORMode::tick()
         // testing: the cars' sounds alone (the music stopped, $1F, at this board frame)
         static const int stop_music = getenv("CB_OR_STOP_MUSIC") ? atoi(getenv("CB_OR_STOP_MUSIC")) : 0;
         if (stop_music && board->frame() == (uint64_t) stop_music) board->write8(0x700700, 0x1F);
+        // testing: the radio's song ($209014) and state (C[$201000]) as they change
+        static const bool radio_debug = getenv("CB_OR_DEBUG") != nullptr;
+        if (radio_debug)
+        {
+            static int song = -1, c = -1;
+            int s = board->read8(0x209014), rc = board->read8(0x20100C);
+            if (s != song || rc != c) fprintf(stderr, "OutRunners: frame %llu radio song %d state %d\n", (unsigned long long) board->frame(), s, rc);
+            song = s; c = rc;
+        }
         if (course_ == KENYA && !kenya_goal && board->read8(A_GOAL) == 0xFF)
         {
             for (const auto& w : KENYA_BOOKKEEPING) board->write8(w.first, w.second);

@@ -16,6 +16,7 @@
 #include "globals.hpp"
 #include "frontend/config.hpp"
 #include "engine/oroad.hpp"
+#include "crossover/radio.hpp"
 
 #ifdef WITH_OPENGL
 #include "sdl2/rendergl.hpp"
@@ -162,6 +163,8 @@ uint32_t Video::rgb_of(uint16_t pixel)
     if (ext_px)
     {
         if (pixel > EXT_COLOURS && pixel <= EXT_COLOURS + XCAR_COLOURS) return car_rgb[pixel - EXT_COLOURS - 1];  // crossover: MAD POWER on another board
+        if (pixel > EXT_COLOURS + XCAR_COLOURS && pixel <= EXT_COLOURS + XCAR_COLOURS + RADIO_COLOURS)
+            return radio_rgb[pixel - EXT_COLOURS - XCAR_COLOURS - 1];                                       // crossover: the radio's title
         return pixel <= EXT_COLOURS ? ext_rgb[pixel] : 0;
     }
     return own_rgb(pixel);
@@ -170,6 +173,8 @@ uint32_t Video::rgb_of(uint16_t pixel)
 uint32_t Video::own_rgb(uint16_t pixel)
 {
     if (pixel > EXT_COLOURS && pixel <= EXT_COLOURS + XCAR_COLOURS) return car_rgb[pixel - EXT_COLOURS - 1];   // crossover
+    if (pixel > EXT_COLOURS + XCAR_COLOURS && pixel <= EXT_COLOURS + XCAR_COLOURS + RADIO_COLOURS)
+        return radio_rgb[pixel - EXT_COLOURS - XCAR_COLOURS - 1];                                              // crossover
     bool shadow = pixel >= S16_PALETTE_ENTRIES;
     uint32_t adr = (pixel & (S16_PALETTE_ENTRIES - 1)) << 1;
     uint32_t a = (palette[adr] << 8) | palette[adr + 1];
@@ -188,6 +193,11 @@ uint32_t Video::own_rgb(uint16_t pixel)
 void Video::set_car_colours(const uint32_t* rgb)
 {
     for (uint32_t i = 0; i < XCAR_COLOURS; i++) { car_rgb[i] = rgb[i]; renderer->set_rgb(EXT_COLOURS + 1 + i, rgb[i]); }
+}
+
+void Video::set_radio_colours(const uint32_t* rgb)
+{
+    for (uint32_t i = 0; i < RADIO_COLOURS; i++) { radio_rgb[i] = rgb[i]; renderer->set_rgb(EXT_COLOURS + 1 + XCAR_COLOURS + i, rgb[i]); }
 }
 
 void Video::set_external(const uint16_t* px, int w, int h, const uint32_t* rgb)
@@ -225,6 +235,7 @@ void Video::prepare_frame()
                 pixels[y * config.s16_width + x] = (x < xo || sx >= ext_w || y < yo || sy >= ext_h)
                     ? (uint16_t) EXT_COLOURS : ext_px[sy * ext_w + sx];
             }
+        xradio.draw(pixels, config.s16_width, config.s16_height);  // crossover: OUTRUNNERS RADIO's title
         return;
     }
 
@@ -247,6 +258,7 @@ void Video::prepare_frame()
             (hwroad.*hwroad.render_foreground)(pixels);
         sprite_layer->render(8);
         tile_layer->render_text_layer(pixels, 1);
+        xradio.draw(pixels, config.s16_width, config.s16_height);  // crossover: OUTRUNNERS RADIO's title
      }
 }
 

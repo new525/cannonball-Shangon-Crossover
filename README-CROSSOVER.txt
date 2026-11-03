@@ -6,7 +6,7 @@ Super Hang-On's bike ride OutRun's courses, OutRun's Ferrari drive Super
 Hang-On's own courses (on an emulated Super Hang-On board), and either of
 them, or Hang-On's own bike, race Hang-On's course (on an emulated Hang-On
 board), with all three games' race music, Cool Riders' cover of Hang-On's
-theme and OutRunners' covers of OutRun's music. Non-commercial; see
+theme and OutRunners' radio (its songs and DJ). Non-commercial; see
 "Licences" below.
 
 No game ROMs are included. You need your own copies.
@@ -17,6 +17,13 @@ Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 Changes since 0.8.1 (not yet released)
 --------------------------------------
+- OUTRUNNERS RADIO replaces the four OutRunners songs in the music
+  selection: OutRunners' own in-race radio, ported from its code, with its
+  ten songs and its DJ (Mega Radio Station), changed mid-race with the d-pad
+  as with OutRunners' DJ/MUSIC, << and >> buttons (see Music). Its title
+  slides in at the bottom of the screen as in OutRunners. A saved choice of
+  one of the old four songs becomes OUTRUNNERS RADIO. On OutRunners' own
+  courses the same d-pad directions press its radio buttons.
 - New race setup option GEARBOX (AUTOMATIC / MANUAL), shown while
   OUTRUNNERS MAD POWER is the vehicle: MANUAL gives its 6-speed box (GEAR1
   down, GEAR2 up) whatever the gear button setting. It used to follow the
@@ -330,6 +337,9 @@ Main menu > PLAY GAME opens the race setup:
               Ferrari or Super Hang-On's bike; not Hang-On's bike).
     MUSIC     any of the tracks below (Music), previewed as you choose, or
               "CHOOSE ON THE RADIO" for OutRun's in-car radio screen.
+              OUTRUNNERS RADIO: OutRunners' radio, changed with the d-pad
+              in the race (see Music). OutRunners' own courses always play
+              OutRunners' own radio (its buttons on the same d-pad).
 Up/down moves, left/right (or select) changes a setting. Your choices are
 saved in config.xml (section <crossover>).
 
@@ -349,11 +359,30 @@ Music
 On the music selection screen, steer (or use left/right) through the list:
 OutRun's three tracks, then Super Hang-On's Outride a Crisis, Sprinter,
 Winning Run and Hard Road, then Hang-On's race music ("HANG ON"), then Cool
-Riders' cover of it ("HANG ON THEME OF LOVE"), then OutRunners' covers of
-Magical Sound Shower, Passing Breeze, Splash Wave and Last Wave. Each one
-plays on an emulated copy of its own game's sound board. The covers' levels
-are matched to OutRun's own tracks (a design choice: there is no arcade
-reference for levels between different games' boards).
+Riders' cover of it ("HANG ON THEME OF LOVE"), then "OUTRUNNERS RADIO". Each
+one plays on an emulated copy of its own game's sound board. The covers'
+levels are matched to OutRun's own tracks (a design choice: there is no
+arcade reference for levels between different games' boards).
+
+OUTRUNNERS RADIO is OutRunners' in-race radio, ported from OutRunners' own
+code. It starts on Splash Wave (the song OutRunners gives its car MAD POWER;
+the other vehicles count as MAD POWER). Its ten songs, in OutRunners' order:
+Magical Sound Shower, Passing Breeze, Splash Wave, Picture the Rivers, Blow
+Your Cool, Looking for the Rainbow, Speed King, Adventure, Sonic Control,
+Last Wave (after the last comes the first again). In a race the d-pad (or
+the up/down keys) is OutRunners' radio buttons:
+    UP     DJ/MUSIC: Mega Radio Station (the DJ talks over the station);
+           in Mega Radio Station any radio button goes back to the song
+    DOWN   >>: the next song
+    LEFT   <<: the song before   } only with analogue steering (a wheel
+    RIGHT  >>: the next song     } or a stick); otherwise they steer
+    << and >> together (LEFT with RIGHT or DOWN): Jingle Bell
+Each change shows the song's title at the bottom of the screen for about
+three seconds, as OutRunners does, in the lettering of OutRun's radio
+screen. OutRunners' map (its stations by place, the slow-down at its
+branches) is not on the other games' courses: there Mega Radio Station
+plays OutRunners' first station. The radio stops when the music would
+(GAME OVER, the end of a Super Hang-On or Hang-On race, leaving the race).
 
 
 What is reconstructed, and how it was checked
@@ -495,7 +524,11 @@ Not done yet
   compared with the objects as drawn.
 - OUTRUNNERS KENYA: the results show 0 for the four checkpoints before Kenya.
 - On OutRunners' courses the MUSIC choice is not used: OutRunners plays its
-  own radio.
+  own radio (the d-pad works its buttons).
+- OUTRUNNERS RADIO on the other games' courses: the title does not cycle
+  through OutRunners' eight colours (it is in OutRun's radio-screen colours),
+  and OutRunners' radio-panel display (its LCD) is not shown. OutRunners'
+  START (also "next song") is not mapped.
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
 - In widescreen mode, crash objects near the screen edges are hidden early.

@@ -28,6 +28,8 @@ public:
     void render_tile_layer(uint16_t*, uint8_t, uint8_t);
     void render_text_layer(uint16_t*, uint8_t);
     void render_all_tiles(uint16_t*);
+    // Crossover: a tile's converted rows (8 x 32 bits, a nibble a pixel, the leftmost at the top)
+    const uint32_t* tile_data(uint16_t n) const { return tiles + ((n & (NUM_TILES - 1)) << 3); }
 
 private:
     int16_t x_clamp;

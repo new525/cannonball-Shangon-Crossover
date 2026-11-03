@@ -5,6 +5,7 @@
 #include "crossover/romset.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 
 static const uint32_t CMD_A = 0x0700, CMD_B = 0x0800;   // shared RAM: monitor A's and B's command
 static const uint8_t  STOP = 0x1f;
@@ -33,16 +34,16 @@ bool OutRunnersMusic::init(int rate)
 
 void OutRunnersMusic::queue(uint32_t off, uint8_t data)
 {
-    // one frame after the last queued command, as the sound test writes them
+    // now, or one frame after the last queued command if that has not been written yet
     int64_t t = cmds.empty() ? board->now() : cmds.back().t + ORSound::CLOCK / 60;
     if (t < board->now()) t = board->now();
     cmds.push_back({ t, off, data });
 }
 
-void OutRunnersMusic::play(uint8_t song)
+void OutRunnersMusic::start()
 {
     if (!ready) return;
-    if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "ormusic: play %02x (state %d)\n", song, (int) state);
+    if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "ormusic: start (state %d)\n", (int) state);
     if (state == OFF)
     {
         board->power_on();
@@ -51,10 +52,21 @@ void OutRunnersMusic::play(uint8_t song)
         ym.clear(); pcm.clear(); cmds.clear();
         board->run_until((int64_t)(BOOT_TIME * ORSound::CLOCK));   // the sound program's start-up
     }
-    queue(CMD_A, STOP);
-    queue(CMD_B, STOP);
-    queue(CMD_A, song);
+    cmds.clear();                          // (a stop's commands not sent yet)
+    queue(CMD_A, STOP);                    // the race setup's ($12277)
     state = RUNNING;
+}
+
+void OutRunnersMusic::command(uint8_t c)
+{
+    if (!ready || state != RUNNING) return;
+    queue(CMD_A, c);
+}
+
+void OutRunnersMusic::shared(uint32_t off, uint8_t v)
+{
+    if (!ready || state != RUNNING) return;
+    queue(off & 0x1FFF, v);
 }
 
 void OutRunnersMusic::stop()
@@ -70,7 +82,17 @@ void OutRunnersMusic::stop()
 
 void OutRunnersMusic::mix(int32_t* mix, int samples, int fps)
 {
-    if (!ready || state == OFF) return;
+    if (!ready) return;
+    // Debug (env CB_ORMUSIC_RAW=<file>): this board's output alone, raw stereo int32, every frame
+    static FILE* raw = nullptr;
+    static const char* rawname = getenv("CB_ORMUSIC_RAW");
+    static std::vector<int32_t> own;
+    if (rawname) { own.assign((size_t) samples * 2, 0); if (!raw) raw = fopen(rawname, "wb"); }
+    if (state == OFF)
+    {
+        if (raw) fwrite(own.data(), 4, (size_t) samples * 2, raw);
+        return;
+    }
     if (fps <= 0) fps = 60;
     if (state == RUNNING || state == STOPPING)
     {
@@ -98,6 +120,12 @@ void OutRunnersMusic::mix(int32_t* mix, int samples, int fps)
         board->ym0.clear(); board->ym1.clear(); board->pcm0.clear(); board->pcm1.clear();
         if (state == STOPPING && board->now() >= stop_until) state = PAUSED;
     }
-    if (ym.available()) ym.pull((double) board->ym_rate() / out_rate, mix, samples);
-    if (pcm.available()) pcm.pull((double) board->pcm_rate() / out_rate, mix, samples);
+    int32_t* out = rawname ? own.data() : mix;
+    if (ym.available()) ym.pull((double) board->ym_rate() / out_rate, out, samples);
+    if (pcm.available()) pcm.pull((double) board->pcm_rate() / out_rate, out, samples);
+    if (rawname)
+    {
+        for (int i = 0; i < samples * 2; i++) mix[i] += own[i];
+        if (raw) fwrite(own.data(), 4, (size_t) samples * 2, raw);
+    }
 }

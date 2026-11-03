@@ -11,7 +11,8 @@
     - Hang-On's board: plays Hang-On's race music when selected (slots 1-7 are 0).
     A board's music is stopped the way its game stops everything: by resetting its Z80.
     - Cool Riders' board (crmusic.hpp): its cover of Hang-On's theme, when selected.
-    - OutRunners' board (ormusic.hpp): its covers of OutRun's music, when selected.
+    - OutRunners' board (ormusic.hpp): OUTRUNNERS RADIO, when selected: OutRunners' radio
+      (radio.hpp) plays its songs and its DJ on it.
 ***************************************************************************/
 #pragma once
 
@@ -39,9 +40,11 @@ public:
     // Cool Riders' music (its sound test's song numbers); stops the other boards' music first
     void play_coolriders(uint8_t song);
     bool coolriders_ready() const { return cr.ready; }
-    // OutRunners' music (its sound test's song numbers); stops the other boards' music first
-    void play_outrunners(uint8_t song);
+    // OUTRUNNERS RADIO (crossover/radio): OutRunners' radio from a race's start; stops the other
+    // boards' music first
+    void play_outrunners_radio();
     bool outrunners_ready() const { return orun.ready; }
+    OutRunnersMusic& outrunners() { return orun; }
     void stop_music();                         // all boards (OutRun's FM_RESET)
     void reset_packets();
 

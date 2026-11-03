@@ -1,18 +1,13 @@
 # OutRunners in the crossover
 
-OutRunners (Sega, 1992, System Multi 32) has covers of OutRun's music. Four of them are in the
-music selection, played by OutRunners' own sound program on an emulated copy of the board's sound
-side:
-
-| Title in the program | OutRunners sound test (monitor A) |
-|---|---|
-| OUTRUNNERS MAGICAL SOUND SHOWER | `$01` |
-| OUTRUNNERS PASSING BREEZE | `$02` |
-| OUTRUNNERS SPLASH WAVE | `$03` |
-| OUTRUNNERS LAST WAVE | `$12` |
-
-These are the numbers its in-race radio uses for those songs (MAME 0.264, the radio cycled through
-in a race).
+OutRunners (Sega, 1992, System Multi 32) has an in-race radio: ten songs (covers of OutRun's
+Magical Sound Shower, Passing Breeze, Splash Wave and Last Wave among them) and a DJ, Mega Radio
+Station, changed with the cabinet's DJ/MUSIC, << and >> buttons. The music selection's
+**OUTRUNNERS RADIO** is that radio (section 11): OutRunners' own radio code, transcribed, playing on
+OutRunners' own sound program on an emulated copy of the board's sound side, the buttons on the d-pad.
+Up to 0.8.1 the selection had four of the songs as separate entries (OUTRUNNERS MAGICAL SOUND
+SHOWER, PASSING BREEZE, SPLASH WAVE, LAST WAVE: commands `$01`, `$02`, `$03`, `$12`); a saved choice of
+one of them is now OUTRUNNERS RADIO.
 
 OutRunners' courses are in the program too, on an emulated copy of the whole board (section 6):
 **OUTRUNNERS FULL COURSE** (the game's own map, your choice at each checkpoint) and **OUTRUNNERS
@@ -70,10 +65,12 @@ speaker, the outputs 0 to the right. In a race and in sound test monitor A, the 
 The main program talks to the sound program only through the shared RAM, which the Z80 polls:
 
 - **Commands:** a byte at main `$700700` for monitor A (at `$700800` for monitor B). The sound test
-  sends `$1F` (stop) to A, `$1F` to B, then the song number to A, one frame apart. The program
-  does the same.
+  sends `$1F` (stop) to A, `$1F` to B, then the song number to A, one frame apart. In a race the
+  game writes `$1F` to A as the race is set up (`$12277`), then its radio's commands to A, one a
+  tick (`docs/OUTRUNNERS-RE.md` 14.5). The program does what the race does (section 11); up to
+  0.8.1 it did what the sound test does.
 - **Boot:** the main CPU releases the Z80 from reset 0.0888 s after power-on; commands are taken
-  from 0.05 s after the release. The program powers the board on when the first song is chosen,
+  from 0.05 s after the release. The program powers the board on when the radio first starts,
   runs it to 0.05 s after the release, then sends the commands.
 - **Stop:** `$1F` alone fades the song out in about 0.5 s. The program sends it to A and B and
   pauses the board (its time stops) one second later.
@@ -234,7 +231,8 @@ board (`tools/ortrace`, `run_all.sh` reruns them).
 **Not done yet:**
 - Hang-On's bike on OutRunners' courses (section 8.10), and MAD POWER on Super Hang-On's and Hang-On's
   courses (section 9.9; it drives OutRun's, section 9).
-- The menu's MUSIC choice: OutRunners' courses play OutRunners' own radio.
+- The menu's MUSIC choice: OutRunners' courses play OutRunners' own radio (its buttons on the d-pad,
+  section 11.7).
 
 ## 7. OutRun's Ferrari on OutRunners' courses (`crossover/orvehicle.*`)
 
@@ -1061,3 +1059,200 @@ Harness runs (`-headless -script`), Linux build, widescreen, 60 fps, `CB_MP_TRAC
 - The boards' worlds were made for bikes (Super Hang-On's: 279 km/h with its supercharger); at MAD POWER's
   speeds (up to 451 km/h automatic) their scenery and rivals approach by their own rules, checked only by
   the runs of 10.7.
+
+## 11. OUTRUNNERS RADIO (`crossover/orradio.*`, `crossover/radio.*`)
+
+The music selection's OutRunners entry is OutRunners' in-race radio: its ten songs, its DJ (Mega
+Radio Station) and its titles, changed mid-race with the d-pad as OutRunners' DJ/MUSIC, << and >>
+buttons change them. The radio's code was read from OutRunners' program and checked on the emulated
+board (`docs/OUTRUNNERS-RE.md` section 14), then transcribed as C++ and proven identical to the
+original tick by tick (11.8).
+
+### 11.1 The port
+
+- `crossover/orradio.*` (`orradio::Radio`): the transcription, with no dependence on the program: the
+  radio object (`$191E0`, `$1923F`, `$1924C`-`$19550`), its title objects (`$1958E`), the voice
+  clock of `$18C45` (`$208F30`, `$208F34`), the command queue (`$12124`) and its drain (`$3F8DA`), the
+  random numbers (`$120B1`). Its inputs are what the original reads from the rest of the game
+  (`orradio::In`: the new presses `$208118`, the goal and GAME OVER, the route node and stage, the
+  start countdown, the branch's flag `$208F0F`; `orradio::Race`: the car and the cars introduced).
+  The ROM's tables are transcribed with their addresses (songs, titles, the first song by car, the
+  stations by node, the voices and their script lengths, the runs of remarks); `tools/orradiotest`
+  uses them against the ROM's own code.
+- `crossover/radio.*` (`XRadio`, `xradio`): the radio on OutRun's, Super Hang-On's and Hang-On's
+  courses: the d-pad into the presses, one radio tick per 30 Hz tick of the program, the commands to
+  OutRunners' sound board, the title drawn over the frame.
+- `crossover/ormusic.*`: the board (section 2) now takes the race's commands: `start()` (powered on
+  or resumed, then the race setup's `$1F`), `command()` (to `$700700` at the board's current time),
+  `shared()` (another shared-RAM byte: `$700918`), `stop()` as before. The sound test's way of
+  playing a song (`play()`) is gone with the four separate entries.
+- The music list (`main.cpp`): one entry, `OUTRUNNERS RADIO` (`music_t::IS_OUTRUNNERS`). A saved
+  `music_title` of one of the old four (`OUTRUNNERS MAGICAL SOUND SHOWER`, `... PASSING BREEZE`,
+  `... SPLASH WAVE`, `... LAST WAVE`) is read as `OUTRUNNERS RADIO`.
+- `OMusic::play_music` starts it (the race setup's preview, OutRun's radio screen, the race's start,
+  Super Hang-On's and Hang-On's race music command); `CrossoverAudio::stop_music` stops it with the
+  board, so every existing stop rule applies.
+
+### 11.2 The d-pad (design decision)
+
+OutRunners' radio buttons are three per player; the program's free inputs in a race are the d-pad's
+up and down (and the up/down keys), and left and right when the steering is analogue (with digital
+steering they steer). Mapped as OutRunners' `P2_A` presses, the edges taken at the program's 30 Hz
+tick as OutRunners takes them at its 30 Hz player tick:
+
+| d-pad | OutRunners | Music mode (state 1) | Mega Radio Station (states 2-8) |
+|---|---|---|---|
+| up | DJ/MUSIC (`$208118` bit 8) | `$1F`, Mega Radio Station | `$1F`, back to the song |
+| down | >> (bit 10) | `$1F`, the next song (9 -> 0) | `$1F`, back to the song |
+| left (analogue steering) | << (bit 9) | `$1F`, the song before (0 -> 9) | `$1F`, back to the song |
+| right (analogue steering) | >> (bit 10) | as down | as down |
+| left with right or down, same tick | << and >> | Jingle Bell (`$0D`, no `$1F`, the song index kept) | `$1F`, back to the song |
+
+OutRunners' START (bit 6: the next song in music mode, nothing in Mega Radio Station) is not
+mapped: START has other uses in the program, and down already is >>.
+
+"Back to the song" is the song that was playing (`$209014`), from its start. The d-pad is the
+radio's only while the player drives (OutRun's game state `GS_INGAME`; Super
+Hang-On's and Hang-On's modes while they run); in the menus, on OutRun's radio screen and during
+OutRun's start sequence the radio plays but takes no presses.
+
+### 11.3 The start (design decisions)
+
+- **The first song:** OutRunners' own rule, the car's song (`$1968D[car]`). The program's vehicles
+  other than MAD POWER count as MAD POWER, as on OutRunners' courses (the run-up chooses MAD POWER for
+  them, section 7.1): the radio starts on Splash Wave (`$03`) whatever the vehicle.
+- **The race it introduces** (the DJ's greeting is followed by the cars of the race, by place, then
+  `$83`): OutRunners' single-player race with MAD POWER (`$20FC1F` = 1, the car 0 in place 0, as read
+  on the board): `$98` (place 1), `$76` (MAD POWER).
+- **The commands at the start:** the race setup's `$1F` to `$700700` (`$12277`) when the radio
+  starts, then the radio's first tick queues the song, which reaches the board at the end of that tick
+  (in OutRunners the two are about 300 frames apart, the start sequence between them; the program
+  has no OutRunners start sequence). The radio starts when the host's music starts: OutRun's game
+  start (`GS_INIT_GAME`), the race music command of Super Hang-On's or Hang-On's board.
+- The random state `$208F00` starts at 0, its value as an OutRunners race starts (read on the board).
+
+### 11.4 OutRunners' map on the other courses (design decisions)
+
+The radio reads OutRunners' map: Mega Radio Station's station is the route node's (`$196C4`), and in
+the slow-down before a branch (`$208F0F`) the DJ announces the branch (`$E0`, `$EE`, the volume byte
+`$700918`) and then the new node's station. OutRun's, Super Hang-On's and Hang-On's courses are not
+on that map, so the program gives the radio the start of it: node 0, stage 0, no slow-down. Mega
+Radio Station plays the pre-stage's station (`$F3`) throughout, and the branch's announcements do not
+happen (their code is transcribed and proven on the board, 11.8). The goal and GAME OVER inputs stay
+clear: the music's own stop rules end the radio (OutRun's FM_RESET after GAME OVER or the goal, the
+command `$00` of Super Hang-On's and Hang-On's boards, leaving the mode).
+
+The DJ's remarks are chosen with OutRunners' random generator (`$120B1`); in OutRunners five other
+parts of the game draw from it too, so a remark's timing in the program follows the generator alone.
+
+### 11.5 The title (design decision)
+
+OutRunners draws the title as sprites in its own 8x8 font, cycling eight colours, at y = 200
+(`docs/OUTRUNNERS-RE.md` 14.6). The program keeps OutRunners' motion exactly (the title objects are
+the transcription's: in from the right over 20 ticks, held 60, out to the left over 20; a new title
+sends the old one off at 40 pixels a tick; x as OutRunners computes it on its 320-pixel screen,
+centred with the record's offset) and draws it in OutRun's own lettering for song titles, the radio
+screen's (`OHud::blit_text_big`: 8x16 letters, text tiles `$A0` + 2n over `$A1` + 2n; the 16x16 note,
+tiles `$7A`-`$7D`, in place of OutRunners' 8-pixel note and the space after it, the same width), in
+OutRun's text palette 5 (its colours from the ROM at `$16ED8`, as `OTiles::setup_palette_hud` loads
+them; the radio screen uses that palette for its titles), lower case as upper case, 16 pixels high
+centred on OutRunners' row (y = 196). No colour cycling.
+
+It is drawn over the finished frame (`Video::prepare_frame`, `XRadio::draw`), not into OutRun's text
+RAM, so it cannot change the host's HUD: OutRun's own HUD is untouched underneath and reappears as the
+title moves. It is clipped to the 320-pixel screen centred in the frame (in widescreen the original
+4:3 area, as OutRun's text layer and the other boards' text layers are), doubled in hi-res. Its eight colours have their
+own frame-buffer values after MAD POWER's (`RADIO_COLOURS`, `globals.hpp`), so they are the same on
+OutRun's screen and on the other boards'. It is drawn while a race is on screen (OutRun's states from
+the car driving in to the bonus count; Super Hang-On's and Hang-On's modes), not in the menus or on
+OutRun's radio screen.
+
+### 11.6 Timing
+
+One radio tick per 30 Hz tick of the program (`cannonball::tick_frame`, before the state's own tick
+so that the d-pad's edges are the tick's; not while OutRun's engine is paused), the voice clock
+after it, then one command from the queue to the board, at the board's current time (the board runs
+in step with the audio, section 2). OutRunners' queue holds the car's sounds and the race's voices
+too; the program's holds the radio's only (MAD POWER's sounds go to its own board, section 9.6), so a
+command never waits behind another.
+
+### 11.7 OutRunners' own courses (`crossover/ormode`)
+
+The same d-pad directions press the emulated board's radio buttons for player 1 (`P2_A`: up bit 0
+DJ/MUSIC, down bit 2 >>, with analogue steering left bit 1 << and right bit 2 >>), held while the
+direction is held; OutRunners' own radio does the rest. With OUTRUNNERS RADIO chosen this is just
+OutRunners; with another music choice OutRunners' own radio still plays, as before: OutRunners' music
+and its race sounds share one sound board and one command queue, and replacing its music with another
+board's would need its music commands filtered from the car's, which was not done.
+
+### 11.8 Checked
+
+- **The transcription against OutRunners** (`tools/orradiotest`, `run_all.sh`; `docs/OUTRUNNERS-RE.md`
+  14.9): five scenarios on the emulated board, 9,800 frames each (from power-on through a race with MAD
+  POWER to GAME OVER): `buttons` (>> x 3, START, << x 7 through the wrap 0 -> 9, >> x 2 through 9 -> 0,
+  << with >> (Jingle Bell), DJ/MUSIC in the branch's slow-down, back, DJ/MUSIC, back, DJ/MUSIC to GAME
+  OVER), `dj` (DJ/MUSIC from the start: the greeting, the car's place and name, the branch's
+  announcements, the remarks), `branch` (the car stopped in the slow-down: `$EE`, the wait for the
+  branch, `$7F` to `$700918`), `two` (a two-player race: two cars introduced), `fast` (presses on
+  consecutive ticks, a held button). 13,331 radio ticks, 0 differences: the radio's state, every
+  command it queued and every `$700918` write at each tick; all 347 commands written to `$700700`
+  (180 the radio's, the rest the car's and the race's, which the model's queue was given) identical in
+  value and frame; 1,786 title-object ticks (state, colour count, timer, speed, x, offset) and the voice
+  clock `$208F30`/`$208F34` at every tick. 335 of the 336 instructions of the transcribed routines
+  executed (not: `$19478`, skipping an empty place in the cars introduced). The random state was never
+  changed by the game's other callers in these runs; the game's own voices (4 or 5 a run) were given to
+  the model's voice clock.
+- **The same presses on the board** (`tools/ortrace` e16, `$700700` with the writing PC; frame:
+  value): the race's first song 2870 `$03`; >> at 3300: 3302 `$1F`, 3304 `$04`; >> at 3500: 3502 `$1F`,
+  3504 `$05`; << at 3700: 3702 `$1F`, 3704 `$04`; DJ/MUSIC at 3900 (in the slow-down): 3902 `$1F`,
+  3904 `$E0`, 3906 `$B0`; DJ/MUSIC at 4100: 4102 `$1F`, 4104 `$04`. The program's radio sends the
+  same commands in the same order with the same spacing (the press's tick: `$1F`; the next tick: the
+  song), for example on OutRun's full route (`CB_RADIO_LOG`, program frames, 60 fps): start 349 `$03`;
+  >> at 900: 901 `$1F`, 903 `$04`; >> 1501 `$1F`, 1503 `$05`; << 2101 `$1F`, 2103 `$04`; DJ/MUSIC at 2700:
+  2701 `$1F`, 2703 `$F3`, 2705 `$B0`, then 3393 `$98`, 3501 `$76`, 3597 `$83` (the greeting's 114-byte
+  script: 344 ticks, as on the board); >> at 3600: 3601 `$1F`, 3603 `$04`; left and down together at
+  4200: 4201 `$0D`.
+- **In the program** (the harness, `-headless`, 60 fps, analogue steering set): the script above on
+  OutRun's full route with the Ferrari, Super Hang-On's Africa with the Ferrari, Hang-On's course with
+  the Ferrari and with Hang-On's own bike. The commands: identical in all four (as above, from the
+  music's start: frame 349, 471, 473, 473). The sound: each segment between two commands compared with
+  the board's own rendering of that song (`tools/ortest`: `$1F`, then the command), at every lag
+  within 0.5 s (4 s from 1.5 s after the command, OutRunners' board alone through `CB_ORMUSIC_RAW` and
+  the program's mix): in all 28 segments of the four runs the best match is the song the command
+  names, in the board's output and in the mix (board alone: correlation 0.12-0.96, the best other song
+  0.04-0.12; the songs repeat note for note only from where the previous song's notes have died away:
+  0.93-0.96 for Picture the Rivers after Mega Radio Station). The titles show in the snapshots
+  (sliding in, held centred at the bottom, "MEGA RADIO STATION", "JINGLE BELL") on all four. The stop: OutRun's full route at frame 6169 (FM_RESET after GAME OVER), Africa at 6949
+  (Super Hang-On's `$00` at the end of the game), Hang-On's course at 8630 and 5110 (with Hang-On's
+  bike): OutRunners' board is silent from 1.5 s after (RMS 0 in all four, from 1,827-2,154 in the
+  second before).
+- **OutRun's stage 1** (time-trial rules): the title over the start line ("SPLASH WAVE"), ">> PICTURE
+  THE RIVERS" sliding in at 916 and held centred at 1000; **OutRun's radio screen**: OUTRUNNERS RADIO
+  chosen with left (the list wraps), the radio previewed (no title on the radio screen) and started
+  again with the race; **a saved `OUTRUNNERS SPLASH WAVE`** (0.8.1's) starts as OUTRUNNERS RADIO and is
+  saved back as such.
+- **OutRunners' Kenya** (MAD POWER, OUTRUNNERS RADIO chosen; `CB_OR_DEBUG` prints `$209014` and
+  C[`$201000`]): the race starts on song 2; down at program frame 900 -> song 3 (board frame 2061),
+  down -> 4, left -> 3, up -> Mega Radio Station (state 2, 3), down -> back to the song (state 0, 1);
+  OutRunners' own title (the note, "Picture the Rivers") on its screen.
+- **Unchanged:** OutRun's own track (MAGICAL SOUND SHOWER) on OutRun's stage 1, OUTRIDE A CRISIS on
+  Africa, SPRINTER on Hang-On's course, Cool Riders' HANG ON THEME OF LOVE on OutRun's stage 1, Africa
+  and Hang-On's course, MAD POWER and the Ferrari on Kenya (2,400 frames each, four snapshots and the
+  WAV): byte-identical before and after (and run twice before: identical). `tools/orbtest` session 1
+  (3,000 frames): RAM identical at every frame, 798,342 I/O accesses identical, 6 of 6 snapshots;
+  `tools/s32vtest` replays: 214 of 214 screens exact; `tools/orcartest` `run_all.sh`: 26 runs, 0
+  differences (83,811 / 83,784 car and gear-box ticks re-synced, 76,099 / 76,072 free-running, 166,114
+  sprite-object draws).
+- The Windows build compiles.
+
+### 11.9 Not done / known issues
+
+- The title is in OutRun's lettering and one palette: OutRunners' own 8x8 font and its eight cycling
+  colours (sprites of OutRunners' sprite ROM) are not used.
+- OutRunners' radio panel (its LCD: the title, the DJ's mouth, digits) and its lamps are not shown.
+- Mega Radio Station plays the pre-stage's station throughout on the other games' courses (11.4); the
+  branch's announcements, transcribed and proven on the board, never happen there.
+- OutRunners' START (next song) is not mapped; with digital steering there is no <<.
+- On OutRunners' own courses another music choice is still not played (11.7).
+- The remarks' random numbers follow the radio alone (11.4); in OutRunners other parts of the game
+  draw from the same generator.

@@ -40,6 +40,9 @@ const uint32_t EXT_COLOURS = 0x3000;
 // Crossover: a foreign car's own colours (OutRunners' MAD POWER on OutRun's courses), frame-buffer values
 // EXT_COLOURS + 1 + 0 .. XCAR_COLOURS - 1
 const uint32_t XCAR_COLOURS = 0x1000;
+// Crossover: OUTRUNNERS RADIO's title (crossover/radio), frame-buffer values
+// EXT_COLOURS + 1 + XCAR_COLOURS + 0 .. RADIO_COLOURS - 1 (OutRun's text palette 5)
+const uint32_t RADIO_COLOURS = 8;
 
 // Number of stages
 const uint16_t STAGES = 15;

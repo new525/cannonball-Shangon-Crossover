@@ -296,10 +296,10 @@ void OMusic::play_music(int index)
             xaudio.play_coolriders((uint8_t) next_track->cmd);
             break;
 
-        case music_t::IS_OUTRUNNERS:
+        case music_t::IS_OUTRUNNERS:            // OUTRUNNERS RADIO (crossover/radio)
             cannonball::audio.clear_wav();
             osoundint.queue_sound(sound::FM_RESET);
-            xaudio.play_outrunners((uint8_t) next_track->cmd);
+            xaudio.play_outrunners_radio();
             break;
     }
 

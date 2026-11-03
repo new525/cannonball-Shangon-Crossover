@@ -7,7 +7,8 @@ ride Super Hang-On's bike on OutRun's courses, drive OutRun's Ferrari on Super H
 race Hang-On's course with the Ferrari or either game's bike, drive OutRunners' courses with its MAD
 POWER, OutRun's Ferrari or Super Hang-On's bike, drive MAD POWER on OutRun's, Super Hang-On's and
 Hang-On's courses, and race to the music of all three games, plus Cool Riders' cover of
-Hang-On's theme and OutRunners' covers of OutRun's music. Super Hang-On's, Hang-On's and
+Hang-On's theme and OutRunners' radio (its ten songs, covers of OutRun's music among them, and its
+DJ, changed mid-race with the d-pad as in OutRunners). Super Hang-On's, Hang-On's and
 OutRunners' courses run on emulated copies of their own boards, and each tune plays on an emulated
 copy of its own game's sound board.
 
@@ -61,7 +62,7 @@ It is a hobby project. It isn't affiliated with or endorsed by Chris White or SE
 | OutRun's Ferrari on Super Hang-On's courses (handling, crash, skids, smoke, engine sound) | Done |
 | Hang-On's course on an emulated Hang-On board, with the Ferrari, either game's bike | Done |
 | Cool Riders' cover of Hang-On's theme, on an emulated Cool Riders sound board | Done |
-| OutRunners' covers of OutRun's music, on an emulated System Multi 32 sound board | Done |
+| OutRunners' radio (its songs and DJ, changed mid-race with the d-pad), on an emulated System Multi 32 sound board | Done |
 | OutRunners' full course and Kenya stage with its MAD POWER, on an emulated System Multi 32 board | Done |
 | OutRun's Ferrari on OutRunners' courses (handling, crash, smoke, engine sound; OutRunners' world) | Done |
 | Super Hang-On's bike on OutRunners' courses (physics, crash, knockback, supercharger, engine sound) | Done |
@@ -168,13 +169,22 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   each key-on within a fraction of a millisecond of MAME's (median 0.03 ms).
   The details are in [`docs/CROSSOVER-COOLRIDERS.md`](docs/CROSSOVER-COOLRIDERS.md), together
   with why Cool Riders' courses and bikes are not in (yet).
-- **OutRunners' covers of OutRun's music** (`crossover/orsound.*`, `crossover/ormusic.*`):
-  Magical Sound Shower, Passing Breeze, Splash Wave and Last Wave from OutRunners (1992), played
-  by its own sound program on an emulated copy of the System Multi 32 sound board: the Z80, the
-  YM3438 and the MultiPCM (`crossover/multipcm`, from MAME). Fed the same main-CPU writes as MAME
-  0.264, all 6,989 MultiPCM notes of Magical Sound Shower start at the same microsecond as
-  MAME's; with only the sound-test commands, as the program sends them, within 1.6 ms.
-  The details are in [`docs/CROSSOVER-OUTRUNNERS.md`](docs/CROSSOVER-OUTRUNNERS.md).
+- **OutRunners' music** (`crossover/orsound.*`, `crossover/ormusic.*`): OutRunners' (1992) own
+  sound program on an emulated copy of the System Multi 32 sound board: the Z80, the YM3438 and
+  the MultiPCM (`crossover/multipcm`, from MAME). Fed the same main-CPU writes as MAME 0.264, all
+  6,989 MultiPCM notes of Magical Sound Shower start at the same microsecond as MAME's; with only
+  the sound-test commands, within 1.6 ms.
+- **OUTRUNNERS RADIO** (`crossover/orradio.*`, `crossover/radio.*`): OutRunners' in-race radio,
+  transcribed from its code: its ten songs (Magical Sound Shower, Passing Breeze, Splash Wave,
+  Picture the Rivers, Blow Your Cool, Looking for the Rainbow, Speed King, Adventure, Sonic Control,
+  Last Wave), the DJ's Mega Radio Station, and the title sliding in at the bottom of the screen.
+  On OutRun's, Super Hang-On's and Hang-On's courses the d-pad is the radio's buttons (up DJ/MUSIC,
+  down >>; left << and right >> with analogue steering) and the radio sends OutRunners' sound board
+  the commands OutRunners' main CPU would; on OutRunners' own courses the same d-pad directions
+  press the emulated board's radio buttons. On the emulated board the transcription queued and sent
+  the same commands as OutRunners and moved its titles the same way, tick by tick
+  (`tools/orradiotest`: five scenarios, 0 differences). The details are in [`docs/CROSSOVER-OUTRUNNERS.md`](docs/CROSSOVER-OUTRUNNERS.md)
+  section 11 and [`docs/OUTRUNNERS-RE.md`](docs/OUTRUNNERS-RE.md) section 14.
 - **OutRunners' courses** (`crossover/orboard.*`, `crossover/ormode.*`): the whole System Multi
   32 board emulated (the V70 from MAME's V60/V70 core, System 32 video, I/O chips, ADC, EEPROM,
   the sound board), running OutRunners itself: *OUTRUNNERS FULL COURSE* (its map, your way chosen
@@ -358,8 +368,11 @@ roms\orunners\   epr-15550.ic31, mpr-15551.ic1, mpr-15552.ic2   (OutRunners)
      the side of the road you are on at a checkpoint picks the way) or *OUTRUNNERS KENYA*, with
      MAD POWER, the Ferrari or Super Hang-On's bike.
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks, Cool Riders'
-     *HANG ON THEME OF LOVE* or OutRunners' four covers (it previews as you choose; Cool Riders'
+     *HANG ON THEME OF LOVE* or *OUTRUNNERS RADIO* (it previews as you choose; Cool Riders'
      board takes about half a second to start the first time), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen.
+     *OUTRUNNERS RADIO* starts on Splash Wave (OutRunners' song for MAD POWER) and changes mid-race
+     with the d-pad (see *Controls*). On OutRunners' own courses OutRunners' own radio plays whatever
+     is chosen here, with the same d-pad buttons.
      On Super Hang-On's courses, *CHOOSE ON THE RADIO* takes you to Super Hang-On's own music
      screen instead (choose with the brake, confirm with START); on Hang-On's course it plays
      Hang-On's own race music. The music chosen here also plays in the ENHANCED, ORIGINAL and
@@ -382,6 +395,12 @@ included; when it ends you're back in the menu. The menu key leaves at any time.
 | Space | Gear shift (on any course) | Supercharger (hold it at top speed, as in Super Hang-On) |
 | 5 | Insert coin | Insert coin |
 | 1 | Start | Start |
+
+With *OUTRUNNERS RADIO* (and on OutRunners' courses) the d-pad / up and down keys are OutRunners'
+radio buttons in a race: **up** DJ/MUSIC (Mega Radio Station; any radio button there goes back to
+the song), **down** >> (next song). With analogue steering (a wheel or a stick), **left** is << (the
+song before) and **right** >> too; left with right (or down) plays Jingle Bell, as << and >> together
+do in OutRunners. With digital steering left and right steer, so there is no <<.
 
 Keys can be changed under **SETTINGS > CONTROLS > REDEFINE KEYS**. Gamepads and analog wheels
 work as in Cannonball.
@@ -435,6 +454,10 @@ has only been built and tested on Windows (MinGW-w64) and Linux.
   flat-road heights.
 - The bike on OutRunners' courses gets OutRun's off-road smoke (as on OutRun's courses), not Super
   Hang-On's dust, and OutRunners' roadside hit areas have not been compared with the objects as drawn.
+- *OUTRUNNERS RADIO* on OutRun's, Super Hang-On's and Hang-On's courses: the title is in OutRun's
+  radio-screen lettering and colours (OutRunners cycles its own eight colours), OutRunners' radio-panel
+  LCD is not shown, and Mega Radio Station plays OutRunners' first station throughout (its stations
+  belong to places on OutRunners' map). With digital steering there is no << (left and right steer).
 - Hang-On's bike stays on Hang-On's course: it exists only as Hang-On's program on its emulated board,
   and its tasks have not been rebuilt as code that can run in another game's world, as Super Hang-On's
   were.

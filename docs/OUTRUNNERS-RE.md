@@ -101,7 +101,8 @@ in list order with `R20` = the object. Player 1's list in a race (frame 3201, e1
 | `$201800` | `$99B8` | the player car's sprites (section 5) |
 | `$202300`, `$201100`.. | `$12C17` | roadside objects (Read: they write sprites through `$FE04`) |
 | `$202F00`, `$203200`, `$203300` | `$12DF0` | roadside objects (Read) |
-| others | `$12A5A` (`$200800`), `$12968`, `$139D8`, `$18E1E`, `$1924C`, `$CE2C`, `$14374`, `$14460`, `$13228`, `$12AE8` | not identified (`$200800`, `$202300`, `$202F00` disabled: no visible change at that moment) |
+| `$201000` | `$1924C` | the radio (section 14); its title objects run `$1958E` |
+| others | `$12A5A` (`$200800`), `$12968`, `$139D8`, `$18E1E`, `$CE2C`, `$14374`, `$14460`, `$13228`, `$12AE8` | not identified (`$200800`, `$202300`, `$202F00` disabled: no visible change at that moment) |
 
 ### The player car's tick (`$715C`, state `C[$200400]`) (Read; the variables are confirmed in section 2)
 
@@ -619,6 +620,9 @@ What the experiments support:
   `race_mp.inc`: player 1 into a race with MAD POWER, automatic) and writes `<name>.txt` and the
   screenshots into `<out dir>` (about 5 minutes in all on a 2.7 GHz Xeon; e15, the longest, 23,000
   frames). The results quoted above are theirs.
+- Numbers in a script are decimal unless written `$hex` or `0xhex` (`watch 208080` watches the
+  decimal address 208,080).
+- `tools/orradiotest` (section 14.9): the radio's transcription against the board, tick by tick.
 
 ## 10. Not established
 
@@ -975,3 +979,265 @@ and its fields with the object's at `$9E48` (mode a: loaded from the board each 
 gear-box ticks, mode b 76,099 and 76,072, 0 differences; the sprite object 83,057 draws in each mode,
 0 differences (2,403 with the start's marker: fields only). Coverage of the transcribed routines
 (now 1,713 instructions): 1,642 executed over the set.
+
+## 14. The radio (crossover/orradio)
+
+What the radio buttons do in a race, read from the code and checked on the board (`tools/ortrace`
+e16, e17), then transcribed (`crossover/orradio`) and proven identical to the original tick by tick
+(`tools/orradiotest`, 14.9). Player 1's addresses. Used by `docs/CROSSOVER-OUTRUNNERS.md` section 11.
+
+### 14.1 The buttons and the radio object (Confirmed: e16)
+
+The cabinet's radio has three buttons per player: DJ/MUSIC, << and >> (MAME: `P2_A` bits 0, 1, 2,
+active low; the radio panel also has an LCD, driven by the outputs, see 14.8). The input code
+(`$C5A`) turns the input word into new presses at `$208118` (16 bits, set for the one tick after the
+press): bits 8, 9, 10 = DJ/MUSIC, <<, >>; bit 6 = START. e16: `P2_A` bit 2 held from frame 3300 to
+3305 gives `$208119` = 4 at 3301 and 0 at 3303; START (pressed at 700) gives `$208118` = `$40` at 701.
+
+The radio is an object (`$201000` in player 1's list), created as the race starts (frame 2573 in
+`race_mp.inc`) with the routine `$191E0`:
+
+```
+0191e0: movea.b 80[R20], R10
+0191e5: not.w   #0, [R10+]                ; 80-87[R20] := $FF: the cars to introduce, by place
+0191e9: not.w   #0, [R10+]
+0191ed: movea.b 1F[308[R25]], R10         ; $20FC1F: the race's cars (1 alone), then their numbers
+0191f4: movz.bw [R10+], R9
+0191f7: mov.b   R9, 88[R20]
+0191fc: movz.bw [R10+], R0
+0191ff: movz.bw 30[R24](R0), R1           ; $20E030[car number]: its place
+019207: mov.b   1C49[R24](R0), 80[R20](R1)    ; 80[place] := the car's model ($20FC49 + $80 x number)
+019211: dbr     R9, 191FC
+019215: movz.bw 1[R25], R0
+019219: mov.b   30[R24](R0), 9[R20]       ; 9[R20]: the player's place
+019220: mov.b   #0, F0F[R25]
+019226: movz.bw 60[R23], R0
+01922a: mov.b   1968D[PC](R0), 14[R23]    ; $209014, the song: by the car (MAD POWER: 2, Splash Wave)
+019232: mov.b   A1[R25], A[R20]           ; the route node
+019239: movea.b 1923F[PC], 4[R20]
+01923f: test.h  10[0[R23]]                ; the car's start countdown 10[$200400]: wait
+019243: bne     19550
+019246: movea.b 1924C[PC], 4[R20]         ; then every tick: $1924C
+```
+
+`$1968D` (the first song by car 0-7): 2, 0, 6, 3, 4, 8, 5, 7. e16: `$209014` := 2 at 2573; the
+song's command `$03` reaches `$700700` at 2870, the tick after the car's state becomes 2 (driving).
+Single-player race with MAD POWER: `$20FC1F` = 1, `$20FC20` = 0, `$20E030` = 0, so 80[R20] = 0,
+`$FF` x 7, 88 = 1, 9 = 0.
+
+### 14.2 The songs and the buttons (Confirmed: e16, orradiotest)
+
+`$19698`: per song index (`$209014`, 0-9) the command (the entry's top byte) and the title record
+(16-bit x offset that centres the text on the 320-pixel screen, then the text; `` ` `` is the
+note); index 10 is Jingle Bell:
+
+| Index | Command | Record | x | Title |
+|---|---|---|---|---|
+| 0 | `$01` | `$196E4` | 72 | `` ` Magical Sound Shower`` |
+| 1 | `$02` | `$196FE` | 96 | `` ` Passing Breeze`` |
+| 2 | `$03` | `$19712` | 108 | `` ` Splash Wave`` |
+| 3 | `$04` | `$19722` | 80 | `` ` Picture the Rivers`` |
+| 4 | `$05` | `$1973A` | 96 | `` ` Blow Your Cool`` |
+| 5 | `$06` | `$1974E` | 60 | `` ` Looking for the Rainbow`` |
+| 6 | `$07` | `$1976A` | 112 | `` ` Speed King`` |
+| 7 | `$08` | `$1977A` | 116 | `` ` Adventure`` |
+| 8 | `$0E` | `$19788` | 100 | `` ` Sonic Control`` |
+| 9 | `$12` | `$1979A` | 116 | `` ` Last Wave`` |
+| 10 | `$0D` | `$197A8` | 108 | `` ` Jingle Bell`` (<< and >> together) |
+| | | `$197B8` | 88 | `Mega Radio Station` (DJ/MUSIC) |
+
+The radio's tick: the new presses into 2C[R20]; at the goal or GAME OVER (`$209181`, `$209182`) they
+are cleared, the voices stopped (D[R20] := 5) and the routine becomes `$19276` (no more presses).
+Then (`$19289`) the branch's flag `$208F0F` is cleared once the route node `$2080A1` differs from
+A[R20], and the state C[R20] is dispatched (`$192B0`):
+
+```
+0192d4: movz.bw 14[R23], R0               ; state 0: the song
+0192d8: bsr     19551                     ; its title object; R0 := its command
+0192db: jsr     12124                     ; queue it
+0192e1: inc.b   C[R20]
+0192e4: mov.h   2C[R20], R0               ; state 1: the buttons
+0192e8: test1   #8, R0                    ; DJ/MUSIC: state 2, queue $1F
+0192eb: bne     192FD
+0192ed: test1   #9, R0                    ; <<
+0192f0: bne     1930C
+0192f2: test1   #A, R0                    ; >>
+0192f5: bne     19329
+0192f7: test1   #6, R0                    ; START: as >>
+0192fa: bne     19329
+0192fc: rsr
+...
+01930c: test1   #A, R0                    ; << and >> in the same tick: Jingle Bell (no $1F)
+01930f: bne     1934F
+019311: mov.b   #1F, R0
+019315: jsr     12124
+01931b: movz.bw 14[R23], R0
+01931f: dec.b   R0
+019321: bp      19342                     ; 0 -> 9
+019323: mov.b   #9, R0
+...
+019329: mov.b   #1F, R0                   ; >>: $1F, the next song, 9 -> 0
+01932d: jsr     12124
+019333: movz.bw 14[R23], R0
+019337: inc.b   R0
+019339: cmp.b   #A, R0
+01933d: blt     19342
+01933f: mov.b   #0, R0
+019342: mov.b   R0, 14[R23]
+019346: bsr     19551
+019349: jmp     12124
+01934f: movz.bw #A, R0
+019353: bsr     19551
+019356: jmp     12124
+```
+
+So << and >> stop the song (`$1F`) and play the previous / next of the ten, wrapping around; START
+does what >> does (but not in Mega Radio Station, 14.3); << and >> pressed together play Jingle
+Bell without a `$1F` and without changing `$209014`. e16 (`$700700`, frame: value): >> at 3300:
+3302 `$1F`, 3304 `$04`; >> at 3500: 3502 `$1F`, 3504 `$05`; << at 3700: 3702 `$1F`, 3704 `$04`.
+
+### 14.3 DJ/MUSIC: Mega Radio Station (Confirmed: e16, e17, orradiotest)
+
+| C | Code | What |
+|---|---|---|
+| 2 | `$1935C` | the title "Mega Radio Station"; B[R20] := `$29` (the station's name, 14.4); without the branch's flag: the station of the node, `$196C4[$2080A1]`, queued; C := 3 |
+| 3 | `$19384` | the station plays; if the branch's flag is set: `$3F` to `$700918` (`$12256`), 60 ticks |
+| 4 | `$1939E` | the 60 ticks, then `$E0` (also C 2 with the flag), 180 ticks |
+| 5 | `$193B8` | the 180 ticks |
+| 6 | `$193C0` | the flag still set: `$EE` |
+| 7 | `$193D3` | wait for the flag to clear (the branch passed), then `$7F` to `$700918`, 120 ticks |
+| 8 | `$193EC` | the 120 ticks; then (`$193F1`) B[R20] := `$197DD[$2080A4]` (`'0' '0' '0' '0' '.'`, a voice) and the new node's station; C := 3 |
+
+`$196C4`, the station by route node 0-30: `$F3`, `$EC`, `$F1`, `$E8`, `$F2`, `$ED`, `$E9`, `$E7`,
+`$F0`, `$E1`, `$EA`, `$E4`, `$E6`, `$E5`, `$EF`, `$E2`, `$E3`, `$E3`, `$E2`, `$EF`, `$E5`, then `$F4`
+for the ten nodes of the last stage. The branch's flag `$208F0F` is set by `$1488A` in an object of
+the course (`$147F9`, it ramps `$20910A` up to its 84[obj]: the slow-down before a branch) and
+cleared by the radio when the node changes (e16: set at 3865, cleared at 4079 after the branch at
+3959). In states 2-8, after the state's code, the tail `$19414` runs:
+
+```
+019414: mov.b   2D[R20], R0               ; DJ/MUSIC, << or >>: back to the song
+019418: and.b   #7, R0
+01941b: be      19438
+01941d: mov.b   #0, C[R20]                ; state 0 next tick (the same song, $209014)
+019422: mov.b   #4, D[R20]
+019428: mov.w   #0, F30[R25]              ; the voice cut
+01942e: mov.b   #1F, R0
+019432: jmp     12124
+019438: test.w  F30[R25]                  ; a voice being said: B[R20] := 0, nothing else
+01943c: bne     1954B
+01943f: movz.bw D[R20], R0                ; the DJ's voices (14.4)
+```
+
+e16 (in the slow-down): DJ/MUSIC at 3900: 3902 `$1F`, 3904 `$E0`, 3906 `$B0`; DJ/MUSIC at 4100:
+4102 `$1F`, 4104 `$04` (the song again). e17 (DJ/MUSIC at 2950, the pre-stage): 2952 `$1F`, 2954
+`$F3`, 2956 `$B0`; 3644 `$98`, 3752 `$76`, 3848 `$83`; `$3F` to `$700918` at 3867; 3986 `$E0`; after
+the branch 4344 `$F1` (node 2's station) and `$8D` (`'0'` = `$30`); then remarks.
+
+### 14.4 The DJ's voices (Confirmed: e17, orradiotest)
+
+`$1966E` says voice n: `$208F30` := the script of `$197E2[n]` (the low 24 bits) and its command
+(the top byte) queued. `$18C45` (called by the main loop after the objects, `$70C`) walks the script
+while `$208F35` is set (`$FF` in a race): a byte every 3 ticks (`$208F34` counts; the bytes are the
+DJ's mouth on the LCD, `$18D54`), and at the negative byte that ends it `$208F30` := 0. A voice of n
+bytes set at tick t is over at t + 2 + 3n (e17: `$B0`, 114 bytes, 2953 to 3641, 344 ticks). The tail
+waits for it: while `$208F30` is not 0, B[R20] := 0 and nothing else. Then by D[R20]:
+
+| D | Code | Voice |
+|---|---|---|
+| 0 | `$19464` | 0 (`$B0`): the greeting |
+| 1 | `$19471` | the first place 89[R20] onwards with a car (80[place] not negative): 9 + place (`$98`-`$9F`) |
+| 2 | `$19493` | its car's name: 80[place] + 1 (`$76` MAD POWER, `$7A`, `$75`, `$79`, `$74`, `$78`, `$77`, `$7B`); 89 + 1, 88 - 1: D 1 again until 88 is 0 |
+| 3 | `$194B5` | `$2A` (`$83`) |
+| 4 | `$194C2` | B[R20] if not 0 (`$29`: `$82`, the station's name; `$30`: `$8D`); otherwise, in state 3 only, a run of remarks: a random number (`$120B1`) & `$3FF` below 14 picks a run (`$198D8`), one remark a free tick |
+| 5 | `$19550` | none |
+
+The runs (`$19910`-`$19963`) are lists of remark routines: `$1950A` (`$11` + `$20E030[$20FC20]`:
+`$A0`.., by the place of the first car entered), `$1951D` (`$19` + 9[R20]: `$A8`.., by the player's
+place; what the voices say was not listened to: Read), `$19528` (`$83`),
+`$1952F` (`$86`), `$19536` (`$8A`), `$1953D` (`$8C`), `$19544` (`$88`). The random numbers
+(`$120B1`, state `$208F00`, shared with five other callers):
+
+```
+0120b3: mov.w   F00[R25], R1
+0120b8: test.h  R1
+0120ba: bne     120C3
+0120bc: xor.w   #2A6D365B, R1             ; a zero low half is reseeded
+0120c3: mov.w   R1, R0                    ; R1 x 41 (the adds)
+...
+0120db: mov.h   R1, R0                    ; R0 low := (41s) low + (41s) high
+0120de: rot.w   #10, R1
+0120e2: add.h   R1, R0
+0120e5: mov.h   R0, R1
+0120e8: rot.w   #10, R1
+0120ec: mov.w   R1, F00[R25]              ; new state: R0 low << 16 | (41s) low
+```
+
+Other parts of the game say voices through the same `$1966E` (`$4025`, `$531A`, `$65FC`, `$7454` the
+time-up, `$C862`.., `$CBC5`) or `$19668` (which first waits for `$208F30`): the race's start and
+checkpoint voices hold the DJ's next voice back too.
+
+### 14.5 To the sound board (Confirmed: e16, orradiotest)
+
+`$12124` puts a command in player 1's queue (`$208800` read index, `$208801` write index, 32 entries
+from `$208802`; only the attract demo filters it, `$1212C`). The frame interrupt sends one command a
+tick from it (`$3F8DA`: `mov.b [R0](R1), 700700[R10]` at `$3F8EE`, in the VBLANK interrupt that ends
+the player's tick): a command queued in the tick of frame f reaches `$700700` at f + 1, the next one
+at f + 3. The car's sounds and the race's voices share the queue (e16: `$24`, `$53`, `$33`, `$26`
+between the radio's). Nothing else of the radio reaches the sound board but `$700918` (`$12256`:
+`$3F`, `$7F`; player 2's is `$70F118`, Read). The race setup writes `$1F` to `$700700` directly
+(`$12277`, frame 2571) before the radio starts.
+
+### 14.6 The title (Confirmed: e16 screenshots, orradiotest)
+
+`$19551` / `$19561` create a title object (`$11FAF` appends it to the object list, so it runs in the
+same tick, after the radio) with the record and 10[obj] := 60, and set the previous title's 10[obj]
+to 0. The title object (`$1958E`, C[obj]):
+
+| C | Code | What |
+|---|---|---|
+| 0 | `$195B0` | x offset 30[obj] := the record's; x := 210 (20[obj], low half; y = 200 in the high half); speed 12[obj] := 20 |
+| 1 | `$195D5` | slides in: x -= speed, speed -= 1, until x = 0 (20 ticks: 20 + 19 + .. + 1 = 210) |
+| 2 | `$195F6` | held: 10[obj] - 1 each tick (60 ticks, 2 s); 0: C 3; below 0 (replaced): C 4 |
+| 3 | `$19600` | slides out: speed + 1, x -= speed, gone at x <= -210 (20 ticks) |
+| 4 | `$19626` | replaced: x -= 40 a tick, gone at x <= -210 |
+
+Each tick it is drawn at (x + 30[obj], 200), 8 pixels a character, as sprites (`$11C66`), in the
+colours `$197CD[(D[obj] >> 1) & 7]` (eight palettes, a step every 2 ticks). e16 screenshots:
+`e16_3320.png` (sliding in), `e16_3400.png` (held, centred), `e16_3920.png` ("Mega Radio Station"
+sliding in). Other titles (not the radio's) use the same object: `$3482`, `$5307`, `$CBF8`.
+
+### 14.7 The goal and GAME OVER (Read; the path executed in orradiotest)
+
+With `$209181` or `$209182` set the radio takes no more presses and no more voices (14.2), but its
+state machine runs on (a station keeps playing, a song keeps playing); the game's own sounds at the
+goal and GAME OVER are queued by other code.
+
+### 14.8 Not transcribed
+
+The radio panel's LCD (MAME: "interleaved with the dj and << >> buttons is the data that drives the
+lcd display"): `$208F10`-`$208F1F` (the DJ's mouth from `$18D54`; digits written by `$18F05`),
+`$208F40`/`$208F44`/`$208F48` (the title written to it by `$18C9F`-`$18D52`), `$208F20`; the
+DJ/MUSIC and << >> lamps. They change nothing the radio does.
+
+### 14.9 The proof (`tools/orradiotest`)
+
+`build.sh <dir>`; `orradiotest <romdir> [scenario] [-v] [-log file]`; `run_all.sh <binary> <romdir>
+<dir>` runs the scenarios. The board runs from power-on into a race with MAD POWER (`race_mp.inc`)
+and the radio's buttons are pressed on `P2_A` at the scenario's frames. Instruction hooks:
+`$11F3E`/`$11F41` with R20 = `$201000` (the radio's tick: the model takes what the original reads
+at the entry: `$208118`, `$209181`/2, `$2080A1`, `$2080A4`, 10[`$200400`], `$208F0F`; at the return
+its state, every command it queued and its `$700918` writes are compared); `$1214A` outside the
+radio's tick (another part of the game queues a command: it goes into the model's queue too);
+`$3F8DA` (the command the board sends to `$700700` now against the model's); `$19686` outside the
+radio (another part of the game's voice: given to the model's voice clock); `$18C45`/`$18C9F` (the
+voice clock; then `$208F30`, `$208F34` and the radio's title objects compared: C, D, 10, 12, x, the x
+offset). The random state `$208F00` is taken from the board before each radio tick (the game's other
+callers); it was never changed by them in these runs.
+
+Scenarios (9,800 frames each, to GAME OVER and the next attract mode): `buttons` (>> x 3, START,
+<< x 7 through the wrap, >> x 2 through the wrap, << with >>, DJ/MUSIC in the slow-down, back, DJ/MUSIC
+again, back, DJ/MUSIC to GAME OVER), `dj` (DJ/MUSIC from the start), `branch` (the same, the car
+stopped in the slow-down: `$EE`, the wait for the branch), `two` (a two-player race: two cars
+introduced), `fast` (presses on consecutive ticks, a held button). Results: see
+`docs/CROSSOVER-OUTRUNNERS.md` section 11.8.

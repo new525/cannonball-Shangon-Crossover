@@ -40,7 +40,7 @@ struct music_t
     const static int IS_SHANGON = 3; // Crossover: Super Hang-On's board, command cmd
     const static int IS_HANGON  = 4; // Crossover: Hang-On's board, command cmd
     const static int IS_COOLRIDERS = 5; // Crossover: Cool Riders' sound board, song number cmd
-    const static int IS_OUTRUNNERS = 6; // Crossover: OutRunners' sound board, song number cmd
+    const static int IS_OUTRUNNERS = 6; // Crossover: OUTRUNNERS RADIO, OutRunners' radio on its sound board (cmd unused)
     int type;
 
     int cmd;                        // Z80 Command

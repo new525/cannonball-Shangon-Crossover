@@ -3,6 +3,7 @@
 ***************************************************************************/
 #include "crossover/xaudio.hpp"
 #include "crossover/ormode.hpp"
+#include "crossover/radio.hpp"
 #include "crossover/romset.hpp"
 #include <cstdio>
 #include <cstdlib>
@@ -60,6 +61,7 @@ void CrossoverAudio::stop_music()
         if (ch[b].music) stop((Board) b);
     cr.stop();
     orun.stop();
+    xradio.stop();
 }
 
 void CrossoverAudio::play_coolriders(uint8_t song)
@@ -68,16 +70,17 @@ void CrossoverAudio::play_coolriders(uint8_t song)
     for (int b = 0; b < BOARDS; b++)
         if (ch[b].music) stop((Board) b);
     orun.stop();
+    xradio.stop();
     cr.play(song);
 }
 
-void CrossoverAudio::play_outrunners(uint8_t song)
+void CrossoverAudio::play_outrunners_radio()
 {
-    if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "xaudio: OutRunners song %02x (ready %d)\n", song, orun.ready);
+    if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "xaudio: OUTRUNNERS RADIO (ready %d)\n", orun.ready);
     for (int b = 0; b < BOARDS; b++)
         if (ch[b].music) stop((Board) b);
     cr.stop();
-    orun.play(song);
+    xradio.start();
 }
 
 void CrossoverAudio::play_music(Board b, uint8_t cmd)

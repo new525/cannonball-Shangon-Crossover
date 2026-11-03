@@ -1,0 +1,13 @@
+# 17. Mega Radio Station from the start (section 14): DJ/MUSIC at 2950: $1F, the pre-stage's station
+#     $F3 ($196C4[node 0]) and the DJ's greeting $B0; each voice sets $208F30 to its lip-sync script,
+#     which $18C45 walks a byte every 3 ticks; the next voice waits for its end: the car's place
+#     ($98), its name ($76: MAD POWER), $83; at the branch's slow-down ($208F0F, 3865) $3F to
+#     $700918 and 60 ticks later $E0; after the branch, $F1 (node 2's station) and $8D; then remarks
+#     at random ($120B1).
+include race_mp.inc
+600 vwatch $700700 $700703 1000
+600 vwatch $700918 $70091b 100
+2900 watch $208f30 4 400
+2950-2955 set P2_A 01 1
+2956 set P2_A 01 0
+5000 exit

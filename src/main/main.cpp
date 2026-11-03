@@ -42,6 +42,7 @@
 #include "crossover/homode.hpp"
 #include "crossover/ormode.hpp"
 #include "crossover/madpower.hpp"
+#include "crossover/radio.hpp"
 
 // ------------------------------------------------------------------------------------------------
 // Initialize Shared Variables
@@ -157,6 +158,17 @@ static void tick()
     {
         oinputs.tick();           // Do Controls
         oinputs.do_gear();        // Digital Gear
+    }
+
+    // Crossover: OUTRUNNERS RADIO, a tick at 30 Hz (before the state's input.frame_done): the d-pad
+    // is its buttons while the player drives one of OutRun's, Super Hang-On's or Hang-On's courses;
+    // its title is drawn while a race is on screen
+    if (tick_frame && !(state == STATE_GAME && pause_engine))
+    {
+        const bool game = state == STATE_GAME;
+        const bool other = (state == STATE_SHANGON && shmode.active) || (state == STATE_HANGON && homode.active);
+        const bool race = game && outrun.game_state >= GS_START1 && outrun.game_state <= GS_BONUS;
+        xradio.tick(other || (game && outrun.game_state == GS_INGAME), other || race);
     }
      
     switch (state)
@@ -432,21 +444,20 @@ int main(int argc, char* argv[])
     // (program ROM $4614B); the big font has no hyphen
     if (xaudio.coolriders_ready())
         add_track(music_t::IS_COOLRIDERS, 0x10, "HANG ON THEME OF LOVE");
-    // OutRunners' covers of OutRun's music: the numbers of its sound test (monitor A), which are
-    // the songs its in-race radio names (MAME 0.264, the radio cycled: $01 Magical Sound Shower,
-    // $02 Passing Breeze, $03 Splash Wave, $12 Last Wave)
+    // OutRunners' radio (crossover/radio): its ten songs (covers of OutRun's music among them) and
+    // its DJ, changed mid-race with the d-pad
     if (xaudio.outrunners_ready())
-    {
-        add_track(music_t::IS_OUTRUNNERS, 0x01, "OUTRUNNERS MAGICAL SOUND SHOWER");
-        add_track(music_t::IS_OUTRUNNERS, 0x02, "OUTRUNNERS PASSING BREEZE");
-        add_track(music_t::IS_OUTRUNNERS, 0x03, "OUTRUNNERS SPLASH WAVE");
-        add_track(music_t::IS_OUTRUNNERS, 0x12, "OUTRUNNERS LAST WAVE");
-    }
+        add_track(music_t::IS_OUTRUNNERS, 0, "OUTRUNNERS RADIO");
 
     // The saved music choice is an index into that list, which changes with the ROM sets
     // present: the saved title decides. A title no longer in the list means the radio screen.
+    // The four OutRunners songs of 0.8.1 and before are now OUTRUNNERS RADIO.
     if (!config.crossover.music_title.empty())
     {
+        static const char* OLD_OUTRUNNERS[] = { "OUTRUNNERS MAGICAL SOUND SHOWER", "OUTRUNNERS PASSING BREEZE",
+                                                "OUTRUNNERS SPLASH WAVE", "OUTRUNNERS LAST WAVE" };
+        for (const char* t : OLD_OUTRUNNERS)
+            if (config.crossover.music_title == t) config.crossover.music_title = "OUTRUNNERS RADIO";
         config.crossover.music = -1;
         for (size_t i = 0; i < config.sound.music.size(); i++)
             if (config.sound.music[i].title == config.crossover.music_title) { config.crossover.music = (int) i; break; }

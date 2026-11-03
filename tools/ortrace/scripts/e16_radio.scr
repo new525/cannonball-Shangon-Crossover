@@ -1,0 +1,27 @@
+# 16. The radio's buttons (section 14): player 1's DJ/MUSIC, << and >> (P2_A bits 0-2, active low)
+#     become bits 8-10 of the new presses $208118 (START: bit 6) in the tick after the press; the
+#     radio object ($201000, routine $1924C) queues the commands, which the frame interrupt sends to
+#     $700700 one a tick (pc $3F8EE). The race starts with Splash Wave ($03: MAD POWER's song,
+#     $1968D); >> stops the song ($1F) and plays the next, << the one before; DJ/MUSIC: $1F, then
+#     Mega Radio Station (here in the branch's slow-down, $208F0F set: $E0, and the DJ's greeting
+#     $B0); DJ/MUSIC again: $1F, back to the song. The titles slide in at the bottom.
+include race_mp.inc
+600 vwatch $700700 $700703 1000
+2560 watch $209014 1
+2560 watch $208f0f 1
+2560 watch $208119 1
+3300-3305 set P2_A 04 1
+3306 set P2_A 04 0
+3320 snap e16_3320.png
+3360 snap e16_3360.png
+3400 snap e16_3400.png
+3500-3505 set P2_A 04 1
+3506 set P2_A 04 0
+3700-3705 set P2_A 02 1
+3706 set P2_A 02 0
+3900-3905 set P2_A 01 1
+3906 set P2_A 01 0
+3920 snap e16_3920.png
+4100-4105 set P2_A 01 1
+4106 set P2_A 01 0
+4300 exit

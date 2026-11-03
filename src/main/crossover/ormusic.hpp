@@ -1,12 +1,13 @@
 /***************************************************************************
-    OutRunners' music on its own sound board (orsound), for the music selection.
+    OutRunners' music on its own sound board (orsound), for the music selection's OUTRUNNERS RADIO.
 
     The board runs OutRunners' sound program (orsound.hpp). The main V60 is not emulated: its
-    part is played by writing what its sound test writes to the shared RAM. To play song n on
-    monitor A (player 1): $1F (stop) to $700700 and to $700800 (monitor B), then n to $700700,
-    one frame apart each. To stop: $1F to both; the song fades out in about half a second, and
-    the board is then paused until the next play. The program needs nothing else from the main
-    CPU: commands are taken from 0.05 s after the Z80 leaves reset (measured with tools/ortest).
+    part is played by OutRunners' radio (crossover/orradio, crossover/radio), which writes to
+    the shared RAM what OutRunners' main CPU writes for player 1 (monitor A): the race setup's
+    $1F (stop) to $700700, then the radio's commands to $700700, one a tick. To stop: $1F to
+    $700700 and $700800 (monitor B); the song fades out in about half a second, and the board is
+    then paused until the next start. The program needs nothing else from the main CPU: commands
+    are taken from 0.05 s after the Z80 leaves reset (measured with tools/ortest).
 
     Monitor A's sound is MAME's left speaker; it is played on both sides here.
 
@@ -26,7 +27,9 @@ public:
     bool init(int out_rate);                // after or_roms is loaded
     bool ready = false;
 
-    void play(uint8_t song);                // the sound test's numbers (Magical Sound Shower = 1)
+    void start();                           // powered on (or resumed), then $1F to $700700 now
+    void command(uint8_t c);                // to $700700 (monitor A) now
+    void shared(uint32_t off, uint8_t v);   // to the shared RAM ($700000 + off) now
     void stop();
 
     // One frame (1/fps s): adds the board's output to mix (interleaved stereo, 16-bit scale)
