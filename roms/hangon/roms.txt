@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------
 Place the Hang-On ROMs in this folder: the files of MAME set
 hangon, "Hang-On (Rev A)" (MAME 0.264).
-Files are found by CRC32 first, then by name.
+Files are found by CRC32 first, then by name, as loose files or in the .zip
+files in this folder (MAME's hangon.zip). Loose files are used first.
 -------------------------------------------------------------------------------
 epr-6918a.ic22     CRC32 20b1c2b0  (maincpu)
 epr-6916a.ic8      CRC32 7d9db1bf  (maincpu)

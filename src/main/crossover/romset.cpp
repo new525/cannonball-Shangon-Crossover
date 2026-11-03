@@ -3,6 +3,7 @@
 ***************************************************************************/
 #include "crossover/romset.hpp"
 #include "crossover/rompath.hpp"
+#include "crossover/romzip.hpp"
 #include "crossover/fd1089.hpp"
 
 #include <algorithm>
@@ -45,14 +46,55 @@ static bool read_file(const fs::path& p, std::vector<uint8_t>& out)
     return true;
 }
 
+// A ROM folder's files found so far: loose files by CRC32 and by name (each loader below lists
+// the folder its own way), and the entries of the folder's zips (crossover/romzip.hpp). The
+// folder may also be a single .zip, which then has no loose files.
+struct RomFinder
+{
+    std::string dir;
+    std::map<uint32_t, fs::path> by_crc;
+    std::map<std::string, fs::path> by_name;
+    RomZips zips;
+
+    explicit RomFinder(const std::string& d) : dir(d) { zips.index(d); }
+
+    // The loose files could not be listed: only an error if `dir` is not a .zip
+    bool folder_error(const std::error_code& ec) const { return ec && !is_zip_file(dir); }
+
+    // By CRC32: a loose file, then a zip entry of that size; then by name, in the same order
+    // (`named` is then set: the file's CRC32 is not the expected one). False if neither.
+    bool find(const char* name, uint32_t crc, uint32_t length, RomFile& out, bool& named) const
+    {
+        named = false;
+        auto c = by_crc.find(crc);
+        if (c != by_crc.end()) { out = RomFile(c->second); return true; }
+        if (const RomFile* z = zips.find(crc, length)) { out = *z; return true; }
+        named = true;
+        auto n = by_name.find(name);
+        if (n != by_name.end()) { out = RomFile(n->second); return true; }
+        if (const RomFile* z = zips.find(name, crc)) { out = *z; return true; }
+        return false;
+    }
+
+    // "missing ROM <name> (crc <crc>) in <dir>", and the zips looked in
+    std::string missing(const char* what, const char* name, uint32_t crc) const
+    {
+        std::ostringstream s;
+        s << what << name << " (crc " << std::hex << crc << ") in " << dir;
+        if (!zips.zips.empty() && !is_zip_file(dir)) s << " (also looked in: " << zips.zip_list() << ")";
+        return s.str();
+    }
+};
+
 bool RomSet::load(const std::string& dir, const RomEntry* list, int count)
 {
     regions.clear();
     error.clear();
 
     // Index the folder by CRC32 (small files only; ROMs here are at most 64 KiB)
-    std::map<uint32_t, fs::path> by_crc;
-    std::map<std::string, fs::path> by_name;
+    RomFinder found(dir);
+    std::map<uint32_t, fs::path>& by_crc = found.by_crc;
+    std::map<std::string, fs::path>& by_name = found.by_name;
     std::error_code ec;
     for (auto& e : fs::directory_iterator(dir, ec))
     {
@@ -62,7 +104,7 @@ bool RomSet::load(const std::string& dir, const RomEntry* list, int count)
         by_crc[crc32_of(d)] = e.path();
         by_name[e.path().filename().string()] = e.path();
     }
-    if (ec) { error = "cannot read folder " + dir; return false; }
+    if (found.folder_error(ec)) { error = "cannot read folder " + dir; return false; }
 
     std::map<std::string, RomRegion> out;
     for (int i = 0; i < count; i++)
@@ -71,24 +113,17 @@ bool RomSet::load(const std::string& dir, const RomEntry* list, int count)
         RomRegion& reg = out[r.region];
         if (reg.data.empty()) reg.data.assign(r.region_size, r.fill);
 
-        fs::path p;
-        auto c = by_crc.find(r.crc);
-        if (c != by_crc.end()) p = c->second;
-        else
+        RomFile p;
+        bool named;
+        if (!found.find(r.name, r.crc, r.length, p, named))
         {
-            auto n = by_name.find(r.name);
-            if (n == by_name.end())
-            {
-                std::ostringstream s;
-                s << "missing ROM " << r.name << " (crc " << std::hex << r.crc << ") in " << dir;
-                error = s.str();
-                return false;
-            }
-            p = n->second;
-            std::cerr << "warning: " << r.name << " found by name but its CRC differs" << std::endl;
+            error = found.missing("missing ROM ", r.name, r.crc);
+            return false;
         }
+        if (named)
+            std::cerr << "warning: " << r.name << " found by name but its CRC differs" << std::endl;
         std::vector<uint8_t> d;
-        read_file(p, d);
+        if (!read_rom_file(p, d)) { error = "cannot read " + p.where(); return false; }
         if (d.size() < r.length) { error = std::string("short ROM file ") + r.name; return false; }
         for (uint32_t k = 0; k < r.length; k++)
         {
@@ -197,8 +232,9 @@ static bool load_big(const std::string& dir, const BigRomEntry* list, int count,
 {
     regions.clear();
     error.clear();
-    std::map<uint32_t, fs::path> by_crc;
-    std::map<std::string, fs::path> by_name;
+    RomFinder found(dir);
+    std::map<uint32_t, fs::path>& by_crc = found.by_crc;
+    std::map<std::string, fs::path>& by_name = found.by_name;
     std::error_code ec;
     for (auto& e : fs::directory_iterator(dir, ec))
     {
@@ -212,7 +248,7 @@ static bool load_big(const std::string& dir, const BigRomEntry* list, int count,
         if (!read_file(e.path(), d)) continue;
         by_crc[crc32_of(d)] = e.path();
     }
-    if (ec) { error = "cannot read folder " + dir; return false; }
+    if (found.folder_error(ec)) { error = "cannot read folder " + dir; return false; }
 
     std::map<std::string, RomRegion> out;
     for (int i = 0; i < count; i++)
@@ -220,24 +256,17 @@ static bool load_big(const std::string& dir, const BigRomEntry* list, int count,
         const BigRomEntry& r = list[i];
         RomRegion& reg = out[r.region];
         if (reg.data.empty()) reg.data.assign(r.region_size, 0);
-        fs::path p;
-        auto c = by_crc.find(r.crc);
-        if (c != by_crc.end()) p = c->second;
-        else
+        RomFile p;
+        bool named;
+        if (!found.find(r.name, r.crc, r.length, p, named))
         {
-            auto n = by_name.find(r.name);
-            if (n == by_name.end())
-            {
-                std::ostringstream s;
-                s << "missing ROM " << r.name << " (crc " << std::hex << r.crc << ") in " << dir;
-                error = s.str();
-                return false;
-            }
-            p = n->second;
-            std::cerr << "warning: " << r.name << " found by name but its CRC differs" << std::endl;
+            error = found.missing("missing ROM ", r.name, r.crc);
+            return false;
         }
+        if (named)
+            std::cerr << "warning: " << r.name << " found by name but its CRC differs" << std::endl;
         std::vector<uint8_t> d;
-        read_file(p, d);
+        if (!read_rom_file(p, d)) { error = "cannot read " + p.where(); return false; }
         if (d.size() < r.length) { error = std::string("short ROM file ") + r.name; return false; }
         if (r.step == 1) { std::copy(d.begin(), d.begin() + r.length, reg.data.begin() + r.offset); continue; }
         for (uint32_t k = 0; k + 1 < r.length; k += 2)
@@ -291,8 +320,9 @@ static const struct { const char* name; uint32_t length, crc; } OR_BOARD_FILES[]
 
 static bool find_board_files(const std::string& dir, std::string& error)
 {
-    std::map<uint32_t, fs::path> by_crc;
-    std::map<std::string, fs::path> by_name;
+    RomFinder found(dir);
+    std::map<uint32_t, fs::path>& by_crc = found.by_crc;
+    std::map<std::string, fs::path>& by_name = found.by_name;
     std::error_code ec;
     for (auto& e : fs::directory_iterator(dir, ec))
     {
@@ -305,23 +335,20 @@ static bool find_board_files(const std::string& dir, std::string& error)
         std::vector<uint8_t> d;
         if (read_file(e.path(), d)) by_crc[crc32_of(d)] = e.path();
     }
-    if (ec) { error = "cannot read folder " + dir; return false; }
-    std::map<std::string, std::string> found;
+    if (found.folder_error(ec)) { error = "cannot read folder " + dir; return false; }
+    std::map<std::string, RomFile> files;
     for (auto& f : OR_BOARD_FILES)
     {
-        auto c = by_crc.find(f.crc);
-        if (c != by_crc.end()) { found[f.name] = c->second.string(); continue; }
-        auto n = by_name.find(f.name);
-        if (n == by_name.end())
+        RomFile p;
+        bool named;
+        if (!found.find(f.name, f.crc, f.length, p, named))
         {
-            std::ostringstream s;
-            s << "missing " << f.name << " (crc " << std::hex << f.crc << ")";
-            error = s.str();
+            error = found.missing("missing ", f.name, f.crc);
             return false;
         }
-        found[f.name] = n->second.string();
+        files[f.name] = p;
     }
-    for (auto& kv : found) rom_paths()[kv.first] = kv.second;
+    for (auto& kv : files) rom_files()[kv.first] = kv.second;
     return true;
 }
 

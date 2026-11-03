@@ -55,14 +55,9 @@ static uint32_t crc32_of(const std::vector<uint8_t>& d)
 static bool read_rom(const std::string& dir, const char* name, uint32_t length, uint32_t crc,
                      std::vector<uint8_t>& out, std::string& error)
 {
-    std::string path = rom_path(dir, name);
-    FILE* f = fopen(path.c_str(), "rb");
-    if (!f) { error = "missing " + path; return false; }
-    out.assign(length, 0);
-    size_t got = fread(out.data(), 1, length, f);
-    int extra = fgetc(f);
-    fclose(f);
-    if (got != length || extra != EOF) { error = "wrong size: " + path; return false; }
+    std::string path = rom_file(dir, name).where();
+    if (!read_rom(dir, name, out)) { error = "missing " + path; return false; }
+    if (out.size() != length) { error = "wrong size: " + path; return false; }
     if (crc32_of(out) != crc)
     {
         char b[64];
