@@ -120,6 +120,9 @@ void OTraffic::tick()
                 continue;
             }
             sprite->traffic_orig_speed = 0xD4;
+            // Traffic brake-check fix: stage 1's pre-placed cars don't pass through spawn_car() (see there)
+            if (config.engine.fix_traffic)
+                sprite->traffic_near_speed = sprite->traffic_orig_speed;
             sprite->function_holder = TRAFFIC_ENTRY;
         }
 
@@ -241,6 +244,14 @@ void OTraffic::spawn_car(oentry* sprite)
 
     sprite->traffic_speed = traffic_speed_avg;
 
+    // Traffic brake-check fix (engine.fix_traffic, off by default; from CannonBall-SE). traffic_near_speed, the
+    // speed of the car ahead in the lane, is only written when traffic_logic() finds one, so a reused sprite
+    // slot keeps the previous car's value. move_spawned_sprite() uses it when the car is hemmed in on both
+    // sides, which the player alongside can cause on their own, and the car could brake to 0x70 with nothing
+    // ahead of it. The car starts with its own cruise speed instead.
+    if (config.engine.fix_traffic)
+        sprite->traffic_near_speed = sprite->traffic_orig_speed;
+
     // Randomize Type of traffic to spawn
     uint8_t spawn_index = (rnd >> 2) + 0x20;
 
@@ -356,7 +367,9 @@ void OTraffic::move_spawned_sprite(oentry* sprite)
         
             // use_traffic_speed:
             // Sprite hemmed in on left + right. Resort to average traffic speed.
-            if (!traffic_proximity)
+            // engine.fix_traffic 2 (from CannonBall-DX): only when traffic_logic() has also marked another traffic
+            // car close on the z axis (BIT_2); the player's proximity alone sets the side bits.
+            if (!traffic_proximity && (config.engine.fix_traffic < 2 || (sprite->traffic_proximity & BIT_2)))
             {
                 sprite->traffic_speed = sprite->traffic_near_speed < 0x70 ? 0x70 : sprite->traffic_near_speed;
                 update_props(sprite);

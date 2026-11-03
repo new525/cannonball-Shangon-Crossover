@@ -58,6 +58,7 @@ const static char* ENTRY_S_OUTPUTS = "OUTPUT TEST";
 const static char* ENTRY_S_CRT = "CRT TEST";
 const static char* ENTRY_TIMER = "TIMING FIXES ";
 const static char* ENTRY_S_BUGS = "BUG FIXES ";
+const static char* ENTRY_TRAFFICFIX = "TRAFFIC BRAKE FIX ";
 
 // Video Menu
 const static char* ENTRY_FPS = "FRAME RATE ";

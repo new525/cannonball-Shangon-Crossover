@@ -136,6 +136,7 @@ struct engine_settings_t
     bool fix_bugs;
     bool fix_bugs_backup;
     bool fix_timer;
+    int fix_traffic;      // Traffic brake-check fix: 0 off (original), 1 stale speed (CannonBall-SE), 2 also only near traffic (CannonBall-DX)
     bool layout_debug;
     bool hiscore_delete;  // Allow deletion of last entry in score table
     int hiscore_timer;    // Override default timer on high-score entry screen

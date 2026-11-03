@@ -318,6 +318,14 @@
             Therefore it takes 31 frames to decrement 1 second on the countdown timer (it should be 30)
          2. Timer counts down 1 complete second AFTER timer reaches zero (it should stop at zero) -->
     <fix_timer>0</fix_timer>
+
+    <!-- Traffic brake-check fix. A traffic car could slow down sharply as you drove alongside it
+         with nothing in front of it: it used a "car ahead" speed left over from the previous car
+         in its sprite slot. The original game does this; 0 keeps it.
+         0 = off (original), 1 = partial: a new car starts with its own speed (CannonBall-SE),
+         2 = full: also slows to the car ahead's speed only when another traffic car is close
+         (CannonBall-DX) -->
+    <fix_traffic>0</fix_traffic>
     
     <!-- Use new Attract Mode which demos different viewpoints and has improved
          Ferrari AI when driving

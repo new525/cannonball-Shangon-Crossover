@@ -250,6 +250,8 @@ void Config::load()
     engine.fix_bugs_backup = 
     engine.fix_bugs        = pt_config.get("engine.fix_bugs",     1) != 0;
     engine.fix_timer       = pt_config.get("engine.fix_timer",    0) != 0;
+    engine.fix_traffic     = pt_config.get("engine.fix_traffic",  0);
+    if (engine.fix_traffic < 0 || engine.fix_traffic > 2) engine.fix_traffic = 0;
     engine.layout_debug    = pt_config.get("engine.layout_debug", 0) != 0;
     engine.hiscore_delete  = pt_config.get("scores.delete_last_entry", 1);
     engine.hiscore_timer   = pt_config.get("scores.hiscore_timer", 0);
@@ -349,6 +351,7 @@ bool Config::save()
     pt_config.put("engine.levelobjects",    engine.level_objects);
     pt_config.put("engine.fix_bugs",        (int) engine.fix_bugs);
     pt_config.put("engine.fix_timer",       (int) engine.fix_timer);
+    pt_config.put("engine.fix_traffic",     engine.fix_traffic);
     pt_config.put("engine.new_attract",     engine.new_attract);
     pt_config.put("engine.offroad",         (int) engine.offroad);
     pt_config.put("engine.grippy_tyres",    (int) engine.grippy_tyres);
