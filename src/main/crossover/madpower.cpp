@@ -13,6 +13,7 @@
 #include "crossover/romset.hpp"
 #include "crossover/harness.hpp"
 #include "crossover/balance_pace.hpp"
+#include "crossover/balance_push.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -155,6 +156,7 @@ bool CrossoverMadPower::load()
     samples = std::move(r.sega);
     sprites = std::move(r.sprites);
     car.reset(new orcar::ORCar(maincpu.data()));
+    car->push_fn = [](int p) { return balance::push_scaled(balance::MAD_POWER, p); };     // BALANCE's curve push
     spr.reset(new orcar::CarSprite(maincpu.data()));
     s32.reset(new orcar::S32Sprites(maincpu.data(), sprites.data(), sprites.size()));
     road.rom = maincpu.data();
@@ -452,6 +454,9 @@ void CrossoverMadPower::tick()
     uint8_t state_before = s.state;
     if (hold) { s.speed = 0; s.speed32 = 0; }
     c.tick(in, road);
+    if (FILE* log = balance::push_log())    // BALANCE's curve push: measurement
+        fprintf(log, "M %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) balance::host(), balance::log_pos(), s.speed, s.lateral,
+                c.curve_term, c.curve_push_raw, c.curve_push, s.steer_angle, s.latvel, s.sliding, s.slide, s.catchup, s.state);
     // the car's sound writes of this tick (the tyre sound $700718, the queued commands): ORCar keeps the last
     // object's only (gearbox_tick starts a new SoundOut), and on the board the car's object runs before the
     // gear box's in the frame: the car's first, then the gear box's

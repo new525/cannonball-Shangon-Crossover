@@ -8,6 +8,7 @@
 #include "crossover/orboard.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/balance_pace.hpp"
+#include "crossover/balance_push.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -525,7 +526,7 @@ void ORVehicle::ferrari_tick(int cs)
         oferrari.move();
         if (oferrari.car_ctrl_active)
         {
-            oferrari.set_curve_adjust();
+            balance::ferrari_curve_adjust();    // oferrari.set_curve_adjust(), BALANCE's curve push
             oferrari.set_ferrari_x();
             oferrari.do_skid();
             check_wheels();

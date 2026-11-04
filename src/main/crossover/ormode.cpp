@@ -21,6 +21,7 @@
 #include "engine/audio/osoundint.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/orvehicle.hpp"
+#include "crossover/balance_push.hpp"
 
 ORMode ormode;
 
@@ -312,6 +313,7 @@ void ORMode::tick()
         // two); drawing changes nothing the game sees (tools/orbtest: RAM and I/O identical)
         board->draw_mask = i == frames - 1 ? 1 : 0;
         board->run_frame();
+        balance::push_frame_or(board.get());    // measurement (CB_PUSH_LOG)
         take_sound();
         if (board->read8(A_STATE) != 6) finished = true;
         // testing: the cars' sounds alone (the music stopped, $1F, at this board frame)

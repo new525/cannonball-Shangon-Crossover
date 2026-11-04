@@ -5,6 +5,7 @@
 #include "crossover/hoboard.hpp"
 #include "crossover/hovideo.hpp"
 #include "crossover/hovehicle.hpp"
+#include "crossover/balance_push.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/xaudio.hpp"
 #include "main.hpp"
@@ -160,6 +161,7 @@ void HOMode::tick()
     {
         packet.clear();
         hoboard.run_frame();
+        balance::push_frame_ho();           // measurement (CB_PUSH_LOG)
         hovehicle.after_frame();            // OutRun's sprites, drawn into the frame by hovideo
         hovideo.render(hoboard);
         // The game stops its music (sound command $00, FM_RESET in the OutRun family's sound

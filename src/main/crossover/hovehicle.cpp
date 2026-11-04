@@ -32,6 +32,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
 #include "crossover/balance_pace.hpp"
+#include "crossover/balance_push.hpp"
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
@@ -551,7 +552,7 @@ void HOVehicle::tick()
         if (RW(V_RETIRE)) oinitengine.car_increment = 0;
         if (oferrari.car_ctrl_active)
         {
-            oferrari.set_curve_adjust();
+            balance::ferrari_curve_adjust();    // oferrari.set_curve_adjust(), BALANCE's curve push
             oferrari.set_ferrari_x();
             oferrari.do_skid();
             oferrari.check_wheels();

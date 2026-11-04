@@ -32,6 +32,7 @@
 #include "crossover/balance_pace.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
+#include "crossover/balance_push.hpp"
 
 OInitEngine oinitengine;
 
@@ -286,7 +287,7 @@ void OInitEngine::update_engine()
 
         if (oferrari.car_ctrl_active)
         {
-            oferrari.set_curve_adjust();
+            balance::ferrari_curve_adjust();    // crossover: oferrari.set_curve_adjust() (BALANCE, curve push)
             oferrari.set_ferrari_x();
             oferrari.do_skid();
             oferrari.check_wheels();

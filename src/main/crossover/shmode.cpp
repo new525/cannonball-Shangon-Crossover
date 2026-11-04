@@ -7,6 +7,7 @@
 #include "crossover/romset.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/shferrari.hpp"
+#include "crossover/balance_push.hpp"
 #include "main.hpp"
 
 #include <algorithm>
@@ -190,6 +191,7 @@ void SHMode::tick()
     {
         packet.clear();
         shboard.run_frame();
+        balance::push_frame_sh();           // measurement (CB_PUSH_LOG)
         // The game stops its music (sound command $00, FM_RESET in the OutRun family's sound
         // programs: at the end of a game, before its ranking music $83): the track playing in place of
         // its race music stops too

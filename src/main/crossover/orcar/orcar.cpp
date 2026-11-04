@@ -856,6 +856,9 @@ void ORCar::a39c(const TickInput& in, const Road& road)
     r6 = (uint32_t) s.catchup + 0x100;                              // A500-A504
     r8 <<= 8;                                                       // A50B
     r8 = divw(r8, r6);                                              // A50E
+    curve_term = (int16_t) h8; curve_push_raw = (int16_t) r8;       // crossover: BALANCE's curve push
+    if (push_fn) r8 = (uint32_t) push_fn(sx16((uint16_t) r8));
+    curve_push = (int16_t) r8;
     s.sliding = 0;                                                  // A511
     r1 = s.speed_copy;                                              // A516
     r1 *= r0;                                                       // A51A: speed x steering angle

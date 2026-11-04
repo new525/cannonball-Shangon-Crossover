@@ -6,6 +6,7 @@
 #include "crossover/harness.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/balance_pace.hpp"
+#include "crossover/balance_push.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -443,6 +444,23 @@ void CrossoverBike::tick()
         if (RB(SHO_A5_CENTRIFUGAL) & 0x80)                   // the crash switches this task off
             sho_centrifugal_task(&mem, SHO_A5_CENTRIFUGAL);
         int16_t lat_x1 = (int16_t) RW(V_X);
+        {   // BALANCE: the push scaled for the course (crossover/balance_push.cpp); as in the task ($6418),
+            // no push when it would take X past 500
+            const int raw = lat_x1 - lat_x0;
+            int push = balance::push_scaled(balance::SH_BIKE, raw);
+            if (push != raw)
+            {
+                lat_x1 = std::abs(lat_x0 + push) <= 500 ? (int16_t)(lat_x0 + push) : lat_x0;
+                WW(V_X, lat_x1);
+            }
+            if (FILE* log = balance::push_log())
+            {
+                uint32_t a0 = 0x260800 + (int16_t) RW(0x2607FE);
+                int16_t dx = (int16_t)(RW(a0 + (RB(0x060412) ? 0x8C : 0xA6)) - RW(a0 + 0x1B8));
+                fprintf(log, "B %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) balance::host(), balance::log_pos(), (int16_t) RW(V_SPEED),
+                        lat_x0, dx, raw, lat_x1 - lat_x0, (int16_t) RW(SHO_A5_BIKE + 0x34), RB(0x060412));
+            }
+        }
         sho_throttle_task(&mem, raw_thr);
         sho_brake_task(&mem, raw_brk);
         // Traffic knockback ($7510): +/-14 per frame of contact, kept only within +/-40. OutRun's

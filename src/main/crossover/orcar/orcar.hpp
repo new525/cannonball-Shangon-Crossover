@@ -271,6 +271,12 @@ public:
     // state outside 0-5); the state is then not valid. 0 = none.
     uint32_t unsupported() const { return unsupported_pc; }
 
+    // Crossover (BALANCE, curve push): the push out of the curve ($A50E) is passed through push_fn
+    // when it is set (crossover/madpower); the last tick's push before and after it, and the heading
+    // term it came from, for the measurement log
+    int (*push_fn)(int push) = nullptr;
+    int16_t curve_term = 0, curve_push_raw = 0, curve_push = 0;
+
 private:
     const uint8_t* rom;
     uint32_t unsupported_pc = 0;

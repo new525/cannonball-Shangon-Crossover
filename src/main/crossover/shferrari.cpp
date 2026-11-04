@@ -8,6 +8,7 @@
 #include "crossover/m68k/m68k.h"
 #include "crossover/madpower.hpp"
 #include "crossover/balance_pace.hpp"
+#include "crossover/balance_push.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -483,7 +484,7 @@ void SHFerrari::tick()
     oferrari.move();
     if (oferrari.car_ctrl_active)
     {
-        oferrari.set_curve_adjust();
+        balance::ferrari_curve_adjust();        // oferrari.set_curve_adjust(), BALANCE's curve push
         oferrari.set_ferrari_x();
         oferrari.do_skid();
         oferrari.check_wheels();

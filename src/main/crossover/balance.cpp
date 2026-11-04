@@ -30,6 +30,5 @@ namespace balance
     }
 
     // Until each aspect's table is in (balance_pace.cpp, balance_push.cpp, balance_contact.cpp)
-    double push(Vehicle, Host)    { return 1.0; }
     double contact(Vehicle, Host) { return 1.0; }
 }
