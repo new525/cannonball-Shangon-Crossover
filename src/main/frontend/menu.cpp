@@ -87,6 +87,7 @@ void Menu::populate()
     menu_xover.push_back(ENTRY_X_BIKESIZE);
     menu_xover.push_back(ENTRY_X_TRACK);
     menu_xover.push_back(ENTRY_X_MUSIC);
+    menu_xover.push_back(ENTRY_X_BALANCE);
     menu_xover.push_back(ENTRY_BACK);
 
     menu_musictest.push_back(ENTRY_MUSIC1);
@@ -1021,6 +1022,7 @@ void Menu::refresh_menu()
                                                                        config.crossover.vehicle == 2 ? "HANG ON BIKE" :
                                                                        config.crossover.vehicle == 3 ? "OUTRUNNERS MAD POWER" : "OUTRUN FERRARI");
             else if (SELECTED(ENTRY_X_GEARBOX))     set_menu_text(ENTRY_X_GEARBOX, config.crossover.or_manual ? "MANUAL" : "AUTOMATIC");
+            else if (SELECTED(ENTRY_X_BALANCE))     set_menu_text(ENTRY_X_BALANCE, config.crossover.balance == 0 ? "OFF" : config.crossover.balance == 1 ? "HALF" : "FULL");
             else if (SELECTED(ENTRY_X_BIKESIZE))    set_menu_text(ENTRY_X_BIKESIZE, config.crossover.bike_scale >= 100 ? "FULL SIZE" : Utils::to_string(config.crossover.bike_scale) + " PERCENT");
             else if (SELECTED(ENTRY_X_TRACK))       set_menu_text(ENTRY_X_TRACK, xover_track_label(config.crossover.track));
             else if (SELECTED(ENTRY_X_MUSIC))
@@ -1291,6 +1293,11 @@ void Menu::xover_cycle(int dir)
     {
         // OutRunners' cars: the automatic, or the manual box (MAD POWER's six gears)
         config.crossover.or_manual = !config.crossover.or_manual;
+    }
+    else if (SELECTED(ENTRY_X_BALANCE))
+    {
+        // A vehicle on another game's course: OFF, HALF, FULL (crossover/balance.hpp)
+        config.crossover.balance = ((config.crossover.balance + dir) % 3 + 3) % 3;
     }
     else if (SELECTED(ENTRY_X_BIKESIZE))
     {

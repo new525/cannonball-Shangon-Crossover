@@ -206,6 +206,8 @@ set(src_engine_audio
 set(src_crossover
     "${main_cpp_base}/crossover/harness.hpp"
     "${main_cpp_base}/crossover/harness.cpp"
+    "${main_cpp_base}/crossover/balance.hpp"
+    "${main_cpp_base}/crossover/balance.cpp"
     "${main_cpp_base}/crossover/romset.hpp"
     "${main_cpp_base}/crossover/romset.cpp"
     "${main_cpp_base}/crossover/fd1089.hpp"

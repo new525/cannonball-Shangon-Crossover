@@ -100,6 +100,8 @@ void Config::load()
     crossover.bike_scale      = pt_config.get("crossover.bike_scale", 80);
     if (crossover.bike_scale < 50 || crossover.bike_scale > 100) crossover.bike_scale = 80;
     crossover.or_manual       = pt_config.get("crossover.or_manual", 0) ? 1 : 0;
+    crossover.balance         = pt_config.get("crossover.balance", 1);
+    if (crossover.balance < 0 || crossover.balance > 2) crossover.balance = 1;
     crossover.shangon_rompath = pt_config.get("crossover.shangon_rompath", "roms/shangon1/");
     crossover.hangon_rompath  = pt_config.get("crossover.hangon_rompath",  "roms/hangon/");
     crossover.coolriders_rompath = pt_config.get("crossover.coolriders_rompath", "roms/coolridr/");
@@ -339,6 +341,7 @@ bool Config::save()
                                                ? sound.music.at(crossover.music).title : std::string());
     pt_config.put("crossover.bike_scale",      crossover.bike_scale);
     pt_config.put("crossover.or_manual",       crossover.or_manual);
+    pt_config.put("crossover.balance",         crossover.balance);
     pt_config.put("crossover.shangon_rompath", crossover.shangon_rompath);
     pt_config.put("crossover.hangon_rompath",  crossover.hangon_rompath);
     pt_config.put("crossover.coolriders_rompath", crossover.coolriders_rompath);

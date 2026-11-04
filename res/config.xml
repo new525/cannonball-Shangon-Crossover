@@ -21,6 +21,9 @@
     <music>-1</music>
     <bike_scale>80</bike_scale>
     <or_manual>0</or_manual>
+    <!-- A vehicle on another game's course: 0 OFF (as it is), 1 HALF, 2 FULL (like the course's own
+         vehicle in pace, curve push and speed lost to contact) -->
+    <balance>1</balance>
 </crossover>
 
 <!-- 

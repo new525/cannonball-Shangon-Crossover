@@ -17,6 +17,7 @@ const static char* ENTRY_X_BIKESIZE = "BIKE SIZE  ";
 const static char* ENTRY_X_TRACK   = "TRACK  ";
 const static char* ENTRY_X_MUSIC   = "MUSIC  ";
 const static char* ENTRY_X_GEARBOX = "GEARBOX  ";     // OutRunners' cars only
+const static char* ENTRY_X_BALANCE = "BALANCE  ";
 const static char* ENTRY_GAMEMODES = "GAME MODES";
 const static char* ENTRY_SETTINGS = "SETTINGS";
 const static char* ENTRY_ABOUT = "ABOUT";

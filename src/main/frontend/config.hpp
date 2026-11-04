@@ -158,6 +158,7 @@ struct crossover_settings_t
                                     // at start-up, since the list depends on which ROM sets are present
     int bike_scale;                 // bike and crash sprites drawn at this percentage (100 = arcade size; default 80)
     int or_manual;                  // OutRunners' cars: 0 automatic, 1 manual box (GEAR1 down, GEAR2 up)
+    int balance;                    // a vehicle on another game's course: 0 OFF, 1 HALF, 2 FULL (crossover/balance.hpp)
     std::string shangon_rompath;    // folder with the shangon1 ROM files (any names; found by CRC)
     std::string hangon_rompath;     // folder with the hangon ROM files
     std::string coolriders_rompath; // folder with the coolridr ROM files (sound only: its HANG ON cover)
