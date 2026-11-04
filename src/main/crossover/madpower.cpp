@@ -12,6 +12,7 @@
 #include "crossover/resample.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/harness.hpp"
+#include "crossover/balance_pace.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -284,9 +285,10 @@ void CrossoverMadPower::build_segments()
     // the pitch at the car for the car's segment and those after it (the handling reads the car's segment's);
     // world y down the ring as OutRunners' course builder sets it (-128 x sin(pitch) a segment, + = up)
     double dy = -128.0 * std::sin(pitch * 2.0 * M_PI / 4096.0);
+    const double pos_per_seg = POS_PER_SEG * balance::pace_now();     // BALANCE's pace: the course under the car
     for (int k = 0; k < NSEG; k++)
     {
-        double p = p_car + (k - seg_frac) * POS_PER_SEG;
+        double p = p_car + (k - seg_frac) * pos_per_seg;
         double h = heading + mirror * wrap12(path_angle(p) - a_car);
         orcar::Segment g;
         g.heading = (uint16_t)((int32_t) std::lround(h) & 0xFFF);
@@ -471,7 +473,7 @@ void CrossoverMadPower::tick()
     seg_frac = f;
     if (dseg < 0) dseg = 0;
     double p_old = oroad.road_pos / 65536.0;
-    pos_acc += dseg * POS_PER_SEG * 65536.0;
+    pos_acc += dseg * POS_PER_SEG * balance::pace_now() * 65536.0;     // BALANCE's pace, as build_segments
     uint32_t adv = (uint32_t) pos_acc;
     pos_acc -= adv;
     oroad.road_pos += adv;

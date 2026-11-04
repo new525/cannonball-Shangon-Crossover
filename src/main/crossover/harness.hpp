@@ -46,7 +46,7 @@ private:
     // held analog values (-1 = not overridden)
     int wheel = -1, accel = -1, brake = -1;
     // steering autopilot ("steerto"): aim lateral position at a target, relative to the bike's road or absolute
-    bool steer_on = false, steer_abs = false;
+    bool steer_on = false, steer_abs = false, steer_road = false;
     int  steer_target = 0;
 
     void apply(const Cmd& c);

@@ -52,6 +52,7 @@ public:
     void stop();
     bool active = false;
     bool finished = false;
+    const ORBoard* board_for_tests() const { return board.get(); }   // testing (crossover/balance_pace)
 
     // The board's sound (player 1's speaker), added to the program's output
     void mix(int32_t* out, int samples, int out_rate);

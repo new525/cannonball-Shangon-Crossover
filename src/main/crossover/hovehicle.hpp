@@ -85,6 +85,7 @@ private:
     void on_pc(uint32_t pc);
     bool on_task(uint32_t a5, uint32_t entry);  // true = skip the task
     void speed_task(uint32_t a5);
+    void pace_hook(uint32_t pc);            // BALANCE's pace: the speedometer, the objects' approach table
     void bike_task(uint32_t a5);
     void tick();                            // OutRun's car logic, one 30 Hz tick
     void world_to_outrun();

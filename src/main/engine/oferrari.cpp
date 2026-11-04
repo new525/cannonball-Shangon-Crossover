@@ -30,6 +30,7 @@
 #include "engine/oferrari.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
+#include "crossover/balance_pace.hpp"
 
 OFerrari oferrari;
 
@@ -1573,6 +1574,8 @@ void OFerrari::update_road_pos()
     }
 
     car_inc *= oinitengine.car_increment >> 16;
+    static double pace_carry = 0;            // crossover: BALANCE's pace on another game's course (1 on OutRun's)
+    car_inc = balance::pace_distance(car_inc, pace_carry);
     oroad.road_pos_change = car_inc;
     oroad.road_pos += car_inc;
 }
@@ -1641,7 +1644,10 @@ void OFerrari::do_sound_score_slip()
     // Wheels onroad - Convert Speed To Score
     if (wheel_state == WHEELS_ON) 
     {
-        ostats.convert_speed_score(oinitengine.car_increment >> 16);
+        // crossover: the speed the world moves by (BALANCE's pace), within the table when BALANCE changes it
+        uint32_t w = balance::world_speed(oinitengine.car_increment);
+        if (w != oinitengine.car_increment && (w >> 16) > 0x14F) w = 0x14F << 16;
+        ostats.convert_speed_score(w >> 16);
     }
 
     // 0xBE6E

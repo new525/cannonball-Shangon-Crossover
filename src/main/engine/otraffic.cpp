@@ -20,6 +20,7 @@
 #include "engine/otraffic.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
+#include "crossover/balance_pace.hpp"
 
 OTraffic otraffic;
 
@@ -423,7 +424,8 @@ void OTraffic::move_spawned_sprite(oentry* sprite)
 // Source: 0x4F0C
 void OTraffic::update_props(oentry* sprite)
 {
-    int32_t z_adjust = (((oinitengine.car_increment >> 16) - sprite->traffic_speed) * (sprite->z >> 16)) << 5;
+    // crossover: the speed the world moves by (BALANCE's pace)
+    int32_t z_adjust = (((balance::world_speed(oinitengine.car_increment) >> 16) - sprite->traffic_speed) * (sprite->z >> 16)) << 5;
 
     if (config.tick_fps == 60)
         z_adjust >>= 1;

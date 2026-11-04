@@ -29,6 +29,7 @@
 #include "engine/otiles.hpp"
 #include "engine/otraffic.hpp"
 #include "engine/oinitengine.hpp"
+#include "crossover/balance_pace.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
 
@@ -193,7 +194,7 @@ void OInitEngine::update_road()
     // Width of road is changing & car is moving
     if (change_width != 0 && car_increment >> 16 != 0)
     {
-        int32_t d0 = ((car_increment >> 16) * road_width_adj) << 4;
+        int32_t d0 = ((balance::world_speed(car_increment) >> 16) * road_width_adj) << 4;   // crossover: BALANCE's pace
         oroad.road_width += d0; // add long here
         if (d0 > 0)
         {    
@@ -901,7 +902,7 @@ void OInitEngine::bonus6()
 
 void OInitEngine::set_granular_position()
 {
-    uint16_t car_inc16 = car_increment >> 16;
+    uint16_t car_inc16 = balance::world_speed(car_increment) >> 16;     // crossover: BALANCE's pace
 
     uint16_t result = car_inc16 / 0x40;
     uint16_t rem = car_inc16 % 0x40;

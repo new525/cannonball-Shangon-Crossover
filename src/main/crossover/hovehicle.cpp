@@ -31,6 +31,7 @@
 #include "engine/audio/osoundint.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
+#include "crossover/balance_pace.hpp"
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
@@ -66,6 +67,12 @@ static const uint32_t PC_RIVAL_HIT = 0xA928, PC_RIVAL_HIT_END = 0xA95A;
 static const uint32_t PC_RIVAL_SOUND = 0xA978, PC_RIVAL_SOUND_END = 0xA97C;
 static const uint32_t PC_DUST_DRAW = 0xB76A, PC_DUST_DRAW_END = 0xB76E;
 static const uint32_t PC_SOUND_QUEUE = 0x3F2E;           // sub_03F2E: d0 = command
+// BALANCE's pace (crossover/balance_pace): $C7E078 is the speed the world moves by (the roadside objects $9ED2 and
+// $A54C, the rivals $AB80, the score $81F8, the road's stripes); the speedometer shows the vehicle's own
+static const uint32_t PC_HUD_SPEED = 0x11EA, PC_HUD_SPEED_NEXT = 0x11F0;   // move.w $C7E078,d0: shown
+// the objects' approach per frame, the table $9FB0 indexed by the speed (d0 = 2 x speed): speed x 3/5, 300 entries
+static const uint32_t PC_APPROACH1 = 0x9EDE, PC_APPROACH1_NEXT = 0x9EE2, PC_APPROACH2 = 0xA558, PC_APPROACH2_NEXT = 0xA55C;
+static const int APPROACH_ENTRIES = 300;
 
 // ROM tables
 static const uint32_t ROM_SPR_LEAN = 0xB45C;             // the bike's lean frames (definition pointers)
@@ -133,6 +140,8 @@ static const int LAT_OR = 11, LAT_OUT = 6, SPEED_PER_KMH = 136, HO_EDGE = 260;
 void HOVehicle::begin()
 {
     if (!enabled) return;
+    balance::set_world(vehicle == MAD_POWER ? balance::MAD_POWER : vehicle == SH_BIKE ? balance::SH_BIKE : balance::FERRARI,
+                       balance::HANG_ON);
 
     // OutRun's objects for the car, as Outrun::init_jump_table sets them up (minus the course)
     outrun.tick_frame = true;
@@ -189,12 +198,14 @@ void HOVehicle::begin()
     hovideo.tag_active = true;
 
     static const uint32_t pcs[] = { PC_DISPATCH, PC_SPRITE_SHOWN, PC_SPRITE_HIDDEN, PC_RIVAL_CMP, PC_RIVAL_HIT,
-                                    PC_RIVAL_SOUND, PC_DUST_DRAW, PC_SOUND_QUEUE };
+                                    PC_RIVAL_SOUND, PC_DUST_DRAW, PC_SOUND_QUEUE, PC_HUD_SPEED, PC_APPROACH1,
+                                    PC_APPROACH2 };
     hoboard.set_pc_hooks(pcs, (int)(sizeof pcs / sizeof pcs[0]), &HOVehicle::hook, this);
 }
 
 void HOVehicle::end()
 {
+    balance::clear_world();
     hoboard.set_pc_hooks(nullptr, 0, nullptr, nullptr);
     hovideo.overlay = nullptr;
     hovideo.tag_active = false;
@@ -278,6 +289,12 @@ void HOVehicle::on_pc(uint32_t pc)
             if (racing && vehicle != SH_BIKE) hoboard.set_main_reg(M68K_REG_PC, PC_DUST_DRAW_END);   // their own dust
             break;
 
+        case PC_HUD_SPEED:
+        case PC_APPROACH1:
+        case PC_APPROACH2:
+            pace_hook(pc);
+            break;
+
         case PC_SOUND_QUEUE:
             // the sound task's effects for the bike: squeal $8A/$8B, off-road $8C/$8D
             if (racing && in_sound_task)
@@ -332,7 +349,7 @@ void HOVehicle::speed_task(uint32_t a5)
         WW(V_ODO_STEP, 0);
         return;
     }
-    WL(V_SPEED, (uint32_t) oinitengine.car_increment);            // the HUD's speed, the objects' approach
+    WL(V_SPEED, balance::world_speed(oinitengine.car_increment));   // the speed the world moves by (BALANCE's pace)
     WW(V_X, ho_x());
 
     // OutRun's distance for its last tick, spread over the board frames until the next one
@@ -342,13 +359,41 @@ void HOVehicle::speed_task(uint32_t a5)
     // $86F2-$8730: track position, odometer (the road's rumble-strip phase, sub_0184A)
     WL(V_DIST, d);
     WL(V_POS, RL(V_POS) + d);
-    uint16_t kmh = (uint16_t)(oinitengine.car_increment >> 16);
+    uint16_t kmh = (uint16_t)(RL(V_SPEED) >> 16);
     uint16_t q = kmh / 0x1D, r = kmh % 0x1D;
     uint16_t rem = (uint16_t)(RW(a5 + 0x22) + r);
     if ((int16_t) rem >= 0x1D) { rem -= 0x1D; q++; }
     WW(a5 + 0x22, rem);
     WW(V_ODO_STEP, q);
     WW(V_ODO, (uint16_t)(RW(V_ODO) + q));
+}
+
+// BALANCE's pace, when it changes anything: the speedometer shows the vehicle's own speed (in the race the car's,
+// after it the board's speed taken back to it); past the end of the objects' approach table the approach keeps
+// its rule, speed x 3/5 (the table ends at 299 km/h: MAD POWER's world speed at HALF is above it)
+void HOVehicle::pace_hook(uint32_t pc)
+{
+    if (balance::pace_now() == 1.0) return;
+    uint32_t d0 = hoboard.main_reg(M68K_REG_D0);
+    switch (pc)
+    {
+        case PC_HUD_SPEED:
+        {
+            uint16_t own = (uint16_t)((racing ? (uint32_t) oinitengine.car_increment : balance::own_speed(RL(V_SPEED))) >> 16);
+            hoboard.set_main_reg(M68K_REG_D0, (d0 & 0xFFFF0000) | own);
+            hoboard.set_main_reg(M68K_REG_PC, PC_HUD_SPEED_NEXT);
+            break;
+        }
+        case PC_APPROACH1:
+        case PC_APPROACH2:
+        {
+            int speed = (uint16_t) d0 / 2;
+            if (speed < APPROACH_ENTRIES) break;
+            hoboard.set_main_reg(M68K_REG_D0, (d0 & 0xFFFF0000) | (uint16_t)(speed * 3 / 5));
+            hoboard.set_main_reg(M68K_REG_PC, pc == PC_APPROACH1 ? PC_APPROACH1_NEXT : PC_APPROACH2_NEXT);
+            break;
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------------------------

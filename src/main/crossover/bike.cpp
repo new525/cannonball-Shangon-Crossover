@@ -5,6 +5,7 @@
 #include "crossover/romset.hpp"
 #include "crossover/harness.hpp"
 #include "crossover/xaudio.hpp"
+#include "crossover/balance_pace.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -430,6 +431,10 @@ void CrossoverBike::tick()
             FILE* f = fopen("bike_state_before.bin", "wb");
             if (f) { fwrite(dbg_work, 1, sizeof dbg_work, f); fwrite(dbg_shared, 1, sizeof dbg_shared, f); fclose(f); }
         }
+        // BALANCE's pace: the distance the speed task moved the bike, as the course's world takes it (the
+        // bike's road table is built at this position on the next frame)
+        static double pace_carry = 0;
+        WL(V_POS, dbg_pos + balance::pace_distance(RL(V_POS) - dbg_pos, pace_carry));
         oroad.road_pos = RL(V_POS);
         // centrifugal + bike: relative to the bike's own road
         compute_road_frame(car_x);

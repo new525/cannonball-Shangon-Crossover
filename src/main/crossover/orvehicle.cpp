@@ -7,6 +7,7 @@
 #include "crossover/orvehicle.hpp"
 #include "crossover/orboard.hpp"
 #include "crossover/bike.hpp"
+#include "crossover/balance_pace.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -77,11 +78,14 @@ static const uint32_t PC_BOX_SCENERY[] = { 0x1254F, 0x12554, 0x1261B, 0x126F8 };
 static const uint32_t PC_BOX_CARS = 0x127DB;            // the race's cars (kind 2)
 static const uint32_t PC_BOX_OBJECTS = 0x12896;         // objects with their own position (kind 1)
 static const uint32_t PC_OFFROAD_TEST = 0xA3EA;         // jsr $B79B with R3 = the car's half-width (parameter +$1A)
+// BALANCE's pace (crossover/balance_pace): $209074 is the course's advance (the speed the world moves by); the HUD
+// shows the vehicle's own speed: $C2DB-$C2EE take the speed's copy $20042C / 136 into R18 for $208F50
+static const uint32_t PC_HUD_SPEED = 0xC2EE;            // mov.h R18, F50[R25]
 static const uint32_t A_BOXPTR = 0x208500;              // 500[R25]: the car's entry in the box list ($124A4)
 static const uint32_t BOX_LEFT = 0x0E, BOX_RIGHT = 0x10;    // the entry's lateral span (lateral -/+ half-width)
 
 // V60Cpu register numbers
-static const int REG_R0 = 0, REG_R3 = 3, REG_R10 = 10, REG_R19 = 19, REG_R20 = 20, REG_R21 = 21, REG_R25 = 25, REG_PC = 32;
+static const int REG_R0 = 0, REG_R3 = 3, REG_R10 = 10, REG_R18 = 18, REG_R19 = 19, REG_R20 = 20, REG_R21 = 21, REG_R25 = 25, REG_PC = 32;
 
 // ------------------------------------------------------------------------------------------------
 // Conversions (docs/CROSSOVER-OUTRUNNERS.md 7.2)
@@ -166,6 +170,7 @@ void ORVehicle::begin(ORBoard* b)
     if (!enabled || !b) return;
     if (vehicle == SH_BIKE && !bike.ready) return;
     board = b;
+    balance::set_world(vehicle == SH_BIKE ? balance::SH_BIKE : balance::FERRARI, balance::OUTRUNNERS);
     B = b;
 
     // OutRun's objects for the car, as Outrun::init_jump_table sets them up (minus the course)
@@ -229,7 +234,7 @@ void ORVehicle::begin(ORBoard* b)
         return true;
     });
     std::vector<uint32_t> pcs = { PC_HANDLING, PC_SPEED, PC_ADVANCE, PC_LATERAL, PC_COLLISION, PC_SPRITES_DONE,
-                                  PC_PART_SPAWNED, PC_OBJECT_DRAWN, PC_ENGINE, PC_TYRES, PC_TYRES2 };
+                                  PC_PART_SPAWNED, PC_OBJECT_DRAWN, PC_ENGINE, PC_TYRES, PC_TYRES2, PC_HUD_SPEED };
     if (is_bike)
     {
         pcs.insert(pcs.end(), std::begin(PC_BOX_SCENERY), std::end(PC_BOX_SCENERY));
@@ -241,6 +246,7 @@ void ORVehicle::begin(ORBoard* b)
 
 void ORVehicle::end()
 {
+    balance::clear_world();
     if (board)
     {
         board->set_pc_hooks(nullptr, 0, nullptr, nullptr);
@@ -338,10 +344,15 @@ void ORVehicle::on_pc(uint32_t pc)
             }
             break;
 
+        case PC_HUD_SPEED:                                  // the vehicle's own speed shown (BALANCE's pace)
+            if (balance::pace_now() != 1.0)
+                board->set_main_reg(REG_R18, (board->main_reg(REG_R18) & 0xFFFF0000) | (uint16_t)(oinitengine.car_increment >> 16));
+            break;
+
         case PC_SPEED:
             if (cs != 4)
             {
-                uint32_t inc = (uint32_t) oinitengine.car_increment;
+                uint32_t inc = balance::world_speed((uint32_t) oinitengine.car_increment);   // BALANCE's pace
                 uint32_t v = (inc >> 16) * SPEED_PER_KMH + (((inc & 0xFFFF) * SPEED_PER_KMH) >> 16);
                 WW(A_SPEED, (uint16_t) std::min<uint32_t>(v, 0xFFFF));
             }
@@ -501,8 +512,8 @@ void ORVehicle::ferrari_tick(int cs)
         oinputs.steering_adjust = 0;
         speed_prev = spd;
         oferrari.move();
-        oinitengine.car_increment = (int32_t)(((uint32_t) spd << 16) / SPEED_PER_KMH);
-        oferrari.car_inc_old = (uint16_t)(spd / SPEED_PER_KMH);
+        oinitengine.car_increment = (int32_t) balance::own_speed(((uint32_t) spd << 16) / SPEED_PER_KMH);   // BALANCE's pace
+        oferrari.car_inc_old = (uint16_t)(oinitengine.car_increment >> 16);
         oinitengine.car_x_pos = (int16_t)(-(int16_t) RW(A_LAT) * LAT_OUT / LAT_OR);
         lat_prev = (int16_t) RW(A_LAT);
         check_wheels();
@@ -594,7 +605,7 @@ void ORVehicle::bike_tick(int cs)
         oinputs.brake_adjust = 0;
         oinputs.input_steering = 0x80;
         speed_prev = spd;
-        uint32_t inc = ((uint32_t) spd << 16) / SPEED_PER_KMH;
+        uint32_t inc = balance::own_speed(((uint32_t) spd << 16) / SPEED_PER_KMH);       // BALANCE's pace
         int16_t x = (int16_t)(-(int16_t) RW(A_LAT) * LAT_OUT / LAT_OR);
         oinitengine.car_x_pos = x;
         bike.set_speed(inc);

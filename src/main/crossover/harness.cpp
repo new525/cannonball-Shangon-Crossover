@@ -11,6 +11,11 @@
       <frame> snap [name]            write a PPM screenshot after this frame is rendered
       <frame> steerto <x> [abs]      steer towards lateral position x each frame, relative to the
                                      bike's road (abs: absolute); "steerto off" ends it
+      <frame> steerto <x> road       the same relative to the road the car is on, for the Ferrari too
+                                     (OutRun's rule: one of two roads apart when the width is over $FF),
+                                     and for Super Hang-On's and Hang-On's own bikes on their boards
+                                     (their X, $260022 / $C7E050) and OutRunners' own car (its lateral
+                                     $209038 x -6/11 in OutRun's units)
       <frame> autopilot on|off       the bike steers itself (Super Hang-On's attract-mode rider)
       <frame> trace <file>           write engine variables per frame to the file
       <frame> exit                   quit
@@ -35,6 +40,14 @@
 #include "engine/ocrash.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
+#include "crossover/balance_pace.hpp"
+#include "crossover/shboard.hpp"
+#include "crossover/shferrari.hpp"
+#include "crossover/hoboard.hpp"
+#include "crossover/hovehicle.hpp"
+#include "crossover/orboard.hpp"
+#include "crossover/ormode.hpp"
+#include "crossover/orvehicle.hpp"
 
 Harness harness;
 
@@ -116,7 +129,8 @@ void Harness::apply(const Cmd& c)
     else if (c.op == "steerto")          // steerto <x> [abs] | steerto off
     {
         steer_on = !c.args.empty() && c.args[0] != "off";
-        if (steer_on) { steer_target = num(0); steer_abs = c.args.size() > 1 && c.args[1] == "abs"; }
+        if (steer_on) { steer_target = num(0); steer_abs = c.args.size() > 1 && c.args[1] == "abs";
+                        steer_road = c.args.size() > 1 && c.args[1] == "road"; }
     }
     else if (c.op == "autopilot")
         bike.autopilot = !c.args.empty() && c.args[0] == "on";
@@ -148,6 +162,20 @@ void Harness::before_tick()
     {
         int x = steer_abs ? oinitengine.car_x_pos : (bike.enabled ? bike.car_x_relative() :
                 madpower.enabled ? madpower.car_x_relative() : oinitengine.car_x_pos);
+        if (steer_road && !bike.enabled && !madpower.enabled)
+        {
+            int rw = (int16_t)(oroad.road_width >> 16), cx = oinitengine.car_x_pos;
+            x = rw > 0xFF ? cx - (cx < 0 ? -rw : rw) : cx;
+        }
+        if (steer_road && cannonball::state == cannonball::STATE_SHANGON && !shferrari.enabled)
+            x = (int16_t)(shboard.cpu1ram[0x22] << 8 | shboard.cpu1ram[0x23]);
+        if (steer_road && cannonball::state == cannonball::STATE_HANGON && !hovehicle.enabled)
+            x = (int16_t)(hoboard.subram[0x2050] << 8 | hoboard.subram[0x2051]);
+        if (steer_road && cannonball::state == cannonball::STATE_OUTRUNNERS && !orvehicle.driving() && ormode.board_for_tests())
+        {
+            const ORBoard* b = ormode.board_for_tests();
+            x = -(int16_t)(b->read8(0x209038) | b->read8(0x209039) << 8) * 6 / 11;
+        }
         int w = 0x80 + (x - steer_target) / 3;
         wheel = w < 0x48 ? 0x48 : (w > 0xB8 ? 0xB8 : w);
     }
@@ -164,6 +192,7 @@ void Harness::before_tick()
 
 void Harness::after_render(const uint16_t* pixels, int w, int h)
 {
+    balance::pace_trace_frame(frame);
     if (trace)
         fprintf(trace, "%d %d %u %d %d %d %d %d %d %d %d %d\n", frame, outrun.game_state, oroad.road_pos >> 16,
                 (int16_t)(oroad.road_width >> 16), oroad.road_ctrl, oinitengine.rd_split_state, oinitengine.car_x_pos,

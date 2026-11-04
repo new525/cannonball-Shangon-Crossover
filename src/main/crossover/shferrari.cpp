@@ -7,6 +7,7 @@
 #include "crossover/shboard.hpp"
 #include "crossover/m68k/m68k.h"
 #include "crossover/madpower.hpp"
+#include "crossover/balance_pace.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -66,6 +67,12 @@ static const uint32_t PC_RIVAL_HIT = 0x7510, PC_RIVAL_HIT_END = 0x753C;
 static const uint32_t PC_RIVAL_SOUND = 0x7554, PC_RIVAL_SOUND_END = 0x7558;
 static const uint32_t PC_DUST_DRAW = 0x811E, PC_DUST_DRAW_END = 0x8122;
 static const uint32_t PC_SOUND_QUEUE = 0x28B0;           // sub_028b0: d0 = command
+// BALANCE's pace (crossover/balance_pace): $260078 is the speed the world moves by (the rivals $7716, the roadside
+// objects $6F4C, $725E and $B63C, the score $5C4E, the road's stripes); the speedometer shows the vehicle's own
+static const uint32_t PC_HUD_SPEED = 0x1566, PC_HUD_SPEED_NEXT = 0x156C;   // move.w $260078,d0: x 279/240, shown
+static const uint32_t PC_HUD_TOP = 0x1588, PC_HUD_TOP_LOW = 0x15B0, PC_HUD_TOP_HIGH = 0x1592;   // cmpi.w #$F0,$260078; blt
+static const uint32_t PC_SCENERY_CAP = 0x6F58, PC_SCENERY_CAP_END = 0x6F66;   // the roadside objects' speed held to 279
+static const int SCENERY_TABLE_TOP = 349;                // the approach table $C348 (speed / 2) has 350 entries
 
 // ROM tables
 static const uint32_t ROM_SPR_LEAN = 0xCA4E;             // the bike's lean frames (definition pointers)
@@ -118,6 +125,7 @@ static const int LAT_OR = 11, LAT_OUT = 6, SPEED_PER_KMH = 136, SH_EDGE = 300;
 void SHFerrari::begin()
 {
     if (!enabled) return;
+    balance::set_world(vehicle == MAD_POWER ? balance::MAD_POWER : balance::FERRARI, balance::SUPER_HANG_ON);
     mem.rom = shboard.rom_data.data(); mem.rom_len = shboard.rom_data.size();
     mem.work = shboard.workram;
     mem.shared = shboard.cpu1ram; mem.shared_len = sizeof shboard.cpu1ram;
@@ -173,12 +181,14 @@ void SHFerrari::begin()
     }
 
     static const uint32_t pcs[] = { PC_DISPATCH, PC_SPRITE_DONE1, PC_SPRITE_DONE2, PC_RIVAL_CMP, PC_RIVAL_HIT,
-                                    PC_RIVAL_SOUND, PC_DUST_DRAW, PC_SOUND_QUEUE };
+                                    PC_RIVAL_SOUND, PC_DUST_DRAW, PC_SOUND_QUEUE, PC_HUD_SPEED, PC_HUD_TOP,
+                                    PC_SCENERY_CAP };
     shboard.set_pc_hooks(pcs, (int)(sizeof pcs / sizeof pcs[0]), &SHFerrari::hook, this);
 }
 
 void SHFerrari::end()
 {
+    balance::clear_world();
     shboard.set_pc_hooks(nullptr, 0, nullptr, nullptr);
     if (enabled && vehicle == MAD_POWER) madpower.end_board();
     shvideo.overlay = nullptr;
@@ -264,6 +274,12 @@ void SHFerrari::on_pc(uint32_t pc)
             if (racing) shboard.set_main_reg(M68K_REG_PC, PC_DUST_DRAW_END);
             break;
 
+        case PC_HUD_SPEED:
+        case PC_HUD_TOP:
+        case PC_SCENERY_CAP:
+            pace_hook(pc);
+            break;
+
         case PC_SOUND_QUEUE:
             // the sound task's effects for the bike: squeal $8A/$8B, off-road $8C/$8D
             if (racing && in_sound_task)
@@ -328,7 +344,7 @@ void SHFerrari::speed_task(uint32_t a5)
         // ...and takes it off the course a little way on ($6124)
         if ((int16_t) RW(V_POS) > 0x23) { WW(V_RETIRE, 0xFFFF); WW(V_RETIRE2, 0xFFFF); }
     }
-    WL(V_SPEED, (uint32_t) oinitengine.car_increment);            // the HUD's speed
+    WL(V_SPEED, balance::world_speed(oinitengine.car_increment));   // the speed the world moves by (BALANCE's pace)
     WB(W_SC_ACTIVE, 0);
     WW(V_X, (uint16_t) oinitengine.car_x_pos);
     // OutRun's distance for its last tick, spread over the board frames until the next one
@@ -336,6 +352,31 @@ void SHFerrari::speed_task(uint32_t a5)
     owed -= d;
     if (owed_frames > 0) owed_frames--;
     sho_track_advance(&mem, a5, d);
+}
+
+// BALANCE's pace, when it changes anything: the speedometer shows the vehicle's own speed (in the race the car's,
+// after it the board's speed taken back to it); the roadside objects approach at the world's speed up to the end
+// of their table (Super Hang-On holds its own bike's to its 279, $85A6: the speed it never passes)
+void SHFerrari::pace_hook(uint32_t pc)
+{
+    if (balance::pace_now() == 1.0) return;
+    uint32_t d0 = shboard.main_reg(M68K_REG_D0);
+    uint16_t own = (uint16_t)((racing ? (uint32_t) oinitengine.car_increment : balance::own_speed(RL(V_SPEED))) >> 16);
+    switch (pc)
+    {
+        case PC_HUD_SPEED:
+            shboard.set_main_reg(M68K_REG_D0, (d0 & 0xFFFF0000) | own);
+            shboard.set_main_reg(M68K_REG_PC, PC_HUD_SPEED_NEXT);
+            break;
+        case PC_HUD_TOP:
+            shboard.set_main_reg(M68K_REG_PC, (int16_t) own < 0xF0 ? PC_HUD_TOP_LOW : PC_HUD_TOP_HIGH);
+            break;
+        case PC_SCENERY_CAP:
+            if ((int16_t)(d0 & 0xFFFF) > SCENERY_TABLE_TOP) d0 = (d0 & 0xFFFF0000) | SCENERY_TABLE_TOP;
+            shboard.set_main_reg(M68K_REG_D0, d0);
+            shboard.set_main_reg(M68K_REG_PC, PC_SCENERY_CAP_END);
+            break;
+    }
 }
 
 // ------------------------------------------------------------------------------------------------
