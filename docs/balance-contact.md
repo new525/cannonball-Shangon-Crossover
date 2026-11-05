@@ -83,26 +83,30 @@ Top speeds (accelerator held, level road): Ferrari 293.1, Super Hang-On's bike 2
 
 | Visiting vehicle, course | n | v0 | Other | Speed lost, % of v0 | Time back | Time lost |
 |---|---|---|---|---|---|---|
-| Super Hang-On's bike, OutRun's | 4 | 238 | 172 | 64.9 | 7.5 s | 1.96 s |
-| MAD POWER, OutRun's | 15 | 332 | 191 | 45.2 | 5.8 s | 2.13 s |
-| Ferrari, Super Hang-On's | 11 | 271 | 140 | 77.0 | 6.8 s | 2.38 s |
-| MAD POWER, Super Hang-On's | 27 | 322 | 169 | 47.7 | 5.3 s | 2.21 s |
-| Ferrari, Hang-On's | 9 | 279 | 202 | 51.4 | 6.1 s | 1.26 s |
-| MAD POWER, Hang-On's | 25 | 309 | 199 | 39.2 | 4.5 s | 1.73 s |
+| Super Hang-On's bike, OutRun's | 6 | 240 | 180 | 62.9 | 7.5 s | 1.87 s |
+| MAD POWER, OutRun's | 31 | 341 | 188 | 46.6 | 6.3 s | 2.27 s |
+| Ferrari, Super Hang-On's | 7 | 276 | 158 | 70.9 | 7.0 s | 2.02 s |
+| MAD POWER, Super Hang-On's | 48 | 323 | 169 | 51.2 | 5.7 s | 2.40 s |
+| Ferrari, Hang-On's | 9 | 280 | 194 | 52.2 | 6.3 s | 1.28 s |
+| MAD POWER, Hang-On's | 59 | 316 | 197 | 41.9 | 4.8 s | 1.88 s |
 | Super Hang-On's bike, Hang-On's | 12 | 238 | 182 | 65.0 | 7.0 s | 1.82 s |
 | Ferrari, OutRunners' (Kenya) | 8 | 284 | 207 | 54.6 | 6.9 s | 1.34 s |
 | Super Hang-On's bike, OutRunners' (Kenya) | 9 | 241 | 196 | 65.1 | 7.6 s | 1.87 s |
 
 (The Ferrari's contacts that spun are left out here as in section 3: on Super Hang-On's and Hang-On's
-courses about half of its contacts spun, the chance of OutRun's cars.)
+courses about half of its contacts spun, the chance of OutRun's cars. MAD POWER's rows include runs where
+only every third rival was put in its path, so that it met some near its top speed.)
 
 What each visiting vehicle's own response keeps, as measured (these are the models the rule uses):
-- the Ferrari: the other's speed − 80, exact (it is the value its code sets);
+- the Ferrari: the other's speed − 80, exact (it is the value its code sets; when it meets two rivals
+  within a contact, the last one's);
 - Super Hang-On's bike: v0 − 157 km/h on OutRun's, Hang-On's and OutRunners' courses (a tick of contact
-  is two frames of 14, so 40 frames of knock: 241 → 84);
-- MAD POWER against a car of its weight: about the other's speed, less 8 km/h on OutRun's course, 0 on
-  Super Hang-On's, 14 on Hang-On's (the mean in the first runs: 20, 10 and 47 contacts; on the OFF runs
-  above the model is within 1.2 points of the measured loss on average).
+  is two frames of 14, so 40 frames of knock: 241 → 84); a contact at the edge gives a shorter knock;
+- MAD POWER against a car of its weight: 0.711 × the other's speed + 0.121 × its own + 4.5 km/h (least
+  squares over its 362 contacts at OFF on OutRun's, Super Hang-On's and Hang-On's courses, met at
+  120–450 km/h; rms 12 km/h, 4.3 points of speed lost). An earlier model, the other's speed less a constant
+  per course, held at the speeds met on the first runs (about 300–340 km/h) but not near its top speed,
+  which it reaches more often with pace in place.
 
 ## 5. The rule
 
@@ -111,7 +115,7 @@ decides the speed lost; the time to get it back is the vehicle's own acceleratio
 its feel (and pace, another aspect, already maps its speed onto the course). Matching time would mean
 inflating or shrinking a vehicle's losses to make up for how it accelerates. With the same fraction of
 speed lost, a contact costs each vehicle the same share of its pace; the time lost then differs only by
-how each vehicle accelerates (tables in sections 3, 4 and 6).
+how each vehicle accelerates (tables in sections 3, 4 and 7).
 
 **One factor per pair does not fit.** OutRun's rule depends on the other vehicle's speed (its traffic runs
 at 166–231 km/h, so the Ferrari loses 48–70 % at top speed), the bikes' does not (a fixed 145–157 km/h),
@@ -134,7 +138,7 @@ speed. Each game's rule is written as the speed it keeps (`kept_host`, `kept_own
 |---|---|---|
 | Ferrari | its cut, as computed | exact |
 | Super Hang-On's bike | max(0, v − 157) (145 on its own course) | measured |
-| MAD POWER | u − 8 / 0 / 14 (OutRun's / Super Hang-On's / Hang-On's) | measured |
+| MAD POWER (a car of its weight) | 0.711 u + 0.121 v + 4.5 | fitted, section 4 |
 
 For a contact at v0 (km/h) with another at u:
 
@@ -167,54 +171,84 @@ the runs). The factor applied in play is the per-contact one above.
 | Visiting vehicle | Course | Course's vehicle loses | Visitor's own loss | FULL | HALF |
 |---|---|---|---|---|---|
 | Super Hang-On's bike | OutRun | 59.0 % | 64.9 % | 0.910 | 0.954 |
-| MAD POWER | OutRun | 59.0 % | 57.4 % | 1.028 | 1.014 |
+| MAD POWER | OutRun | 59.0 % | 55.4 % | 1.066 | 1.032 |
 | Ferrari | Super Hang-On | 59.9 % | 80.9 % | 0.741 | 0.861 |
-| MAD POWER | Super Hang-On | 59.9 % | 69.9 % | 0.858 | 0.926 |
+| MAD POWER | Super Hang-On | 59.9 % | 65.5 % | 0.915 | 0.957 |
 | Ferrari | Hang-On | 56.0 % | 62.5 % | 0.897 | 0.947 |
-| MAD POWER | Hang-On | 56.0 % | 61.0 % | 0.919 | 0.959 |
+| MAD POWER | Hang-On | 56.0 % | 57.0 % | 0.984 | 0.992 |
 | Super Hang-On's bike | Hang-On | 56.0 % | 64.9 % | 0.864 | 0.929 |
 | Ferrari | OutRunners | 89.7 % | 58.0 % | 1.546 | 1.243 |
 | Super Hang-On's bike | OutRunners | 89.7 % | 64.9 % | 1.382 | 1.176 |
 
-## 6. Verification
+## 6. With pace in place
 
-Runs as in section 2 at OFF, HALF and FULL for each pair (rails and Kenya runs of 5,000–15,000 frames,
-OutRun's full route 12,000 frames). For each clean contact the expected loss is the visitor's own model ×
-the applied factor; at FULL that is the course's own vehicle's loss in that contact. Tolerance: the mean
-within 5 points of speed lost (the scatter of the models themselves, MAD POWER's up to 5 points sd).
+BALANCE's pace (`balance_pace.cpp`, commit `c3e54ba`) makes the course's world move by the visiting
+vehicle's speed × its pace factor, while the vehicle keeps its own speed. For contact:
+- **Speed lost** is in the vehicle's own units (`car_increment`, the bike's `$260078` in its own memory,
+  MAD POWER's `$209074` in its own state): pace does not touch it, nor the responses' code.
+- **The other vehicle's speed** is the world's, as before pace: OutRun's `traffic_speed`, the rivals'
+  `rival_speed` on Super Hang-On's and Hang-On's courses, the elephants' `+$2C` on OutRunners'. The
+  Ferrari's own cut is still to that speed − 80 (its code, unchanged), MAD POWER's bounce still compares its
+  own speed with it, the bike's knockback does not use it.
+- **The rule** meets the course's own vehicle at the same fraction of its top speed. With pace at FULL that
+  is the same speed in the world (the pace factor is the course's own vehicle's distance at its top speed
+  over the visitor's), so the host's rule is evaluated where the visitor really is in the course's world;
+  with HALF pace the two differ by the square root of the pace factor, as all of HALF is a midpoint.
+- **Time lost** (distance short over the top speed) is the same whether measured in the vehicle's units or
+  the world's: both distance and top speed take the same pace factor.
+- **What changes** is how contacts come about: the world's closing speeds, so how often the visitor meets
+  the others, at what speed (MAD POWER on the boards now meets rivals near its top speed, which brought the
+  model change of section 4), and for the bike how many ticks a contact lasts. The rule is per contact, so
+  the verification below was run again with pace in place.
+
+## 7. Verification
+
+Runs as in section 2, with pace in place (commit `c3e54ba`), at HALF and FULL for each pair (rails runs of
+9,000–15,000 frames, Kenya at X = −90, 45, 90, OutRun's full route 12,000 frames); OFF is the runs of
+section 4 (pace is 1 at OFF). For each clean contact the expected loss is the visitor's own model × the
+applied factor; at FULL that is the course's own vehicle's loss in that contact. Tolerance on the mean: 2
+points for the Ferrari and the bike, whose responses the models give to within a point; 6 points for MAD
+POWER, whose own response scatters by 3–7 points sd around its model at OFF.
 
 | Pair | OFF: lost (model) | HALF: lost / expected | FULL: lost / target | FULL time lost (OFF) |
 |---|---|---|---|---|
-| bike, OutRun | 64.9 % (66.0), n 4 | 66.8 / 66.9, n 3 | 66.6 / 67.4, n 3 | 2.03 s (1.96) |
-| MAD POWER, OutRun | 45.3 (44.1), n 15 | 47.3 / 46.2, n 14 | 46.6 / 46.6, n 15 | 2.23 s (2.13) |
-| Ferrari, Super Hang-On | 80.0 (80.7), n 1 | 66.7 / 67.4, n 11 | 63.0 / 63.5, n 15 | 1.55 s (2.38) |
-| MAD POWER, Super Hang-On | 47.7 (47.5), n 27 | 50.5 / 51.2, n 31 | 53.2 / 54.1, n 29 | 2.52 s (2.21) |
-| Ferrari, Hang-On | 64.6 (65.4), n 1 | 55.8 / 56.5, n 10 | 59.4 / 60.0, n 15 | 1.45 s (1.26) |
-| MAD POWER, Hang-On | 39.2 (39.6), n 25 | 49.0 / 51.9, n 26 | 56.9 / 61.3, n 20 | 2.81 s (1.73) |
-| bike, Hang-On | 65.0 (66.1), n 12 | 61.7 / 60.8, n 4 | 58.6 / 56.9, n 8 | 1.71 s (1.82) |
-| Ferrari, OutRunners | 54.6 (55.3), n 8 | 68.0 / 68.6, n 8 | 87.4 / 88.0, n 12 | 3.06 s (1.34) |
-| bike, OutRunners | 65.1 (65.0), n 9 | 75.5 / 75.6, n 4 | 91.1 / 91.2, n 5 | 2.64 s (1.87) |
+| bike, OutRun | 62.9 % (65.3), n 6 | 62.8 / 62.8, n 5 | 64.1 / 63.8, n 3 | 1.44 s (1.87) |
+| MAD POWER, OutRun | 46.7 (46.8), n 31 | 50.9 / 51.7, n 10 | 56.0 / 58.8, n 10 | 3.10 s (2.27) |
+| Ferrari, Super Hang-On | 70.9 (71.6), n 7 | 67.1 / 67.9, n 5 | 61.3 / 61.8, n 6 | 1.53 s (2.02) |
+| MAD POWER, Super Hang-On | 51.2 (49.2), n 48 | 57.4 / 59.8, n 13 | 67.4 / 62.0, n 16 | 4.10 s (2.40) |
+| Ferrari, Hang-On | 52.2 (52.9), n 9 | 53.8 / 54.4, n 7 | 56.1 / 56.6, n 4 | 1.39 s (1.28) |
+| MAD POWER, Hang-On | 41.9 (42.0), n 59 | 51.0 / 53.6, n 19 | 61.3 / 61.5, n 26 | 3.65 s (1.88) |
+| bike, Hang-On | 65.0 (66.1), n 12 | 63.2 / 62.6, n 9 | 58.9 / 56.6, n 6 | 1.72 s (1.82) |
+| Ferrari, OutRunners | 54.6 (55.3), n 8 | 71.4 / 72.1, n 3 | 88.6 / 89.2, n 3 | 3.15 s (1.34) |
+| bike, OutRunners | 65.1 (65.0), n 9 | 77.8 / 77.9, n 9 | 92.1 / 92.1, n 2 | 3.03 s (1.87) |
 
-(The contacts of each setting are different ones: the runs part after the first contact. The Ferrari's
-OFF rows on the boards have one clean contact each because most of its contacts there spun or were
-followed by the next rival; its cut is exact in every case, see HALF and FULL.)
+(The contacts of each setting are different ones: the runs part after the first contact. The time lost at
+FULL also reflects that the visitor meets the others at other speeds with pace in place; MAD POWER's FULL
+runs met them near its top speed, 380–413 km/h, against 316–341 at OFF.)
 
-All means are within 1.7 points except MAD POWER on Hang-On's course, 2.9 points short at HALF and 4.3
-at FULL (largest 7): its bounce is scaled tick by tick, and the drag in the bounce falls with the speed, so
-the larger the factor (1.45 on average there) the less of it is delivered. Within the tolerance; noted.
+Before pace was merged the same check gave, at FULL, Ferrari on OutRunners' 87.4 / 88.0 (n 12), the bike
+there 91.1 / 91.2 (n 5), the Ferrari on Super Hang-On's 63.0 / 63.5 (n 15) and on Hang-On's 59.4 / 60.0
+(n 15): the Ferrari's cut and the bike's knockback are scaled to within a point in every case, with or
+without pace.
 
-**Identity.** Compared with commit `855d672` built with the same test instrumentation (the harness, the
-testing functions of `balance_contact.cpp` in a file of their own, the `ORMode` trace call; its vehicle
-code untouched), each run in a fresh working directory, the WAV and four snapshots byte for byte:
+All means are within the tolerance. The largest: MAD POWER on Super Hang-On's course loses 5.4 points more
+than its target at FULL (sd 5.6; its own response scatters most there, 6.6 points sd at OFF), and on OutRun's
+2.8 points less; its bounce is scaled tick by tick, and the drag in the bounce changes with the speed, so a
+factor does not carry over exactly.
+
+**Identity.** Compared with commit `c3e54ba` (pace merged) built with the same test instrumentation (the
+harness, the testing functions of `balance_contact.cpp` in a file of their own, the `ORMode` trace call; its
+vehicle code untouched), each run in a fresh working directory, the WAV and four snapshots byte for byte:
 - BALANCE OFF, the nine visiting pairs (OutRun's full route with `CB_CHASE`, rails on Super Hang-On's and
   Hang-On's courses, Kenya at X = −90; 5,000–6,000 frames): identical, 9 of 9;
 - each vehicle on its own course at OFF, HALF and FULL (the Ferrari on OutRun's full route, the bikes on
   rails, MAD POWER on Kenya at X = 45): identical, 12 of 12.
 
 Every one of these runs has contacts (counted in the same runs with `CB_CONTACT_LOG`): 1 to 21 a run; 11
-for the Ferrari at home, 3 and 11 for the bikes at home, 2 for MAD POWER at home.
+for the Ferrari at home, 3 and 11 for the bikes at home, 2 for MAD POWER at home. (The same 21 checks also
+passed against `855d672` before the rebase onto pace.)
 
-## 7. Testing switches
+## 8. Testing switches
 
 | Switch | What |
 |---|---|

@@ -88,16 +88,16 @@ namespace balance
     // The speed the visiting vehicle's own response keeps (km/h): the Ferrari's cut is exact (it is passed);
     // the bike's knockback as measured on that course, its braking taken on below the speed task's floor
     // (contact_step: a scaled knockback brakes at its own rate for all its frames); MAD POWER against a car
-    // of its own weight ($8074: the traffic and rivals count as cars of its race) keeps about the other's
-    // speed, less MP_KEPT_OFFSET (measured, the mean of its first runs' contacts: OutRun's traffic 8 km/h
-    // over 20 contacts, Super Hang-On's rivals 0 over 10, Hang-On's 14 over 47)
-    static const double MP_KEPT_OFFSET[4] = { 8.0, 0.0, 14.0, 0.0 };
+    // of its own weight ($8074: the traffic and rivals count as cars of its race) keeps 0.711 x the other's
+    // speed + 0.121 x its own + 4.5 km/h (least squares over its 362 contacts at OFF on OutRun's, Super
+    // Hang-On's and Hang-On's courses, met at 120-450 km/h: rms 12 km/h, 4.3 points of speed lost)
+    static double kept_mp_car(double v, double u) { return 0.711 * u + 0.121 * v + 4.5; }
     static double kept_own(Vehicle v, Host h, double before, double u)
     {
         switch (v)
         {
             case SH_BIKE:   return std::min(before, std::max(0.0, before - KNOCK_LOSS_GUEST[h]));
-            case MAD_POWER: return std::min(before, std::max(0.0, u - MP_KEPT_OFFSET[h]));
+            case MAD_POWER: return std::min(before, std::max(0.0, kept_mp_car(before, u)));
             default:        return std::max(0.0, u - 80);
         }
     }
