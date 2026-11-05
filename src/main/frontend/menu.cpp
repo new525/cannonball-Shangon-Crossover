@@ -166,6 +166,7 @@ void Menu::populate_for_pc()
 
     menu_enhancements.push_back(ENTRY_TIMER);
     menu_enhancements.push_back(ENTRY_TRAFFICFIX);
+    menu_enhancements.push_back(ENTRY_HISCOREKEYS);
     menu_enhancements.push_back(ENTRY_ATTRACT);
     menu_enhancements.push_back(ENTRY_OBJECTS);
     menu_enhancements.push_back(ENTRY_PROTOTYPE);
@@ -243,6 +244,7 @@ void Menu::populate_for_cabinet()
     menu_s_enhance.push_back(ENTRY_TIMER);
     menu_s_enhance.push_back(ENTRY_S_BUGS);
     menu_s_enhance.push_back(ENTRY_TRAFFICFIX);
+    menu_s_enhance.push_back(ENTRY_HISCOREKEYS);
     menu_s_enhance.push_back(ENTRY_BACK);
 }
 
@@ -682,6 +684,7 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_S_BUGS))        config.engine.fix_bugs ^= 1;
             else if (SELECTED(ENTRY_TIMER))         config.engine.fix_timer ^= 1;
             else if (SELECTED(ENTRY_TRAFFICFIX))    config.engine.fix_traffic = (config.engine.fix_traffic + 1) % 3;
+            else if (SELECTED(ENTRY_HISCOREKEYS))   config.engine.hiscore_digital ^= 1;
             else if (SELECTED(ENTRY_BACK))          menu_back();
         }
         else if (menu_selected == &menu_video)
@@ -827,6 +830,7 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_PROTOTYPE))         config.engine.prototype ^= 1;
             else if (SELECTED(ENTRY_TIMER))             config.engine.fix_timer ^= 1;
             else if (SELECTED(ENTRY_TRAFFICFIX))        config.engine.fix_traffic = (config.engine.fix_traffic + 1) % 3;
+            else if (SELECTED(ENTRY_HISCOREKEYS))       config.engine.hiscore_digital ^= 1;
             else if (SELECTED(ENTRY_BACK))              menu_back();
         }
         else if (menu_selected == &menu_handling)
@@ -835,7 +839,7 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_OFFROAD))           config.engine.offroad ^= 1;
             else if (SELECTED(ENTRY_BUMPER))            config.engine.bumper ^= 1;
             else if (SELECTED(ENTRY_TURBO))             config.engine.turbo ^= 1;
-            else if (SELECTED(ENTRY_COLOR))             { if (++config.engine.car_pal > 4) config.engine.car_pal = 0; }
+            else if (SELECTED(ENTRY_COLOR))             { if (++config.engine.car_pal > 7) config.engine.car_pal = 0; }
             else if (SELECTED(ENTRY_BACK))              menu_back();
         }
         else if (menu_selected == &menu_musictest)
@@ -1007,6 +1011,7 @@ void Menu::refresh_menu()
             else if (SELECTED(ENTRY_S_BUGS))        set_menu_text(ENTRY_S_BUGS, config.engine.fix_bugs ? "ON" : "OFF");
             else if (SELECTED(ENTRY_TIMER))         set_menu_text(ENTRY_TIMER, config.engine.fix_timer ? "ON" : "OFF");
             else if (SELECTED(ENTRY_TRAFFICFIX))    set_menu_text(ENTRY_TRAFFICFIX, config.engine.fix_traffic == 0 ? "OFF" : config.engine.fix_traffic == 1 ? "PARTIAL" : "FULL");
+            else if (SELECTED(ENTRY_HISCOREKEYS))   set_menu_text(ENTRY_HISCOREKEYS, config.engine.hiscore_digital ? "ON" : "OFF");
         }
         else if (menu_selected == &menu_handling)
         {

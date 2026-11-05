@@ -53,6 +53,9 @@ public:
     const static uint16_t PAL_YELLOW = 261;
     const static uint16_t PAL_GREEN = 266;
     const static uint16_t PAL_CYAN = 271;
+    const static uint16_t PAL_BLACK = 276;   // these three from CannonBall-DX
+    const static uint16_t PAL_WHITE = 281;
+    const static uint16_t PAL_SILVER = 286;
 
 	// -------------------------------------------------------------------------
 	// Main Switch Variables

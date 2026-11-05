@@ -38,6 +38,7 @@ public:
 
     bool keys[15];
     bool keys_old[15];
+    bool keys_pressed[15];  // a press since the last frame_done(), kept even if released again
 
     enum limits
     {
@@ -117,6 +118,7 @@ private:
     void bind_button(SDL_GameControllerButton button, int offset);
     void handle_key(const int, const bool);
     void handle_joy(const uint8_t, const bool);
+    void set_key_state(const int, const bool);
     void handle_axis(const uint8_t axis, const int16_t value);
     void store_last_axis(const uint8_t axis, const int16_t value);
     int scale_trigger(const int);

@@ -140,6 +140,7 @@ struct engine_settings_t
     bool layout_debug;
     bool hiscore_delete;  // Allow deletion of last entry in score table
     int hiscore_timer;    // Override default timer on high-score entry screen
+    bool hiscore_digital; // Name entry by left/right presses, START confirms (CannonBall-DX); off = the wheel as in the arcade
     int new_attract;      // New Attract Mode
     bool grippy_tyres;    // Handling: Stick to track
     bool offroad;         // Handling: Drive off-road

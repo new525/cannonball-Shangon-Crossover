@@ -60,6 +60,7 @@ const static char* ENTRY_S_CRT = "CRT TEST";
 const static char* ENTRY_TIMER = "TIMING FIXES ";
 const static char* ENTRY_S_BUGS = "BUG FIXES ";
 const static char* ENTRY_TRAFFICFIX = "TRAFFIC BRAKE FIX ";
+const static char* ENTRY_HISCOREKEYS = "DIGITAL NAME ENTRY ";
 
 // Video Menu
 const static char* ENTRY_FPS = "FRAME RATE ";
@@ -109,7 +110,7 @@ const static char* ENTRY_BUMPER  = "STRONG BUMPER ";
 const static char* ENTRY_TURBO   = "FASTER CAR ";
 const static char* ENTRY_COLOR   = "COLOR ";
 
-const static char* COLOR_LABELS[5] = { "RED", "BLUE", "YELLOW", "GREEN", "CYAN" };
+const static char* COLOR_LABELS[8] = { "RED", "BLUE", "YELLOW", "GREEN", "CYAN", "BLACK", "WHITE", "SILVER" };
 
 // Music Test Menu
 const static char* ENTRY_MUSIC1 = "PLAY TRACK";

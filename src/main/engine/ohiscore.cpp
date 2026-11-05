@@ -9,6 +9,7 @@
 #include "main.hpp"
 #include "engine/ohud.hpp"
 #include "engine/oinputs.hpp"
+#include "sdl2/input.hpp"
 #include "engine/ostats.hpp"
 #include "engine/outils.hpp"
 #include "engine/ohiscore.hpp"
@@ -317,8 +318,23 @@ void OHiScore::do_input(uint32_t adr)
 
     const static uint8_t ENTRIES = 28; // 28 Possible entries we can select from
     const static uint8_t DELETE = ENTRIES - 1;
-    
-    int16_t position = read_controls() + letter_selected;
+
+    // Digital name entry (option, from CannonBall-DX): one letter per press of left or right. While a
+    // direction is held, the steering is held at the centre so that the wheel path below (which
+    // scrolls by how far the wheel is turned, and gets the keys as a simulated wheel from
+    // OInputs::digital_steering) adds nothing; it is left there, so the recentring ticks after the
+    // release add nothing either. A real wheel, with no direction pressed, goes through the
+    // unchanged arcade path.
+    int16_t digital = 0;
+    if (config.engine.hiscore_digital && (input.is_pressed(Input::LEFT) || input.is_pressed(Input::RIGHT)))
+    {
+        if (input.has_pressed(Input::LEFT))       digital = -1;
+        else if (input.has_pressed(Input::RIGHT)) digital = 1;
+        oinputs.input_steering = 0x80;
+        steer = 0;
+    }
+
+    int16_t position = read_controls() + digital + letter_selected;
 
     if (position > ENTRIES)
         letter_selected = position = 0;
@@ -327,8 +343,9 @@ void OHiScore::do_input(uint32_t adr)
     else
         letter_selected = position;
 
-    // Check accelerator for press and depress
-    if (!acc_curr || !(acc_prev ^ acc_curr)) return;
+    // Check accelerator for press and depress (with the digital entry option, START confirms too)
+    const bool start = config.engine.hiscore_digital && input.has_pressed(Input::START);
+    if (!start && (!acc_curr || !(acc_prev ^ acc_curr))) return;
 
     // End option selected
     if (letter_selected == ENTRIES)

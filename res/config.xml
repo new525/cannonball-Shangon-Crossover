@@ -347,7 +347,8 @@
     <!-- Drive 20% Faster -->
     <turbo>0</turbo>
     
-    <!-- 0 = Red, 1 = Blue, 2 = Yellow, 3 = Green, 4 = Cyan -->
+    <!-- 0 = Red, 1 = Blue, 2 = Yellow, 3 = Green, 4 = Cyan,
+         5 = Black, 6 = White, 7 = Silver (the last three from CannonBall-DX) -->
     <car_color>0</car_color>
     
     <!-- Display debug info that's useful for LayOut track editing -->
@@ -360,6 +361,12 @@
     
     <!-- Override Highscore Table Timeout (Default: 30 Seconds, Max: 99 Seconds) -->
     <hiscore_timer>40</hiscore_timer>
+
+    <!-- Name entry with digital controls (CannonBall-DX): each press of left or right moves one
+         letter, and START confirms a letter as the accelerator does. 0 = as in the arcade: the
+         wheel (or the keys through the simulated wheel) scrolls the letters, the accelerator
+         confirms. A real wheel works the same either way. -->
+    <digital_entry>0</digital_entry>
 </scores>
 
 <!-- Settings for Time Trial Mode -->

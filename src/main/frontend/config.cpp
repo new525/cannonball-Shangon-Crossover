@@ -257,12 +257,14 @@ void Config::load()
     engine.layout_debug    = pt_config.get("engine.layout_debug", 0) != 0;
     engine.hiscore_delete  = pt_config.get("scores.delete_last_entry", 1);
     engine.hiscore_timer   = pt_config.get("scores.hiscore_timer", 0);
+    engine.hiscore_digital = pt_config.get("scores.digital_entry", 0) != 0;
     engine.new_attract     = pt_config.get("engine.new_attract", 1) != 0;
     engine.offroad         = pt_config.get("engine.offroad", 0);
     engine.grippy_tyres    = pt_config.get("engine.grippy_tyres", 0);
     engine.bumper          = pt_config.get("engine.bumper", 0);
     engine.turbo           = pt_config.get("engine.turbo", 0);
     engine.car_pal         = pt_config.get("engine.car_color", 0);
+    if (engine.car_pal < 0 || engine.car_pal > 7) engine.car_pal = 0;   // 8 colours (COLOR_LABELS, FERRARI_PALETTES)
 
     if (!engine.hiscore_timer)
         engine.hiscore_timer = HIGHSCORE_TIMER;
@@ -361,6 +363,7 @@ bool Config::save()
     pt_config.put("engine.bumper",          (int) engine.bumper);
     pt_config.put("engine.turbo",           (int) engine.turbo);
     pt_config.put("engine.car_color",       engine.car_pal);
+    pt_config.put("scores.digital_entry",   (int) engine.hiscore_digital);
 
     pt_config.put("time_trial.laps",    ttrial.laps);
     pt_config.put("time_trial.traffic", ttrial.traffic);

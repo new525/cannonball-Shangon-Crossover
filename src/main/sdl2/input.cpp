@@ -23,6 +23,10 @@ Input::Input(void)
 
     gamepad = false;
     rumble_supported = false;
+
+    memset(keys, 0, sizeof(keys));
+    memset(keys_old, 0, sizeof(keys_old));
+    memset(keys_pressed, 0, sizeof(keys_pressed));
 }
 
 Input::~Input(void)
@@ -119,10 +123,16 @@ void Input::close_joy()
     gamepad = false;
 }
 
-// Detect whether a key press change has occurred
+// Detect whether a key press change has occurred.
+// The game reads its inputs 30 times a second (frame_done() runs on the tick frames only), so at
+// 60 or 120 fps a press and its release can both arrive between two reads, and the old test
+// (keys && !keys_old) never saw them: a quick tap of the gear, view, coin, start or menu button was
+// lost. set_key_state() latches every press in keys_pressed until the next frame_done(), as
+// CannonBall-DX does. The old edge test is kept as well, for the test harness, which writes keys[]
+// directly and so never sets the latch: its scripted presses behave exactly as before.
 bool Input::has_pressed(presses p)
 {
-    return keys[p] && !keys_old[p];
+    return keys_pressed[p] || (keys[p] && !keys_old[p]);
 }
 
 // Detect whether key is still pressed
@@ -136,13 +146,24 @@ bool Input::is_pressed_clear(presses p)
 {
     bool pressed = keys[p];
     keys[p] = false;
+    keys_pressed[p] = false;
     return pressed;
 }
 
-// Denote that a frame has been done by copying key presses into previous array
+// Denote that a frame has been done by copying key presses into previous array and clearing the
+// press latches
 void Input::frame_done()
 {
     memcpy(&keys_old, &keys, sizeof(keys));
+    memset(keys_pressed, 0, sizeof(keys_pressed));
+}
+
+// Every change from SDL goes through here: a press (not a repeat) sets the latch for has_pressed()
+void Input::set_key_state(const int p, const bool is_pressed)
+{
+    if (is_pressed && !keys[p])
+        keys_pressed[p] = true;
+    keys[p] = is_pressed;
 }
 
 void Input::handle_key_down(SDL_Keysym* keysym)
@@ -158,36 +179,36 @@ void Input::handle_key_up(SDL_Keysym* keysym)
 void Input::handle_key(const int key, const bool is_pressed)
 {
     // Redefinable Key Input
-    if (key == key_config[0])  keys[UP] = is_pressed;
-    if (key == key_config[1])  keys[DOWN] = is_pressed;
-    if (key == key_config[2])  keys[LEFT] = is_pressed;
-    if (key == key_config[3])  keys[RIGHT] = is_pressed;
-    if (key == key_config[4])  keys[ACCEL] = is_pressed;
-    if (key == key_config[5])  keys[BRAKE] = is_pressed;
-    if (key == key_config[6])  keys[GEAR1] = is_pressed;
-    if (key == key_config[7])  keys[GEAR2] = is_pressed;
-    if (key == key_config[8])  keys[START] = is_pressed;
-    if (key == key_config[9])  keys[COIN] = is_pressed;
-    if (key == key_config[10]) keys[MENU] = is_pressed;
-    if (key == key_config[11]) keys[VIEWPOINT] = is_pressed;
+    if (key == key_config[0])  set_key_state(UP, is_pressed);
+    if (key == key_config[1])  set_key_state(DOWN, is_pressed);
+    if (key == key_config[2])  set_key_state(LEFT, is_pressed);
+    if (key == key_config[3])  set_key_state(RIGHT, is_pressed);
+    if (key == key_config[4])  set_key_state(ACCEL, is_pressed);
+    if (key == key_config[5])  set_key_state(BRAKE, is_pressed);
+    if (key == key_config[6])  set_key_state(GEAR1, is_pressed);
+    if (key == key_config[7])  set_key_state(GEAR2, is_pressed);
+    if (key == key_config[8])  set_key_state(START, is_pressed);
+    if (key == key_config[9])  set_key_state(COIN, is_pressed);
+    if (key == key_config[10]) set_key_state(MENU, is_pressed);
+    if (key == key_config[11]) set_key_state(VIEWPOINT, is_pressed);
 
     // Function keys are not redefinable
     switch (key)
     {
         case SDLK_F1:
-            keys[PAUSE] = is_pressed;
+            set_key_state(PAUSE, is_pressed);
             break;
 
         case SDLK_F2:
-            keys[STEP] = is_pressed;
+            set_key_state(STEP, is_pressed);
             break;
 
         case SDLK_F3:
-            keys[TIMER] = is_pressed;
+            set_key_state(TIMER, is_pressed);
             break;
 
         case SDLK_F5:
-            keys[MENU] = is_pressed;
+            set_key_state(MENU, is_pressed);
             break;
     }
 }
@@ -347,18 +368,18 @@ void Input::handle_controller_up(SDL_ControllerButtonEvent* evt)
 
 void Input::handle_joy(const uint8_t button, const bool is_pressed)
 {	
-    if (button == pad_config[0])   keys[ACCEL]     = is_pressed;
-    if (button == pad_config[1])   keys[BRAKE]     = is_pressed;
-    if (button == pad_config[2])   keys[GEAR1]     = is_pressed;
-    if (button == pad_config[3])   keys[GEAR2]     = is_pressed;
-    if (button == pad_config[4])   keys[START]     = is_pressed;
-    if (button == pad_config[5])   keys[COIN]      = is_pressed;
-    if (button == pad_config[6])   keys[MENU]      = is_pressed;
-    if (button == pad_config[7])   keys[VIEWPOINT] = is_pressed;
-    if (button == pad_config[8])   keys[UP]        = is_pressed;
-    if (button == pad_config[9])   keys[DOWN]      = is_pressed;
-    if (button == pad_config[10])  keys[LEFT]      = is_pressed;
-    if (button == pad_config[11])  keys[RIGHT]     = is_pressed;
+    if (button == pad_config[0])   set_key_state(ACCEL, is_pressed);
+    if (button == pad_config[1])   set_key_state(BRAKE, is_pressed);
+    if (button == pad_config[2])   set_key_state(GEAR1, is_pressed);
+    if (button == pad_config[3])   set_key_state(GEAR2, is_pressed);
+    if (button == pad_config[4])   set_key_state(START, is_pressed);
+    if (button == pad_config[5])   set_key_state(COIN, is_pressed);
+    if (button == pad_config[6])   set_key_state(MENU, is_pressed);
+    if (button == pad_config[7])   set_key_state(VIEWPOINT, is_pressed);
+    if (button == pad_config[8])   set_key_state(UP, is_pressed);
+    if (button == pad_config[9])   set_key_state(DOWN, is_pressed);
+    if (button == pad_config[10])  set_key_state(LEFT, is_pressed);
+    if (button == pad_config[11])  set_key_state(RIGHT, is_pressed);
    
     // Limit Input Switches
     if (button == pad_config[12])  motor_limits[SW_LEFT]   = is_pressed;
@@ -370,10 +391,10 @@ void Input::handle_joy_hat(SDL_JoyHatEvent* evt)
 {
     if (controller != NULL) return;
 
-    keys[UP] = evt->value == SDL_HAT_UP;
-    keys[DOWN] = evt->value == SDL_HAT_DOWN;
-    keys[LEFT] = evt->value == SDL_HAT_LEFT;
-    keys[RIGHT] = evt->value == SDL_HAT_RIGHT;
+    set_key_state(UP,    evt->value == SDL_HAT_UP);
+    set_key_state(DOWN,  evt->value == SDL_HAT_DOWN);
+    set_key_state(LEFT,  evt->value == SDL_HAT_LEFT);
+    set_key_state(RIGHT, evt->value == SDL_HAT_RIGHT);
 }
 
 void Input::set_rumble(bool enable, float strength)
