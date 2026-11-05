@@ -1,4 +1,4 @@
-OutRun / Super Hang-On / Hang-On crossover - version 0.9.0 (Windows, 64-bit)
+OutRun / Super Hang-On / Hang-On crossover - version 0.10.0 (Windows, 64-bit)
 ==============================================================================
 
 A modified build of Cannonball (the OutRun engine by Chris White) that lets
@@ -15,8 +15,8 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
-Changes since 0.9.0 (not yet released)
---------------------------------------
+Changes in 0.10.0
+-----------------
 - New race setup option BALANCE (HALF by default, FULL, OFF). Each game's
   courses are made for its own vehicle; BALANCE brings a vehicle from
   another game in line with the course's own one, while it keeps its own
@@ -620,7 +620,7 @@ Licences
 Cannonball: licenses\cannonball-license.txt. Redistributions may not be sold,
 and modified redistributions must include complete source code, so the
 source folder contains:
-  superscaler-crossover-0.9.0-src.zip     this program (git tag v0.9.0,
+  superscaler-crossover-0.10.0-src.zip    this program (git tag v0.10.0,
                                           branch "crossover")
   SDL2-2.30.8.tar.gz                      SDL2 (zlib licence)
   boost-1.83-headers-used.tar.gz          the Boost headers compiled in
