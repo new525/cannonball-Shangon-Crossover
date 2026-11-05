@@ -4,6 +4,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/harness.hpp"
+#include "crossover/balance.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/balance_pace.hpp"
 
@@ -422,6 +423,12 @@ void CrossoverBike::tick()
         static uint8_t dbg_work[sizeof work], dbg_shared[sizeof shared];
         std::memcpy(dbg_work, work, sizeof work); std::memcpy(dbg_shared, shared, sizeof shared);
         sho_speed_task(&mem, SHO_A5_SPEED);
+        // BALANCE (crossover/balance_contact.cpp): the speed the knockback takes off ($6178, $61E6), scaled
+        if (RW(V_KNOCK))
+        {
+            double v = balance::contact_step(balance::SH_BIKE, (int32_t) dbg_spd, (int32_t) RL(V_SPEED));
+            WL(V_SPEED, v > 0 ? (uint32_t)(v + 0.5) : 0);
+        }
         if (getenv("CB_BIKE_DEBUG") && ((int32_t)(RL(V_POS) - dbg_pos) > 0x20000 || (int32_t)RL(V_SPEED) < (int32_t)dbg_spd - 0x50000))
             fprintf(stderr, "bike step: pos %08x -> %08x  speed %08x -> %08x  X(abs) %d  curve %d radius %d  throttle %d brake %d\n",
                     dbg_pos, RL(V_POS), dbg_spd, RL(V_SPEED), car_x, (int16_t) RW(V_CURVE), (int16_t) RW(V_CURVE_R),

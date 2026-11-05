@@ -21,6 +21,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
 #include "crossover/balance_pace.hpp"
+#include "crossover/balance.hpp"
 
 OTraffic otraffic;
 
@@ -781,6 +782,7 @@ void OTraffic::check_collision(oentry* sprite)
             {
                 if (outrun.game_state == GS_ATTRACT || outrun.game_state == GS_INGAME)
                 {
+                    balance::contact_begin(balance::SH_BIKE, bike.speed_kmh(), sprite->traffic_speed);
                     bike.traffic_hit(sprite->x);
                     d0 = sound::REBOUND;
                     collision_traffic++;
@@ -823,6 +825,8 @@ void OTraffic::check_collision(oentry* sprite)
                 outrun.ttrial.vehicle_cols++;
             }
             } // crossover: end of the Ferrari branch
+            if (balance::contact_tracing())
+                balance::contact_trace_hit("traffic", sprite->traffic_speed, oinitengine.car_increment / 65536.0, collision_mask);
         }
     }
 

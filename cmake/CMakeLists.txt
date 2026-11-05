@@ -210,6 +210,7 @@ set(src_crossover
     "${main_cpp_base}/crossover/balance.cpp"
     "${main_cpp_base}/crossover/balance_pace.cpp"
     "${main_cpp_base}/crossover/balance_pace.hpp"
+    "${main_cpp_base}/crossover/balance_contact.cpp"
     "${main_cpp_base}/crossover/romset.hpp"
     "${main_cpp_base}/crossover/romset.cpp"
     "${main_cpp_base}/crossover/fd1089.hpp"

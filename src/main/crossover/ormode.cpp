@@ -21,6 +21,7 @@
 #include "engine/audio/osoundint.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/orvehicle.hpp"
+#include "crossover/balance.hpp"
 
 ORMode ormode;
 
@@ -313,6 +314,7 @@ void ORMode::tick()
         board->draw_mask = i == frames - 1 ? 1 : 0;
         board->run_frame();
         take_sound();
+        balance::contact_trace_or(*board, vehicle == MAD_POWER);   // testing: CB_CONTACT_LOG, CB_CHASE
         if (board->read8(A_STATE) != 6) finished = true;
         // testing: the cars' sounds alone (the music stopped, $1F, at this board frame)
         static const int stop_music = getenv("CB_OR_STOP_MUSIC") ? atoi(getenv("CB_OR_STOP_MUSIC")) : 0;

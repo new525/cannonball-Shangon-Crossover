@@ -48,6 +48,10 @@
 #include "crossover/orboard.hpp"
 #include "crossover/ormode.hpp"
 #include "crossover/orvehicle.hpp"
+#include "crossover/balance.hpp"
+#include "crossover/shmode.hpp"
+#include "crossover/homode.hpp"
+#include "engine/osprites.hpp"
 
 Harness harness;
 
@@ -157,6 +161,7 @@ void Harness::before_tick()
         input.keys[it->key] = true;
         ++it;
     }
+    balance::contact_test_rails();      // testing: CB_RAILS
     // steering autopilot: + X is left, and wheel > 0x80 steers right (moves X down)
     if (steer_on)
     {
@@ -177,6 +182,83 @@ void Harness::before_tick()
             x = -(int16_t)(b->read8(0x209038) | b->read8(0x209039) << 8) * 6 / 11;
         }
         int w = 0x80 + (x - steer_target) / 3;
+        // testing (CB_STEER_REL): steered relative to the centre of the vehicle's road, gently and damped (the
+        // Ferrari's X from its road, the bikes at home from their boards' X $260022 / $C7E050); with CB_CHASE,
+        // towards the nearest of OutRun's traffic ahead (its x relative to the car, OTraffic::check_collision)
+        static const bool rel = getenv("CB_STEER_REL") != nullptr, chase = getenv("CB_CHASE") != nullptr;
+        static int x_prev = 0;
+        if (rel && !steer_abs)
+        {
+            int target = steer_target;
+            if (shmode.active && !shferrari.enabled)
+                x = (int16_t)(shboard.cpu1ram[0x22] << 8 | shboard.cpu1ram[0x23]);
+            else if (homode.active && !hovehicle.enabled)
+                x = (int16_t)(hoboard.subram[0x2050] << 8 | hoboard.subram[0x2051]);
+            else if (!bike.enabled && !madpower.enabled)
+            {
+                int rw = (int16_t)(oroad.road_width >> 16);
+                if (oroad.road_ctrl == ORoad::ROAD_BOTH_P0 || oroad.road_ctrl == ORoad::ROAD_BOTH_P1)
+                    x -= rw > 0xFF ? (x < 0 ? -rw : rw) : 0;
+            }
+            // the boards' rivals: Super Hang-On's (task $74B6, depth +$14, hit from $A0) and Hang-On's (task
+            // $A8D0, line +$C, hit from $D0) by their screen x +$A ($160 = the vehicle); OutRunners' cars
+            // ($20FC00 + $80 n: lateral +$44, segment counter +$46) against MAD POWER's or the vehicle's own
+            auto rw16 = [](const uint8_t* p) { return (int)(int16_t)(p[0] << 8 | p[1]); };
+            if (chase && (shmode.active || homode.active))
+            {
+                const uint8_t* ram = shmode.active ? shboard.workram : hoboard.workram;
+                uint32_t task = shmode.active ? 0x74B6 : 0xA8D0, from = shmode.active ? 0x3000 : 0x800;
+                int dfield = shmode.active ? 0x14 : 0x0C, dlo = shmode.active ? 0x60 : 0x90, dhi = shmode.active ? 0xB0 : 0xE0;
+                int best = -1;
+                for (uint32_t a = from; a < 0x4000 + (shmode.active ? 0x4000 : 0); a += 0x40)
+                {
+                    const uint8_t* s = ram + a;
+                    uint32_t t = (uint32_t) s[2] << 24 | s[3] << 16 | s[4] << 8 | s[5];
+                    int d = rw16(s + dfield);
+                    if ((s[0] & 0x80) && t == task && d >= dlo && d < dhi && d > best)
+                    {
+                        best = d;
+                        target = x + (0x160 - rw16(s + 0x0A));
+                    }
+                }
+            }
+            if (chase && ormode.active && balance::test_or_board)
+            {
+                const ORBoard& b = *balance::test_or_board;
+                auto r16 = [&](uint32_t a) { return (int)(int16_t)(b.read8(a) | b.read8(a + 1) << 8); };
+                int own_lat = r16(0x209038), own_seg = r16(0x209042);
+                if (!orvehicle.enabled) x = -own_lat * 6 / 11;
+                int best = 99;
+                for (int n = 1; n < 8; n++)
+                {
+                    uint32_t c = 0x20FC00 + 0x80 * n;
+                    int ds = (int16_t)(r16(c + 0x46) - own_seg);
+                    if (ds >= 0 && ds <= 3 && ds < best && r16(c + 0x4C) > 0)
+                    {
+                        best = ds;
+                        target = x - (r16(c + 0x44) - own_lat) * 6 / 11;
+                    }
+                }
+            }
+            if (chase && !shmode.active && !homode.active && !ormode.active)
+            {
+                int best = -1;
+                for (int i = OSprites::SPRITE_TRAFF1; i < OSprites::SPRITE_TRAFF1 + 8; i++)
+                {
+                    const oentry& t = osprites.jump_table[i];
+                    int z = t.z >> 16;
+                    if ((t.control & OSprites::ENABLE) && z >= 0x100 && z < 0x1E0 && z > best)
+                    {
+                        best = z;
+                        target = x - t.x;
+                    }
+                }
+            }
+            static const int kp = getenv("CB_STEER_P") ? atoi(getenv("CB_STEER_P")) : 8;
+            static const int kd = getenv("CB_STEER_D") ? atoi(getenv("CB_STEER_D")) : 2;
+            w = 0x80 + (x - target) / kp + (x - x_prev) * kd;
+            x_prev = x;
+        }
         wheel = w < 0x48 ? 0x48 : (w > 0xB8 ? 0xB8 : w);
     }
     // analog overrides
@@ -193,6 +275,7 @@ void Harness::before_tick()
 void Harness::after_render(const uint16_t* pixels, int w, int h)
 {
     balance::pace_trace_frame(frame);
+    balance::contact_trace_frame();
     if (trace)
         fprintf(trace, "%d %d %u %d %d %d %d %d %d %d %d %d\n", frame, outrun.game_state, oroad.road_pos >> 16,
                 (int16_t)(oroad.road_width >> 16), oroad.road_ctrl, oinitengine.rd_split_state, oinitengine.car_x_pos,

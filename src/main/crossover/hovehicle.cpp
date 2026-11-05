@@ -32,6 +32,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/madpower.hpp"
 #include "crossover/balance_pace.hpp"
+#include "crossover/balance.hpp"
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
@@ -540,7 +541,11 @@ void HOVehicle::tick()
     if (vehicle == SH_BIKE)
     {
         // Super Hang-On's knockback for the rivals touched since the last tick ($7510, see CrossoverBike)
-        for (int i = 0; i < n_hits; i++) bike.traffic_hit((int16_t) hits[i].side);
+        for (int i = 0; i < n_hits; i++)
+        {
+            balance::contact_begin(balance::SH_BIKE, bike.speed_kmh(), hits[i].speed);
+            bike.traffic_hit((int16_t) hits[i].side);
+        }
         n_hits = 0;
         if (oferrari.car_ctrl_active) bike.tick();
         if (RW(V_RETIRE)) oinitengine.car_increment = 0;
@@ -573,6 +578,7 @@ void HOVehicle::tick()
         if (outrun.game_state == GS_INGAME)
         {
             int s = std::max(0, hits[i].speed - 80);
+            s = balance::contact_cut(balance::FERRARI, oinitengine.car_increment >> 16, s, hits[i].speed);
             oinitengine.car_increment = (s << 16) | (oinitengine.car_increment & 0xFFFF);
             oferrari.car_inc_old = s;
             otraffic.collision_traffic++;

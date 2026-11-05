@@ -13,6 +13,7 @@
 #include "crossover/romset.hpp"
 #include "crossover/harness.hpp"
 #include "crossover/balance_pace.hpp"
+#include "crossover/balance.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -451,7 +452,21 @@ void CrossoverMadPower::tick()
     uint16_t seg_before = s.seg_count;
     uint8_t state_before = s.state;
     if (hold) { s.speed = 0; s.speed32 = 0; }
+    const uint16_t speed_before = s.speed;
     c.tick(in, road);
+    // BALANCE (crossover/balance_contact.cpp): the speed a car's contact takes off (state 5, $819D), scaled
+    static bool contact_on = false;
+    if (s.state == 5 && in.hit && in.hit_kind == 2 && !contact_on)
+    {
+        contact_on = true;
+        balance::contact_begin(balance::MAD_POWER, speed_before / (double) SPEED_PER_KMH, in.car_speed / SPEED_PER_KMH);
+    }
+    if (s.state != 5) contact_on = false;
+    if (contact_on)
+    {
+        double v = balance::contact_step(balance::MAD_POWER, speed_before, s.speed);
+        if (v != s.speed) s.speed32 = s.speed = s.speed_copy = (uint16_t) std::max(0L, std::min(0xFFFFL, std::lround(v)));
+    }
     // the car's sound writes of this tick (the tyre sound $700718, the queued commands): ORCar keeps the last
     // object's only (gearbox_tick starts a new SoundOut), and on the board the car's object runs before the
     // gear box's in the frame: the car's first, then the gear box's
