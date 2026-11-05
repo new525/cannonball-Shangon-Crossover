@@ -300,7 +300,28 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
 - **68000 timing**: Musashi now takes the same number of cycles as MAME 0.264's 68000 on every
   instruction tested (104,854 cases) and takes interrupts at the same points. This brought the
   emulated Hang-On board much closer to MAME (see *Hang-On's course* above).
-- **Menu**: *PLAY GAME* opens a race setup screen (vehicle, bike size, track, music).
+- **Menu**: *PLAY GAME* opens a race setup screen (vehicle, bike size, track, music, balance).
+- **BALANCE** (`crossover/balance*.*`): each game's courses are made for its own vehicle; on another
+  game's course a vehicle is brought in line with the course's own one in three ways, by a factor per
+  vehicle and course measured in harness runs; FULL matches, HALF (the default) takes the geometric
+  midpoint, OFF changes nothing. The vehicle keeps its own physics, acceleration, sounds and speedometer.
+  On a vehicle's own course every factor is 1, and with OFF every run is byte-identical to before.
+  - Pace ([`docs/balance-pace.md`](docs/balance-pace.md)): the course's world moves by the vehicle's
+    speed x a factor, so at FULL each vehicle at its top speed covers the course at the pace of the
+    course's own vehicle (MAD POWER on OutRun's courses at the Ferrari's 293 km/h, the Ferrari on
+    OutRunners' at MAD POWER's 451). The boards' speedometers are hooked to show the vehicle's own speed.
+  - Curve push ([`docs/balance-push.md`](docs/balance-push.md)): the push the vehicle's own code gives is
+    scaled so it feels the course's curves as hard as its own game's: its demand (the push at top speed
+    as a share of its full-lock steering, averaged along the curves) becomes its own-course demand at
+    FULL. Measured with `CB_PUSH_LOG`: Super Hang-On's bike 0.99 on OutRun's and Hang-On's courses and
+    1.27 on OutRunners'; the Ferrari 0.94 / 0.85 / 1.33 on Super Hang-On's / Hang-On's / OutRunners';
+    MAD POWER 0.81 / 0.80 / 0.83 on OutRun's / Super Hang-On's / Hang-On's (divided by its pace factor,
+    since its push grows with the distance it crosses per tick).
+  - Contact ([`docs/balance-contact.md`](docs/balance-contact.md)): in a contact with another vehicle,
+    a visiting vehicle loses the share of its speed the course's own vehicle would lose in the same
+    contact (the same other vehicle, met at the same fraction of its top speed): OutRun's Ferrari is cut
+    to the other's speed - 80, the bikes brake through their knockback, MAD POWER bounces off Kenya's
+    elephants by both speeds. Only the speed its own response takes off is scaled, per contact.
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
   WAV output, used to check behaviour without a person at the controls.
 - **From CannonBall-SE and CannonBall-DX** (forks of Cannonball under the same licence; rewritten
@@ -376,6 +397,9 @@ roms\orunners\   epr-15550.ic31, mpr-15551.ic1, mpr-15552.ic2   (OutRunners)
      MAD POWER, or Hang-On's course, *HANG ON*, with any of the four, or OutRunners' *OUTRUNNERS FULL COURSE* (its map;
      the side of the road you are on at a checkpoint picks the way) or *OUTRUNNERS KENYA*, with
      MAD POWER, the Ferrari or Super Hang-On's bike.
+   - **BALANCE**: *HALF* (default), *FULL* or *OFF*: how far a vehicle on another game's course is
+     brought in line with the course's own vehicle in pace, curve push and speed lost in contacts (see
+     *BALANCE* above). It has no effect on a vehicle's own course.
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks, Cool Riders'
      *HANG ON THEME OF LOVE* or *OUTRUNNERS RADIO* (it previews as you choose; Cool Riders'
      board takes about half a second to start the first time), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen.

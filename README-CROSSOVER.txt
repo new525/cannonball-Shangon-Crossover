@@ -17,6 +17,34 @@ Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 Changes since 0.9.0 (not yet released)
 --------------------------------------
+- New race setup option BALANCE (HALF by default, FULL, OFF). Each game's
+  courses are made for its own vehicle; BALANCE brings a vehicle from
+  another game in line with the course's own one, while it keeps its own
+  handling, acceleration, sounds and speedometer. FULL matches, HALF goes
+  half way (the geometric mean), OFF leaves everything as in 0.9.0. On a
+  vehicle's own course it changes nothing. Three things are balanced, each
+  from measurements (docs/balance-pace.md, balance-push.md,
+  balance-contact.md):
+  - Pace: the course moves by the vehicle's speed times a factor, so at
+    FULL every vehicle at its top speed covers the course as fast as the
+    course's own vehicle. MAD POWER on OutRun's roads then goes at the
+    Ferrari's pace (293 km/h; 363 at HALF) while its speedometer still
+    shows its own 451; the Ferrari on OutRunners' courses goes at MAD
+    POWER's. The supercharger and MAD POWER's manual box keep their extra
+    speed.
+  - Curve push: a vehicle feels another game's curves as hard as it feels
+    its own game's (the share of its full-lock steering a curve takes at
+    top speed, averaged along the curves). Super Hang-On's bike on OutRun's
+    courses comes out the same on average (factor 0.99); MAD POWER is
+    pushed about 0.8 as hard as before on OutRun's, Super Hang-On's and
+    Hang-On's courses, the Ferrari 0.94 / 0.85 on Super Hang-On's /
+    Hang-On's and 1.33 on OutRunners'.
+  - Contact: bumping into another vehicle costs the share of speed the
+    course's own vehicle would lose in the same contact, while each vehicle
+    still reacts its own way (the Ferrari's skid and spin, the bike's
+    knockback, MAD POWER's bounce). On OutRunners' Kenya an elephant stops
+    you almost dead, as it does MAD POWER.
+
 Fixes and features taken from CannonBall-SE and CannonBall-DX (forks of
 Cannonball under the same licence), rewritten for this program:
 - ROMs can stay in MAME's zip files: every .zip in a ROM folder is read as
@@ -378,6 +406,10 @@ Main menu > PLAY GAME opens the race setup:
               OUTRUNNERS RADIO: OutRunners' radio, changed with the d-pad
               in the race (see Music). OutRunners' own courses always play
               OutRunners' own radio (its buttons on the same d-pad).
+    BALANCE   HALF (default), FULL or OFF: how far a vehicle on another
+              game's course is brought in line with the course's own
+              vehicle (see Changes since 0.9.0). No effect on a vehicle's
+              own course.
 Up/down moves, left/right (or select) changes a setting. Your choices are
 saved in config.xml (section <crossover>).
 
