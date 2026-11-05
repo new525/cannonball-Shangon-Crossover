@@ -397,9 +397,6 @@ roms\orunners\   epr-15550.ic31, mpr-15551.ic1, mpr-15552.ic2   (OutRunners)
      MAD POWER, or Hang-On's course, *HANG ON*, with any of the four, or OutRunners' *OUTRUNNERS FULL COURSE* (its map;
      the side of the road you are on at a checkpoint picks the way) or *OUTRUNNERS KENYA*, with
      MAD POWER, the Ferrari or Super Hang-On's bike.
-   - **BALANCE**: *HALF* (default), *FULL* or *OFF*: how far a vehicle on another game's course is
-     brought in line with the course's own vehicle in pace, curve push and speed lost in contacts (see
-     *BALANCE* above). It has no effect on a vehicle's own course.
    - **MUSIC**: any of OutRun's, Super Hang-On's or Hang-On's race tracks, Cool Riders'
      *HANG ON THEME OF LOVE* or *OUTRUNNERS RADIO* (it previews as you choose; Cool Riders'
      board takes about half a second to start the first time), or *CHOOSE ON THE RADIO* for OutRun's usual radio screen.
@@ -410,6 +407,9 @@ roms\orunners\   epr-15550.ic31, mpr-15551.ic1, mpr-15552.ic2   (OutRunners)
      screen instead (choose with the brake, confirm with START); on Hang-On's course it plays
      Hang-On's own race music. The music chosen here also plays in the ENHANCED, ORIGINAL and
      CONTINUOUS game modes, which then skip the radio.
+   - **BALANCE**: *HALF* (default), *FULL* or *OFF*: how far a vehicle on another game's course is
+     brought in line with the course's own vehicle in pace, curve push and speed lost in contacts (see
+     *BALANCE* above). It has no effect on a vehicle's own course.
 3. Choose **START RACE**.
 
 Up/down moves through the menu and left/right changes a setting. Your choices are saved in
