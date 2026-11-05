@@ -9,6 +9,7 @@
 #include "crossover/madpower.hpp"
 #include "crossover/balance_pace.hpp"
 #include "crossover/balance_push.hpp"
+#include "crossover/balance.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -505,6 +506,7 @@ void SHFerrari::tick()
         if (outrun.game_state == GS_INGAME)
         {
             int s = std::max(0, hits[i].speed - 80);
+            s = balance::contact_cut(balance::FERRARI, oinitengine.car_increment >> 16, s, hits[i].speed);
             oinitengine.car_increment = (s << 16) | (oinitengine.car_increment & 0xFFFF);
             oferrari.car_inc_old = s;
             otraffic.collision_traffic++;

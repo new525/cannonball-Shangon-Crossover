@@ -9,6 +9,7 @@
 #include "crossover/bike.hpp"
 #include "crossover/balance_pace.hpp"
 #include "crossover/balance_push.hpp"
+#include "crossover/balance.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -558,6 +559,7 @@ void ORVehicle::ferrari_tick(int cs)
         if (outrun.game_state == GS_INGAME)
         {
             int s = std::max(0, hits[i].speed - 80);
+            s = balance::contact_cut(balance::FERRARI, oinitengine.car_increment >> 16, s, hits[i].speed);
             oinitengine.car_increment = (s << 16) | (oinitengine.car_increment & 0xFFFF);
             oferrari.car_inc_old = s;
             otraffic.collision_traffic++;
@@ -581,6 +583,7 @@ void ORVehicle::bike_tick(int cs)
         if (hits[i].kind == 0) olevelobjs.collision_sprite = 1;
         else
         {
+            balance::contact_begin(balance::SH_BIKE, bike.speed_kmh(), hits[i].speed);
             bike.traffic_hit((int16_t) hits[i].side);
             if (hits[i].who != contact_prev)
             {

@@ -22,6 +22,8 @@
 ***************************************************************************/
 #pragma once
 
+class ORBoard;
+
 namespace balance
 {
     enum Vehicle { FERRARI = 0, SH_BIKE = 1, HO_BIKE = 2, MAD_POWER = 3 };
@@ -39,4 +41,19 @@ namespace balance
     double pace(Vehicle v, Host h);         // crossover/balance_pace.cpp
     double push(Vehicle v, Host h);         // crossover/balance_push.cpp
     double contact(Vehicle v, Host h);      // crossover/balance_contact.cpp
+
+    // Contact with another vehicle (balance_contact.cpp): the speed the vehicle's own response takes off,
+    // scaled. A contact begins (or goes on) with contact_begin; each tick of the response then gives its
+    // speed change to contact_step. contact_cut is both, for a response that is a single cut.
+    void   contact_begin(Vehicle v, double before_kmh, int other_kmh);
+    double contact_step(Vehicle v, double before, double after);
+    int    contact_cut(Vehicle v, int before_kmh, int after_kmh, int other_kmh);
+
+    // Testing (CB_CONTACT_LOG=<file>): the vehicle's speed every frame and each contact
+    bool contact_tracing();
+    void contact_trace_frame();
+    void contact_trace_hit(const char* what, int other_kmh, double before, double after);
+    void contact_trace_or(const ::ORBoard& board, bool own_car);
+    extern const ::ORBoard* test_or_board;
+    void contact_test_rails();      // the harness's CB_CHASE on OutRunners' courses
 }

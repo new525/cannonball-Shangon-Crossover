@@ -22,6 +22,7 @@
 #include "crossover/xaudio.hpp"
 #include "crossover/orvehicle.hpp"
 #include "crossover/balance_push.hpp"
+#include "crossover/balance.hpp"
 
 ORMode ormode;
 
@@ -315,6 +316,7 @@ void ORMode::tick()
         board->run_frame();
         balance::push_frame_or(board.get());    // measurement (CB_PUSH_LOG)
         take_sound();
+        balance::contact_trace_or(*board, vehicle == MAD_POWER);   // testing: CB_CONTACT_LOG, CB_CHASE
         if (board->read8(A_STATE) != 6) finished = true;
         // testing: the cars' sounds alone (the music stopped, $1F, at this board frame)
         static const int stop_music = getenv("CB_OR_STOP_MUSIC") ? atoi(getenv("CB_OR_STOP_MUSIC")) : 0;

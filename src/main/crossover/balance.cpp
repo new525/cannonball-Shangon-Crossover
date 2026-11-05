@@ -28,7 +28,4 @@ namespace balance
         return (v == FERRARI && h == OUTRUN) || (v == SH_BIKE && h == SUPER_HANG_ON) ||
                (v == HO_BIKE && h == HANG_ON) || (v == MAD_POWER && h == OUTRUNNERS);
     }
-
-    // Until each aspect's table is in (balance_pace.cpp, balance_push.cpp, balance_contact.cpp)
-    double contact(Vehicle, Host) { return 1.0; }
 }
