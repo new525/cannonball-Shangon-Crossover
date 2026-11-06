@@ -35,6 +35,7 @@
 
 // Crossover test harness (headless scripted runs)
 #include "crossover/harness.hpp"
+#include "crossover/version.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/bike.hpp"
 #include "crossover/xaudio.hpp"
@@ -381,6 +382,7 @@ int main(int argc, char* argv[])
     // Parse command line arguments (config file location, LayOut data) 
     bool ok = parse_command_line(argc, argv);
 
+    std::cout << "OutRun / Super Hang-On / Hang-On crossover " << CROSSOVER_VERSION << " on Cannonball" << std::endl;
     if (ok)
     {
         config.load(); // Load config.XML file

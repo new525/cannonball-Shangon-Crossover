@@ -77,9 +77,12 @@ namespace balance
         return OUTRUN;
     }
 
+    static double push_carry[4] = {};
+    void reset_push() { for (double& c : push_carry) c = 0; }
+
     int push_scaled(Vehicle v, int p)
     {
-        static double carry[4] = {};
+        double* carry = push_carry;
         const double f = blend(push(v, host()));
         if (f == 1.0) return p;
         if (p == 0) return 0;                                   // no push, none given (the fraction waits)

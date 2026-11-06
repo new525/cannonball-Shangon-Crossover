@@ -6,6 +6,9 @@
     adc0804.cpp (conversion timing).
 ***************************************************************************/
 #include "crossover/hoboard.hpp"
+
+// testing: HOB_ADCLOG prints the ADC traffic
+static bool adc_log() { static const bool on = getenv("HOB_ADCLOG") != nullptr; return on; }
 #include "crossover/romset.hpp"
 
 #include <cstring>
@@ -235,7 +238,7 @@ uint16_t HOBoard::io_read(uint32_t a)
             if (a & 0x20)
             {
                 adc_update(cpu_now());
-                if (getenv("HOB_ADCLOG")) fprintf(stderr, "f%llu adc read t=%.0f sel=%d -> %02x (done %.0f)\n", (unsigned long long) frame_count, cpu_now(), adc_select, adc_result, adc_done);
+                if (adc_log()) fprintf(stderr, "f%llu adc read t=%.0f sel=%d -> %02x (done %.0f)\n", (unsigned long long) frame_count, cpu_now(), adc_select, adc_result, adc_done);
                 return (uint16_t)(0xff00 | adc_result);
             }
             return (uint16_t)(0xff00 | ppi_read(1, off));
@@ -256,7 +259,7 @@ void HOBoard::io_write(uint32_t a, uint16_t v, uint16_t mask)
                 double t = cpu_now();
                 adc_update(t);
                 if (!adc_busy) { adc_done = t + ADC_CYCLES; adc_busy = true; }
-                if (getenv("HOB_ADCLOG")) fprintf(stderr, "f%llu adc start t=%.0f sel=%d done %.0f\n", (unsigned long long) frame_count, t, adc_select, adc_done);
+                if (adc_log()) fprintf(stderr, "f%llu adc start t=%.0f sel=%d done %.0f\n", (unsigned long long) frame_count, t, adc_select, adc_done);
             }
             else ppi_write(1, off, (uint8_t) v);
             break;

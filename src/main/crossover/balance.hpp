@@ -38,6 +38,14 @@ namespace balance
     // The vehicle's own course (every factor 1)
     bool native(Vehicle v, Host h);
 
+    // The carries the aspects keep between ticks (rounding fractions, a contact going on) cleared, so that a
+    // race starts as the first one did: at every race start (OInitEngine::init) and each join's begin/end
+    void reset();
+    void reset_pace();                      // (the parts of reset(), each in its file)
+    void reset_push();
+    void reset_contact();
+    extern double pace_carry[2];            // the Ferrari's and the bike's pace_distance carries (balance_pace.cpp)
+
     double pace(Vehicle v, Host h);         // crossover/balance_pace.cpp
     double push(Vehicle v, Host h);         // crossover/balance_push.cpp
     double contact(Vehicle v, Host h);      // crossover/balance_contact.cpp

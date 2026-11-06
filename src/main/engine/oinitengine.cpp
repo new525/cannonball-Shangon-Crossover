@@ -59,6 +59,7 @@ void OInitEngine::init(int8_t level)
 {
     if (bike.ready) bike.reset();   // crossover: fresh Super Hang-On state for every race and demo
     if (madpower.ready()) madpower.reset();     // crossover: MAD POWER's too
+    balance::reset();                           // crossover: BALANCE's carries, so every race starts alike
 
     ostats.game_completed  = 0;
 

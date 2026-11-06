@@ -143,6 +143,16 @@ namespace balance
     static int    begin_frame = -1000;      // cannonball::frame of the last report
     static int    cut_kmh = -1;
     static int    step_frame = -100;        // testing: the last frame of a response (contact_step)
+    static int    base_kmh = 0, own_kmh = -1;   // contact_cut: the speed a contact started from, OutRun's own cut
+
+    void reset_contact()
+    {
+        factor_now = 1.0;
+        begin_frame = -1000;
+        cut_kmh = -1;
+        step_frame = -100;
+        base_kmh = 0; own_kmh = -1;
+    }
 
     void contact_begin(Vehicle v, double before_kmh, int other_kmh)
     {
@@ -169,7 +179,6 @@ namespace balance
     {
         // a contact goes on, or another vehicle is met within it (OutRun's cut is then the last one's): the
         // speed it started from stays the base of the cut
-        static int base_kmh = 0, own_kmh = -1;
         const bool going_on = cannonball::frame - begin_frame <= 4;
         begin_frame = cannonball::frame;
         step_frame = harness.frame;

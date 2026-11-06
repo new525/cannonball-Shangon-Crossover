@@ -455,7 +455,8 @@ void SHFerrari::register_sprite(uint32_t a5)
 // ------------------------------------------------------------------------------------------------
 void SHFerrari::world_to_outrun()
 {
-    if (getenv("CB_SHF_FREEZE_TIME")) WB(W_TIMER, 0x50);         // testing: reach the goal
+    static const bool freeze_time = getenv("CB_SHF_FREEZE_TIME") != nullptr;
+    if (freeze_time) WB(W_TIMER, 0x50);         // testing: reach the goal
     outrun.tick_frame = true;
     outrun.game_state = RW(V_MODE) == 2 ? GS_INGAME : GS_START1;
     oinitengine.road_type       = (int16_t) RW(V_CURVE);           // same list format in both games

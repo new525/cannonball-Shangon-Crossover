@@ -23,6 +23,13 @@ namespace balance
         return std::pow(full, s);
     }
 
+    void reset()
+    {
+        reset_pace();
+        reset_push();
+        reset_contact();
+    }
+
     bool native(Vehicle v, Host h)
     {
         return (v == FERRARI && h == OUTRUN) || (v == SH_BIKE && h == SUPER_HANG_ON) ||

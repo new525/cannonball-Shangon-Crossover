@@ -313,7 +313,7 @@ void HOVideo::draw_sprites(HOBoard& b)
                     {
                         pix = (px >> (12 - 4 * n)) & 0xf;
                         xacc = (xacc & 0xff) + hzoom;
-                        if (xacc < 0x100) { if (x >= clip_min && pix != 0 && pix != 15) dest[x - XO] = (uint16_t)(colpri | pix); x++; }
+                        if (xacc < 0x100) { if (x >= clip_min && x <= clip_max && pix != 0 && pix != 15) dest[x - XO] = (uint16_t)(colpri | pix); x++; }
                     }
                     if (pix == 15) break;
                 }
@@ -329,7 +329,7 @@ void HOVideo::draw_sprites(HOBoard& b)
                     {
                         pix = (px >> (4 * n)) & 0xf;
                         xacc = (xacc & 0xff) + hzoom;
-                        if (xacc < 0x100) { if (x >= clip_min && pix != 0 && pix != 15) dest[x - XO] = (uint16_t)(colpri | pix); x++; }
+                        if (xacc < 0x100) { if (x >= clip_min && x <= clip_max && pix != 0 && pix != 15) dest[x - XO] = (uint16_t)(colpri | pix); x++; }
                     }
                     if (pix == 15) break;
                 }

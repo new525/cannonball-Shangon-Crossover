@@ -124,7 +124,7 @@ void CrossoverAudio::mix(int32_t* out, int samples, int fps)
     ch[HANGON].active  = ch[HANGON].raw_mode || ch[HANGON].music;
     // the boards run in 60 Hz frames; at 30 fps two of them make one audio tick
     int sub = fps >= 60 || fps <= 0 ? 1 : 60 / fps;
-    int per = samples / sub;
+    int per = samples / sub;                // the last sub-frame takes the remainder (735 at 30 fps / 22,050 Hz is odd)
     // testing: Super Hang-On's board runs as usual but is not heard (the other boards alone)
     static const bool mute_sh = getenv("CB_XAUDIO_MUTE_SH") != nullptr;
     static std::vector<int32_t> muted;
@@ -148,13 +148,13 @@ void CrossoverAudio::mix(int32_t* out, int samples, int fps)
                 c.quiet--;
                 if (!c.slots.empty()) c.slots.pop_front();
                 if (c.raw_mode && !c.raw.empty()) c.raw.pop_front();
-                c.board.frame(out + 2 * per * s, per);
+                c.board.frame(out + 2 * per * s, s == sub - 1 ? samples - per * s : per);
                 continue;
             }
             if (c.raw_mode)
             {
                 if (!c.raw.empty()) { for (uint8_t v : c.raw.front()) c.board.command(v); c.raw.pop_front(); }
-                c.board.frame(out + 2 * per * s, per);
+                c.board.frame(out + 2 * per * s, s == sub - 1 ? samples - per * s : per);
                 continue;
             }
             std::array<uint8_t, 7> slots = {};
@@ -163,7 +163,7 @@ void CrossoverAudio::mix(int32_t* out, int samples, int fps)
             if (!c.cmds.empty()) { cmd = c.cmds.front(); c.cmds.pop_front(); }
             c.board.command(cmd);
             for (uint8_t v : slots) c.board.command(v);
-            c.board.frame(out + 2 * per * s, per);
+            c.board.frame(out + 2 * per * s, s == sub - 1 ? samples - per * s : per);
         }
     }
     out = out_all;

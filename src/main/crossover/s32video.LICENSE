@@ -1,6 +1,7 @@
 System Multi 32 video (s32video.hpp, s32video.cpp), transcribed from MAME 0.264
 src/mame/sega/segas32_v.cpp, segas32.cpp and segas32.h, with the parts of MAME's core they
-use.
+use. The player car's sprite renderer (orcar/orcarspr.hpp, orcarspr.cpp, S32Sprites) is
+transcribed from segas32_v.cpp's draw_one_sprite and mix_all_layers under the same licence.
 
 segas32_v.cpp, segas32.cpp, segas32.h:
 Copyright-holders: Aaron Giles

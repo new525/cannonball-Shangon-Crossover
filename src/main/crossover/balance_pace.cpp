@@ -71,8 +71,11 @@ namespace balance
     static Vehicle j_vehicle = FERRARI;
     static Host j_host = OUTRUN;
 
-    void set_world(Vehicle v, Host h) { joined = true; j_vehicle = v; j_host = h; }
-    void clear_world() { joined = false; }
+    void set_world(Vehicle v, Host h) { joined = true; j_vehicle = v; j_host = h; reset(); }
+    void clear_world() { joined = false; reset(); }
+
+    double pace_carry[2] = {};
+    void reset_pace() { pace_carry[0] = pace_carry[1] = 0; }
 
     double pace_now()
     {

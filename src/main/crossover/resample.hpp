@@ -22,7 +22,14 @@ struct FrameResampler
     double pos = 0;                 // read position in board samples
 
     void clear() { buf.clear(); pos = 0; }
-    void push(float l, float r) { buf.push_back(l); buf.push_back(r); }
+    // A board whose samples nobody pulls (sound off, or a mode that pushes after its race) must not
+    // grow without limit: beyond LIMIT board samples the oldest half are dropped. Never reached when
+    // the samples are being pulled (the backlog is held near MARGIN).
+    void push(float l, float r)
+    {
+        if (buf.size() >= 2 * LIMIT) { buf.erase(buf.begin(), buf.begin() + (long) LIMIT); pos = 0; }
+        buf.push_back(l); buf.push_back(r);
+    }
     size_t available() const { return buf.size() / 2; }
 
     // Adds samples output samples to mix (interleaved stereo), board samples per output sample
@@ -72,4 +79,5 @@ struct FrameResampler
     }
 
     static constexpr double MARGIN = 16;    // board samples kept back, against the frame's jitter
+    static constexpr size_t LIMIT = 1 << 18; // about 6 s at 44,100 Hz
 };

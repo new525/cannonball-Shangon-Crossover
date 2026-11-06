@@ -7,6 +7,8 @@
 #include "crossover/fd1089.hpp"
 
 #include <algorithm>
+#include <cstdlib>
+#include <iomanip>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -36,6 +38,22 @@ static uint32_t crc32_of(const std::vector<uint8_t>& d)
     uint32_t c = 0xFFFFFFFFu;
     for (uint8_t b : d) c = table[(c ^ b) & 0xFF] ^ (c >> 8);
     return c ^ 0xFFFFFFFFu;
+}
+
+// A file found by its MAME name whose CRC32 is not the set's: a wrong dump, which the emulation (and
+// the reconstructed vehicles' tables read from it) would run on. Refused, like Cannonball's own
+// loader, unless CB_ACCEPT_WRONG_CRC is set (testing).
+static bool accept_wrong_crc()
+{
+    static const bool accept = getenv("CB_ACCEPT_WRONG_CRC") != nullptr;
+    return accept;
+}
+
+static std::string wrong_crc(const char* name, uint32_t crc, const RomFile& p)
+{
+    std::ostringstream o;
+    o << "ROM " << name << " (" << p.where() << ") has the wrong CRC32: expected " << std::hex << std::setw(8) << std::setfill('0') << crc;
+    return o.str();
 }
 
 static bool read_file(const fs::path& p, std::vector<uint8_t>& out)
@@ -120,8 +138,11 @@ bool RomSet::load(const std::string& dir, const RomEntry* list, int count)
             error = found.missing("missing ROM ", r.name, r.crc);
             return false;
         }
-        if (named)
-            std::cerr << "warning: " << r.name << " found by name but its CRC differs" << std::endl;
+        if (named && !accept_wrong_crc())
+        {
+            error = wrong_crc(r.name, r.crc, p);
+            return false;
+        }
         std::vector<uint8_t> d;
         if (!read_rom_file(p, d)) { error = "cannot read " + p.where(); return false; }
         if (d.size() < r.length) { error = std::string("short ROM file ") + r.name; return false; }
@@ -263,8 +284,11 @@ static bool load_big(const std::string& dir, const BigRomEntry* list, int count,
             error = found.missing("missing ROM ", r.name, r.crc);
             return false;
         }
-        if (named)
-            std::cerr << "warning: " << r.name << " found by name but its CRC differs" << std::endl;
+        if (named && !accept_wrong_crc())
+        {
+            error = wrong_crc(r.name, r.crc, p);
+            return false;
+        }
         std::vector<uint8_t> d;
         if (!read_rom_file(p, d)) { error = "cannot read " + p.where(); return false; }
         if (d.size() < r.length) { error = std::string("short ROM file ") + r.name; return false; }

@@ -736,6 +736,16 @@ void CrossoverMadPower::snd_write(uint32_t off, uint8_t v)
 void CrossoverMadPower::mix(int32_t* out, int samples_n, int fps)
 {
     if (!snd_on || !board) return;
+    if (!enabled)
+    {
+        // No longer in use (end_board, or the menu left a race): nothing would pull what the board
+        // made, so it stops here instead of running on, and its backlog goes; sound_reset() powers it
+        // on again for the next race
+        snd_on = false;
+        writes.clear(); cmds.clear();
+        ym->clear(); pcm->clear();
+        return;
+    }
     // (on Super Hang-On's and Hang-On's courses the vehicle's code switches the engine off when the race ends)
     if (!enabled || !(board_path || (outrun.game_state >= GS_START1 && outrun.game_state <= GS_BONUS))) { writes.clear(); cmds.clear(); }
     if (fps <= 0) fps = 60;

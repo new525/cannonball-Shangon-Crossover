@@ -511,7 +511,8 @@ void HOVehicle::tag_sprite(bool hidden)
 // ------------------------------------------------------------------------------------------------
 void HOVehicle::world_to_outrun()
 {
-    if (getenv("CB_HOF_FREEZE_TIME")) WB(W_TIMER, 0x50);         // testing: reach the goal
+    static const bool freeze_time = getenv("CB_HOF_FREEZE_TIME") != nullptr;
+    if (freeze_time) WB(W_TIMER, 0x50);         // testing: reach the goal
     outrun.tick_frame = true;
     outrun.game_state = RW(W_MODE) == 1 ? GS_START1 : GS_INGAME;
     oinitengine.road_type       = (int16_t) RW(V_CURVE);           // same list format in the three games

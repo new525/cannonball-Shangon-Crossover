@@ -12,6 +12,7 @@
 #include "main.hpp"
 #include "menu.hpp"
 #include "menulabels.hpp"
+#include "crossover/version.hpp"
 #include "../utils.hpp"
 
 #include "engine/ohud.hpp"
@@ -137,7 +138,8 @@ void Menu::populate()
     menu_musictest.push_back(ENTRY_MUSIC2);
     menu_musictest.push_back(ENTRY_BACK);
 
-    menu_about.push_back("CANNONBALL 0.35 © CHRIS WHITE 2022");
+    menu_about.push_back("CROSSOVER " CROSSOVER_VERSION " ON CANNONBALL 0.35");
+    menu_about.push_back("CANNONBALL © CHRIS WHITE 2022");
     menu_about.push_back("REASSEMBLER.BLOGSPOT.COM");
     menu_about.push_back(" ");
     menu_about.push_back("CANNONBALL IS FREE AND MAY NOT BE SOLD.");
@@ -1419,8 +1421,7 @@ void Menu::xover_cycle(int dir)
         do v = ((v + dir) % 4 + 4) % 4;
         while ((v == 1 && !bike.ready) || (v == 2 && !homode.available()) || (v == 3 && !ormode.available()));
         config.crossover.vehicle = v;
-        if (v == 2) config.crossover.track = XOVER_HO_TRACK;            // its own course
-        if (v == 2 && is_orr_track(config.crossover.track)) config.crossover.track = 0;    // Hang-On's bike: its course only
+        if (v == 2) config.crossover.track = XOVER_HO_TRACK;            // Hang-On's bike: its own course only
     }
     else if (SELECTED(ENTRY_X_GEARBOX))
     {
@@ -1452,6 +1453,7 @@ void Menu::xover_cycle(int dir)
         int m = config.crossover.music + 1;
         m = ((m + dir) % n + n) % n;
         config.crossover.music = m - 1;
+        if (config.crossover.music < 0) config.crossover.music_title.clear();    // chosen: not a missing set's title
         // preview the choice
         osoundint.queue_sound(sound::FM_RESET);
         cannonball::audio.clear_wav();

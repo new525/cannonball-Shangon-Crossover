@@ -12,6 +12,7 @@
 #include "engine/ohud.hpp"
 #include "engine/omusic.hpp"
 #include "engine/outils.hpp"
+#include <algorithm>
 #include "engine/ostats.hpp"
 #include "engine/otraffic.hpp"
 
@@ -129,7 +130,9 @@ void OStats::convert_speed_score(uint16_t speed)
         0x1250,
     };
 
-    uint16_t score = CONVERT[(speed >> 4)];
+    // Crossover: the table ends at 335 km/h (the Ferrari's 293 is index 18); a faster vehicle on OutRun's
+    // courses (MAD POWER, 451) read past it. Held at the last entry.
+    uint16_t score = CONVERT[std::min<uint32_t>(speed >> 4, 20)];
     update_score(score);
 }
 

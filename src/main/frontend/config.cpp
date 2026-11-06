@@ -397,8 +397,11 @@ bool Config::save()
     pt_config.put("crossover.vehicle",         crossover.vehicle);
     pt_config.put("crossover.track",           crossover.track);
     pt_config.put("crossover.music",           crossover.music);
-    pt_config.put("crossover.music_title",     crossover.music >= 0 && crossover.music < (int) sound.music.size()
-                                               ? sound.music.at(crossover.music).title : std::string());
+    // The title is what survives a ROM set's absence: a saved title whose set is missing (music -1 at
+    // start-up, main.cpp) is kept unless the radio screen was chosen in the race setup (menu.cpp clears it)
+    if (crossover.music >= 0 && crossover.music < (int) sound.music.size())
+        crossover.music_title = sound.music.at(crossover.music).title;
+    pt_config.put("crossover.music_title",     crossover.music_title);
     pt_config.put("crossover.bike_scale",      crossover.bike_scale);
     pt_config.put("crossover.or_manual",       crossover.or_manual);
     pt_config.put("crossover.balance",         crossover.balance);
@@ -588,10 +591,11 @@ bool Config::clear_scores()
     int cleared = 0;
 
     // Remove the score files that exist (remove returns 0 on success); crossover: Super Hang-On's
-    // and Hang-On's rankings too
+    // and Hang-On's rankings too, and OutRunners' EEPROM (its rankings, with the board's settings)
     const std::string files[] = { data.file_scores, data.file_scores_jap, data.file_ttrial, data.file_ttrial_jap,
                                   data.file_cont, data.file_cont_jap,
-                                  data.save_path + "hiscores_superhangon.bin", data.save_path + "hiscores_hangon.bin" };
+                                  data.save_path + "hiscores_superhangon.bin", data.save_path + "hiscores_hangon.bin",
+                                  data.save_path + "orunners_eeprom.bin" };
     for (const std::string& f : files)
         if (remove(f.c_str()) == 0) cleared++;
 

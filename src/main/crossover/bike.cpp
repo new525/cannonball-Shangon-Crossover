@@ -5,6 +5,11 @@
 #include "crossover/romset.hpp"
 #include "crossover/harness.hpp"
 #include "crossover/balance.hpp"
+#include <cstdlib>
+
+// testing switches, read once
+static bool env_flag(const char* name) { return getenv(name) != nullptr; }
+static const bool BIKE_DEBUG = env_flag("CB_BIKE_DEBUG"), CRASH_DEBUG = env_flag("CB_CRASH_DEBUG"), BIKE_STEPS = env_flag("CB_BIKE_STEPS");
 #include "crossover/xaudio.hpp"
 #include "crossover/balance_pace.hpp"
 #include "crossover/balance_push.hpp"
@@ -394,7 +399,7 @@ void CrossoverBike::tick()
     sh_frame_acc += elapsed * 60;
     int steps = sh_frame_acc / config.fps;
     sh_frame_acc -= steps * config.fps;
-    if (getenv("CB_BIKE_STEPS")) { static int calls = 0, total = 0; calls++; total += steps;
+    if (BIKE_STEPS) { static int calls = 0, total = 0; calls++; total += steps;
         if (calls % 60 == 0) fprintf(stderr, "f%d bike.tick calls %d steps %d tick_fps %d fps %d\n", harness.frame, calls, total, config.tick_fps, config.fps); }
     for (int step = 0; step < steps; step++)
     {
@@ -423,7 +428,7 @@ void CrossoverBike::tick()
         build_road_table();
         uint32_t dbg_pos = RL(V_POS), dbg_spd = RL(V_SPEED);
         static uint8_t dbg_work[sizeof work], dbg_shared[sizeof shared];
-        std::memcpy(dbg_work, work, sizeof work); std::memcpy(dbg_shared, shared, sizeof shared);
+        if (BIKE_DEBUG) { std::memcpy(dbg_work, work, sizeof work); std::memcpy(dbg_shared, shared, sizeof shared); }
         sho_speed_task(&mem, SHO_A5_SPEED);
         // BALANCE (crossover/balance_contact.cpp): the speed the knockback takes off ($6178, $61E6), scaled
         if (RW(V_KNOCK))
@@ -431,19 +436,18 @@ void CrossoverBike::tick()
             double v = balance::contact_step(balance::SH_BIKE, (int32_t) dbg_spd, (int32_t) RL(V_SPEED));
             WL(V_SPEED, v > 0 ? (uint32_t)(v + 0.5) : 0);
         }
-        if (getenv("CB_BIKE_DEBUG") && ((int32_t)(RL(V_POS) - dbg_pos) > 0x20000 || (int32_t)RL(V_SPEED) < (int32_t)dbg_spd - 0x50000))
+        if (BIKE_DEBUG && ((int32_t)(RL(V_POS) - dbg_pos) > 0x20000 || (int32_t)RL(V_SPEED) < (int32_t)dbg_spd - 0x50000))
             fprintf(stderr, "bike step: pos %08x -> %08x  speed %08x -> %08x  X(abs) %d  curve %d radius %d  throttle %d brake %d\n",
                     dbg_pos, RL(V_POS), dbg_spd, RL(V_SPEED), car_x, (int16_t) RW(V_CURVE), (int16_t) RW(V_CURVE_R),
                     RW(0x26006C), RW(0x260070));
-        if (getenv("CB_BIKE_DEBUG") && (int32_t)RL(V_SPEED) < 0)
+        if (BIKE_DEBUG && (int32_t)RL(V_SPEED) < 0)
         {
             FILE* f = fopen("bike_state_before.bin", "wb");
             if (f) { fwrite(dbg_work, 1, sizeof dbg_work, f); fwrite(dbg_shared, 1, sizeof dbg_shared, f); fclose(f); }
         }
         // BALANCE's pace: the distance the speed task moved the bike, as the course's world takes it (the
         // bike's road table is built at this position on the next frame)
-        static double pace_carry = 0;
-        WL(V_POS, dbg_pos + balance::pace_distance(RL(V_POS) - dbg_pos, pace_carry));
+        WL(V_POS, dbg_pos + balance::pace_distance(RL(V_POS) - dbg_pos, balance::pace_carry[1]));
         oroad.road_pos = RL(V_POS);
         // centrifugal + bike: relative to the bike's own road
         compute_road_frame(car_x);
@@ -591,7 +595,7 @@ bool CrossoverBike::draw(oentry* input, osprite* output)
     auto it = std::find(def_ptrs.begin(), def_ptrs.end(), input->addr);
     if (it == def_ptrs.end())
     {
-        if (getenv("CB_BIKE_DEBUG")) fprintf(stderr, "bike draw: unknown def %06x\n", input->addr);
+        if (BIKE_DEBUG) fprintf(stderr, "bike draw: unknown def %06x\n", input->addr);
         return false;
     }
     const Frame& fr = frames[it - def_ptrs.begin()];
@@ -614,7 +618,7 @@ bool CrossoverBike::draw(oentry* input, osprite* output)
     output->set_render(0xE0);                           // forwards, left to right, top to bottom
     output->set_pitch((uint8_t)(fr.pitch << 1));
     output->set_priority(input->shadow << 4);
-    if (getenv("CB_BIKE_DEBUG"))
+    if (BIKE_DEBUG)
     {
         static int n = 0;
         if (n++ % 60 == 0)
@@ -643,7 +647,7 @@ void CrossoverBike::traffic_hit(int16_t traffic_x)
 {
     if (!ready) return;
     knock_pending = traffic_x >= 0 ? 1 : -1;
-    if (getenv("CB_CRASH_DEBUG")) fprintf(stderr, "f%d traffic hit x %d knock %d\n", harness.frame, traffic_x, (int16_t) RW(SHO_V_KNOCK));
+    if (CRASH_DEBUG) fprintf(stderr, "f%d traffic hit x %d knock %d\n", harness.frame, traffic_x, (int16_t) RW(SHO_V_KNOCK));
 }
 
 // Depth (Super Hang-On's crash objects: $14 - $80, 0 = horizon, $BE = at the bike) -> OutRun's road
@@ -676,7 +680,7 @@ void CrossoverBike::crash_frame()
     sho_crash_frame(&mem, drawn);
     for (int i = 0; i < 4; i++)
         crash_vis[i] = drawn[i] && sho_sprite_entry(&mem, CRASH_SLOTS[i], crash_entry[i]);
-    if (getenv("CB_CRASH_DEBUG") && crashing())
+    if (CRASH_DEBUG && crashing())
         for (int i = 0; i < 4; i++)
         {
             uint32_t a5 = CRASH_SLOTS[i];
@@ -835,7 +839,7 @@ bool CrossoverBike::draw_crash(oentry* input, osprite* output, int obj)
     output->set_render(0xE0);
     output->set_pitch((uint8_t)(img.pitch << 1));
     output->set_priority((uint8_t)(input->shadow << 4));
-    if (getenv("CB_CRASH_DEBUG"))
+    if (CRASH_DEBUG)
         fprintf(stderr, "f%d crash draw %d rows %d bank %d off %04x pitch %d | hw %04x %04x %04x %04x %04x %04x %04x\n", harness.frame, obj, rows,
                 img.bank, img.offset, img.pitch, output->data[0], output->data[1], output->data[2], output->data[3],
                 output->data[4], output->data[5], output->data[6]);

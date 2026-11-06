@@ -100,7 +100,8 @@ void SegaSoundBoard::cpu_reset()
 
 void SegaSoundBoard::ym_set_timer(uint32_t tnum, int32_t clocks)
 {
-    if (getenv("SB_TIMER_DEBUG")) fprintf(stderr, "t%u set %d at %lld (%.6f s)\n", tnum, clocks, (long long) now, now / 4e6);
+    static const bool timer_debug = getenv("SB_TIMER_DEBUG") != nullptr;
+    if (timer_debug) fprintf(stderr, "t%u set %d at %lld (%.6f s)\n", tnum, clocks, (long long) now, now / 4e6);
     if (tnum < 2) timer_end[tnum] = clocks >= 0 ? now + clocks : -1;
 }
 
