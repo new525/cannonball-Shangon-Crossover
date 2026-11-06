@@ -140,17 +140,14 @@ static void process_events(void)
                 // Crossover: no force feedback while another window has the focus
                 if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)        ffb::focus(false);
                 else if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) ffb::focus(true);
+                // The window moved (perhaps to another display): config video.display follows it
+                else if (event.window.event == SDL_WINDOWEVENT_MOVED)
+                    RenderBase::remember_display(SDL_GetWindowFromID(event.window.windowID));
                 break;
 
             case SDL_QUIT:
                 // Handle quit requests (like Ctrl-c).
                 state = STATE_QUIT;
-                break;
-
-            case SDL_WINDOWEVENT:
-                // The window moved (perhaps to another display): config video.display follows it
-                if (event.window.event == SDL_WINDOWEVENT_MOVED)
-                    RenderBase::remember_display(SDL_GetWindowFromID(event.window.windowID));
                 break;
         }
     }
