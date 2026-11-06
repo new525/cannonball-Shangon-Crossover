@@ -84,6 +84,10 @@ const static char* ENTRY_CONFIGUREGP = "CONFIGURE GAMEPAD";
 const static char* ENTRY_REDEFKEY = "REDEFINE KEYS";
 const static char* ENTRY_DSTEER = "DIGITAL STEER SPEED ";
 const static char* ENTRY_DPEDAL = "DIGITAL PEDAL SPEED ";
+// Crossover: force feedback (ffb/ffb)
+const static char* ENTRY_FFB = "FORCE FEEDBACK ";
+const static char* ENTRY_FFB_STRENGTH = "FFB STRENGTH ";
+const static char* ENTRY_FFB_SPRING = "SPRING ";
 
 // GamePad Menu
 const static char* ENTRY_ANALOG = "ANALOG ";

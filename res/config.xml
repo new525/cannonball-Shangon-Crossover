@@ -251,16 +251,78 @@
             <dead>16</dead>
         </wheel>
         
-        <!-- Force Feedback / Haptic Support (For Gamepads, use the simple rumble support instead -->
+        <!-- Force Feedback for steering wheels (SDL2 haptics, Windows and Linux; for gamepads use the
+             simple rumble support instead). The device: the joystick named by FF_TARGET_VIDPID in the
+             environment (e.g. 046d:c24f), else the pad_id joystick, else any wheel, else any joystick
+             with a constant-force effect. Menu: CONTROLS > FORCE FEEDBACK, FFB STRENGTH, SPRING.
+             Set CB_FFB_LOG=<file> in the environment to log every force sent (with no device the
+             effects then run against the log alone, for tests).
+
+             What the wheel does (ffb/ffb.cpp): the vehicle's own arcade motor output as the base
+             (OutRun's deluxe cabinet motor commands as a constant force, as Cannonball's force
+             feedback always did; OutRunners' wheel vibration motor as a vibration; Super Hang-On's
+             and Hang-On's bikes have no motor) plus CannonBall-DX's effects, each with a strength
+             of its own below (0 = off), and a centering spring that grows with speed. Strengths and
+             spring levels are 0-100. -->
         <haptic enabled="0">
-            <!-- Make both of the below values negative, 
-                 if force feedback is in the wrong direction -->
-            <!-- Maximum Force To Apply (0 to 10000) -->
-            <max_force>8500</max_force>
-            <!-- Minimum Force To Apply (0 to max_force) -->
-            <min_force>7000</min_force>
-            <!-- Length of each effect. (1/x seconds) 1/20th suggested. -->
-            <force_duration>20</force_duration>
+            <!-- The master strength (10-100) and the spring's reference level (0-100); the menu's
+                 FFB STRENGTH and SPRING -->
+            <strength>50</strength>
+            <centering_strength>80</centering_strength>
+            <effects>
+                <!-- the vehicle's own arcade motor output (OutRun's deluxe cabinet motor, OutRunners' wheel motor) -->
+                <motor>100</motor>
+                <!-- light taps on a loose surface (sand and stone strips, the desert's debris) -->
+                <sand>3</sand>
+                <!-- a vibration while the tyres slide on the road -->
+                <tyre_slip>11</tyre_slip>
+                <!-- off-road: the motor's rumble pattern (scaled by these instead of motor) and a pull
+                     away from the road, with one side of the vehicle off the road and with all of it off -->
+                <offroad_rumble_one_wheel>20</offroad_rumble_one_wheel>
+                <offroad_rumble_full>30</offroad_rumble_full>
+                <offroad_pull_one_wheel>35</offroad_pull_one_wheel>
+                <offroad_pull_full>21</offroad_pull_full>
+                <!-- a kick in the shift's direction and a rebound (OutRun's and MAD POWER's manual boxes) -->
+                <gear_shift>49</gear_shift>
+                <!-- a steering yank in the skid's direction after a traffic contact (0: the motor's own
+                     pattern instead) -->
+                <traffic_skid>70</traffic_skid>
+                <!-- a scenery crash (0 for all of a kind: the motor's own pattern instead): the low-speed
+                     bump; the spin's impact and its side loads; the flip's impact, side loads and landing -->
+                <crash_bump>70</crash_bump>
+                <crash_spin_impact>70</crash_spin_impact>
+                <crash_spin>70</crash_spin>
+                <crash_flip_impact>70</crash_flip_impact>
+                <crash_flip>70</crash_flip>
+                <crash_flip_landing>70</crash_flip_landing>
+                <!-- the start line: the steering load as the Ferrari drives in, and an engine shake with
+                     the accelerator during the countdown -->
+                <start_steering>30</start_steering>
+                <start_rev_shake>20</start_rev_shake>
+                <!-- the engine's shake while driving, its cadence from the revs (the period at idle in
+                     milliseconds, 10-500) -->
+                <engine>3</engine>
+                <engine_period>300</engine_period>
+            </effects>
+            <spring>
+                <!-- percentages of centering_strength: in menus, attract mode and up to speed_start km/h;
+                     at speed_full km/h and above (0-294); the part kept while the tyres slide -->
+                <low_speed>40</low_speed>
+                <high_speed>70</high_speed>
+                <sliding>60</sliding>
+                <speed_start>100</speed_start>
+                <speed_full>240</speed_full>
+                <!-- during a traffic skid and the scenery crashes' phases -->
+                <traffic_skid>35</traffic_skid>
+                <crash_bump>46</crash_bump>
+                <crash_spin>25</crash_spin>
+                <crash_recovery>49</crash_recovery>
+                <crash_flip_start>32</crash_flip_start>
+                <crash_flip_airborne>7</crash_flip_airborne>
+                <crash_flip_transition>18</crash_flip_transition>
+                <crash_flip_landing>32</crash_flip_landing>
+                <crash_flip_recovery>49</crash_flip_recovery>
+            </spring>
         </haptic>
     </analog>
 </controls>

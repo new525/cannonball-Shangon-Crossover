@@ -128,9 +128,11 @@ else()
 	)
 endif()
 
-set(src_directx
-    "${main_cpp_base}/directx/ffeedback.hpp"
-    "${main_cpp_base}/directx/ffeedback.cpp"
+set(src_ffb
+    "${main_cpp_base}/ffb/ffbdevice.hpp"
+    "${main_cpp_base}/ffb/ffbdevice.cpp"
+    "${main_cpp_base}/ffb/ffb.hpp"
+    "${main_cpp_base}/ffb/ffb.cpp"
 )
 
 set(src_engine
@@ -332,7 +334,7 @@ set(SRCS
     ${src_hwaudio}
     ${src_sdl}
     ${src_render}
-    ${src_directx}
+    ${src_ffb}
     ${src_engine}
     ${src_engine_data}
     ${src_engine_audio}
@@ -346,7 +348,7 @@ SOURCE_GROUP(src\\hwvideo FILES ${src_hwvideo})
 SOURCE_GROUP(src\\hwaudio FILES ${src_hwaudio})
 SOURCE_GROUP(src\\sdl FILES ${src_sdl})
 SOURCE_GROUP(src\\sdl FILES ${src_render})
-SOURCE_GROUP(src\\directx FILES ${src_directx})
+SOURCE_GROUP(src\\ffb FILES ${src_ffb})
 SOURCE_GROUP(src\\engine FILES ${src_engine})
 SOURCE_GROUP(src\\engine\\data FILES ${src_engine_data})
 SOURCE_GROUP(src\\engine\\audio FILES ${src_engine_audio})

@@ -27,8 +27,12 @@
 #include "engine/oferrari.hpp"
 #include "engine/ohud.hpp"
 #include "engine/oinputs.hpp"
+#include "engine/oanimseq.hpp"
+#include "engine/olevelobjs.hpp"
 #include "engine/ooutputs.hpp"
-#include "directx/ffeedback.hpp"
+#include "ffb/ffb.hpp"
+#include "crossover/bike.hpp"
+#include "crossover/madpower.hpp"
 
 OOutputs::OOutputs(void)
 {
@@ -76,6 +80,9 @@ void OOutputs::init()
     chute2.counter[0]  = 0;
     chute2.counter[1]  = 0;
     chute2.counter[2]  = 0;
+    ffb_crash          = ffb::CRASH_NONE;
+    ffb_crash_dir      = 1;
+    ffb_gear           = oinputs.gear;
 }
 
 void OOutputs::set_mode(int m)
@@ -92,8 +99,7 @@ void OOutputs::tick(int16_t input_motor)
 
         // Force Feedback Steering Wheels
         case MODE_FFEEDBACK:
-            do_motors(mode, input_motor);   // Use X-Position of wheel instead of motor position
-            motor_output(hw_motor_control); // Force Feedback Handling
+            ffb_tick(input_motor);
             break;
 
         // SMARTYPI: Real Cabinet
@@ -818,21 +824,74 @@ void OOutputs::done()
     }
 }
 
-// Send output commands to motor hardware
-// This is the equivalent to writing to register 0x140003
-void OOutputs::motor_output(uint8_t cmd)
+// Crossover: force feedback. The motor commands run as on the deluxe cabinet (do_motors, with the wheel's
+// position in place of the cabinet's bank: the equivalent of writing hw_motor_control to register
+// 0x140003 every tick), and the car's state goes to the effects layer (ffb/ffb) with them.
+void OOutputs::ffb_tick(int16_t input_motor)
 {
-    if (cmd == MOTOR_OFF || cmd == MOTOR_CENTRE)
-        return;
+    // Crossover: another vehicle in the car slot drives the effects from its own state (bike.cpp, madpower.cpp)
+    if (bike.enabled || madpower.enabled) return;
+    do_motors(MODE_FFEEDBACK, input_motor);     // Use X-Position of wheel instead of motor position
+    if (!ffb::active()) return;
 
-    int8_t force = 0;
+    ffb::State s;
+    s.motor = hw_motor_control;
+    s.speed = oinitengine.car_increment >> 16;
 
-    if (cmd < MOTOR_CENTRE)      // left
-        force = cmd - 1;
-    else if (cmd > MOTOR_CENTRE) // right
-        force = 15 - cmd;
-
-    forcefeedback::set(cmd, force);
+    const bool intro   = outrun.game_state == GS_START1 && oferrari.state == OFerrari::FERRARI_SEQ2;
+    const bool waiting = outrun.game_state == GS_START2 || outrun.game_state == GS_START3 ||
+                         (outrun.game_state == GS_START1 && oferrari.state == OFerrari::FERRARI_LOGIC);
+    if (outrun.game_state == GS_INGAME)
+    {
+        s.phase    = ffb::RACE;
+        s.wheels   = oferrari.wheel_state;
+        s.side     = oinitengine.car_x_pos >= 0 ? 1 : -1;
+        s.slipping = (oferrari.is_slipping || oferrari.car_state == OFerrari::CAR_SMOKE) && oferrari.wheel_state == OFerrari::WHEELS_ON;
+        s.rough    = olevelobjs.rough_surface;
+        s.skid     = ocrash.skid_counter > 0 ? 1 : (ocrash.skid_counter < 0 ? -1 : 0);
+        s.revs     = oferrari.revs >> 16;
+        if (ocrash.crash_counter)
+        {
+            if (ffb_crash == ffb::CRASH_NONE)
+            {   // the crash's kind and side, decided as it begins (CannonBall-DX's prepare_crash_ffb_tracking):
+                // a flip; a low-speed bump (collide_slow clears the speed on entering the bump); else a spin
+                if (ocrash.is_flip())                                                ffb_crash = ffb::CRASH_FLIP;
+                else if (ocrash.crash_state == 1 && (oinitengine.car_increment >> 16) == 0) ffb_crash = ffb::CRASH_BUMP;
+                else                                                                 ffb_crash = ffb::CRASH_SPIN;
+                ffb_crash_dir = oferrari.car_x_diff < 0 ? -1 : (oferrari.car_x_diff > 0 ? 1 : (oinitengine.car_x_pos < 0 ? -1 : 1));
+            }
+            s.crash         = ffb_crash;
+            s.crash_dir     = ffb_crash_dir;
+            s.crash_state   = ocrash.crash_state;
+            s.crash_counter = ocrash.crash_counter;
+            s.crash_spin    = ocrash.crash_spin_count;
+        }
+        else
+            ffb_crash = ffb::CRASH_NONE;
+        // the player's shifts (DX kicks on the gear buttons: not the automatic box's own shifts)
+        if (oinputs.gear != ffb_gear && config.controls.gear != controls_settings_t::GEAR_AUTO) s.gear_shift = oinputs.gear ? 1 : -1;
+    }
+    else if (intro || waiting)
+    {
+        s.phase = ffb::START;
+        if (intro)
+        {   // the Ferrari arcs in from the right: a steering load that eases as its sprite nears the centre
+            // (DX: the 10-18 shape of the sprite's x as a 15-100% envelope)
+            const int sprite_x = oanimseq.anim_ferrari.sprite ? std::abs((int) oanimseq.anim_ferrari.sprite->x) : 0;
+            if (oferrari.car_state == OFerrari::CAR_ANIM_SEQ && sprite_x > 4)
+            {
+                int shape = 10 + sprite_x / 10;
+                if (shape > 18) shape = 18;
+                s.start_steer = 15 + ((shape - 10) * 85 + 4) / 8;
+            }
+        }
+        else
+            s.start_pedal = oinputs.acc_adjust;
+    }
+    else
+        ffb_crash = ffb::CRASH_NONE;
+    ffb_gear = oinputs.gear;
+    ffb::tick(s);
 }
 
 // ------------------------------------------------------------------------------------------------

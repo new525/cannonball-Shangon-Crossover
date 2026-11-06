@@ -226,9 +226,49 @@ void Config::load()
     controls.asettings[1]  = pt_config.get("controls.analog.wheel.dead", 0);
     
     controls.haptic        = pt_config.get("controls.analog.haptic.<xmlattr>.enabled", 0);
-    controls.max_force     = pt_config.get("controls.analog.haptic.max_force", 9000);
-    controls.min_force     = pt_config.get("controls.analog.haptic.min_force", 8500);
-    controls.force_duration= pt_config.get("controls.analog.haptic.force_duration", 20);
+    // Crossover: the force feedback's strengths (ffb/ffb), CannonBall-DX's defaults; a value is 0-100 unless noted
+    {
+        ffb_settings_t& f = controls.ffb;
+        auto get = [&](const char* name, int def, int max = 100) {
+            int v = pt_config.get(std::string("controls.analog.haptic.") + name, def);
+            return v < 0 ? 0 : (v > max ? max : v);
+        };
+        f.strength                 = get("strength", 50);
+        f.centering_strength       = get("centering_strength", 80);
+        f.motor                    = get("effects.motor", 100);
+        f.sand                     = get("effects.sand", 3);
+        f.tyre_slip                = get("effects.tyre_slip", 11);
+        f.offroad_rumble_one_wheel = get("effects.offroad_rumble_one_wheel", 20);
+        f.offroad_rumble_full      = get("effects.offroad_rumble_full", 30);
+        f.offroad_pull_one_wheel   = get("effects.offroad_pull_one_wheel", 35);
+        f.offroad_pull_full        = get("effects.offroad_pull_full", 21);
+        f.gear_shift               = get("effects.gear_shift", 49);
+        f.traffic_skid             = get("effects.traffic_skid", 70);
+        f.crash_bump               = get("effects.crash_bump", 70);
+        f.crash_spin_impact        = get("effects.crash_spin_impact", 70);
+        f.crash_spin               = get("effects.crash_spin", 70);
+        f.crash_flip_impact        = get("effects.crash_flip_impact", 70);
+        f.crash_flip               = get("effects.crash_flip", 70);
+        f.crash_flip_landing       = get("effects.crash_flip_landing", 70);
+        f.start_steering           = get("effects.start_steering", 30);
+        f.start_rev_shake          = get("effects.start_rev_shake", 20);
+        f.engine                   = get("effects.engine", 3);
+        f.engine_period            = get("effects.engine_period", 300, 500);
+        f.low_speed                = get("spring.low_speed", 40);
+        f.high_speed               = get("spring.high_speed", 70);
+        f.sliding                  = get("spring.sliding", 60);
+        f.speed_start              = get("spring.speed_start", 100, 294);
+        f.speed_full               = get("spring.speed_full", 240, 294);
+        f.sp_traffic_skid          = get("spring.traffic_skid", 35);
+        f.sp_crash_bump            = get("spring.crash_bump", 46);
+        f.sp_crash_spin            = get("spring.crash_spin", 25);
+        f.sp_crash_recovery        = get("spring.crash_recovery", 49);
+        f.sp_crash_flip_start      = get("spring.crash_flip_start", 32);
+        f.sp_crash_flip_airborne   = get("spring.crash_flip_airborne", 7);
+        f.sp_crash_flip_transition = get("spring.crash_flip_transition", 18);
+        f.sp_crash_flip_landing    = get("spring.crash_flip_landing", 32);
+        f.sp_crash_flip_recovery   = get("spring.crash_flip_recovery", 49);
+    }
 
     // ------------------------------------------------------------------------
     // Engine Settings
@@ -333,6 +373,9 @@ bool Config::save()
     pt_config.put("controls.analog.axis.wheel", controls.axis[0]);
     pt_config.put("controls.analog.axis.accel", controls.axis[1]);
     pt_config.put("controls.analog.axis.brake", controls.axis[2]);
+    pt_config.put("controls.analog.haptic.<xmlattr>.enabled", controls.haptic);     // crossover: the force feedback menu entries
+    pt_config.put("controls.analog.haptic.strength", controls.ffb.strength);
+    pt_config.put("controls.analog.haptic.centering_strength", controls.ffb.centering_strength);
 
     pt_config.put("crossover.vehicle",         crossover.vehicle);
     pt_config.put("crossover.track",           crossover.track);

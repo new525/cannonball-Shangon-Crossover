@@ -64,6 +64,10 @@ public:
     bool diag_motor(int16_t input_motor, uint8_t hw_motor_limit);
     bool calibrate_motor(int16_t input_motor, uint8_t hw_motor_limit);
     void tick(int16_t input_motor = 0);
+    // Crossover: force feedback (ffb/ffb) for OutRun's car logic: the motor commands (do_motors) and the car's
+    // state to the effects. MODE_FFEEDBACK's tick; also called by the boards' Ferrari (crossover/shferrari,
+    // hovehicle, orvehicle) after their ticks of the car logic
+    void ffb_tick(int16_t input_motor);
     void writeDigitalToConsole();
     void set_digital(uint8_t);
     void clear_digital(uint8_t);
@@ -74,6 +78,11 @@ private:
     int mode;
 
     uint8_t dig_out, dig_out_old;
+
+    // Crossover: force feedback state kept across ticks (ffb_tick)
+    int  ffb_crash;             // the crash's kind (ffb::Crash), decided when it begins
+    int  ffb_crash_dir;         // its side
+    bool ffb_gear;              // the gear at the previous tick
 
     const static uint16_t STATE_INIT   = 0;
     const static uint16_t STATE_DELAY  = 1;
@@ -158,7 +167,6 @@ private:
     void do_motor_offroad();
     void set_value(const uint8_t*, uint8_t);
     void done();
-    void motor_output(uint8_t cmd);
 
     void do_vibrate_upright();
     void do_vibrate_mini();
