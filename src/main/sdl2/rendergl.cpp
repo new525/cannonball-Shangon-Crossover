@@ -102,8 +102,9 @@ bool Render::init(int src_width, int src_height,
     
     // scn_* values will be ignored if we pass any of the FULLSCREEN flags, as expected.
     // So these are here just for the windowed modes, and ignored otherwise.
+    const int display = display_index();    // config video.display: the window is centred on it
     window = SDL_CreateWindow(
-        "Cannonball", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, scn_width, scn_height,
+        "Cannonball", SDL_WINDOWPOS_CENTERED_DISPLAY(display), SDL_WINDOWPOS_CENTERED_DISPLAY(display), scn_width, scn_height,
         flags);
 
     // I don't know if there are platforms where ES is the default profile, so just in case

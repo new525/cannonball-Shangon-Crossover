@@ -77,6 +77,7 @@ struct video_settings_t
     int filtering;
     int vsync;
     int shadow;
+    int display;          // the display the window opens on (SDL's index, 0 = the first); out of range = 0
 };
 
 struct sound_settings_t
@@ -87,6 +88,7 @@ struct sound_settings_t
     int preview;
     int fix_samples;
     int music_timer;
+    std::string playback_device; // SDL's name of the output device; empty = the system default
     std::vector <music_t> music;
 };
 
@@ -122,6 +124,22 @@ struct smartypi_settings_t
     int cabinet;      // Cabinet Type
 };
 
+// The engine's bug fixes one by one (engine.fixes.*). fix_bugs is the master switch: off, none of
+// them applies; on, each applies if its own value is set. All on by default (the behaviour of
+// fix_bugs alone).
+struct engine_fixes_t
+{
+    bool ending_palette;  // the man's colours in the ending (wrong in three of the five endings)
+    bool ending_trophy;   // ... but the award he is handed in endings A and C keeps the ROM's colours (CannonBall-DX's
+                          // correction of that fix; default 0: the fix as it was)
+    bool lap_time;        // the hundredths of the last lap time shown at a checkpoint
+    bool music_tile;      // a misplaced tile above the wheel on the music select screen
+    bool map_sea;         // the end-of-game map's sea drawn out to the left edge of the screen
+    bool steering;        // a wheel turned while stationary made the car veer when it moved off
+    bool sprite_edge;     // sprites reaching the right edge of the screen wrapped round (shadows)
+    bool road_line;       // a line of road left at the bottom of the music select and map screens
+};
+
 struct engine_settings_t
 {
     int dip_time;
@@ -135,6 +153,7 @@ struct engine_settings_t
     int level_objects;
     bool fix_bugs;
     bool fix_bugs_backup;
+    engine_fixes_t fixes; // each of fix_bugs' fixes on its own
     bool fix_timer;
     int fix_traffic;      // Traffic brake-check fix: 0 off (original), 1 stale speed (CannonBall-SE), 2 also only near traffic (CannonBall-DX)
     bool layout_debug;

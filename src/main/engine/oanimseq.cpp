@@ -13,6 +13,8 @@
     See license.txt for more details.
 ***************************************************************************/
 
+#include <cstdio>
+#include <cstdlib>
 #include "frontend/config.hpp"
 
 #include "engine/obonus.hpp"
@@ -355,8 +357,25 @@ void OAnimSeq::tick_end_seq()
             anim_seq_outro(&anim_obj2);                         // Interior of Ferrari
             anim_seq_shadow(&anim_ferrari, &anim_obj3);         // Car Shadow
                                                                 // Man Sprite
+            // Testing (CB_ENDSEQ_DEBUG): the man's palette from the ROM for each tick of the ending, with the
+            // sequence position and the trophy presenter's state (id 11 once the award is handed over)
+            if (outrun.tick_frame && getenv("CB_ENDSEQ_DEBUG"))
+                fprintf(stderr, "endseq %d pos %d pass1 frame %d rom pal %d obj6 id %d frame %d\n", end_seq, seq_pos,
+                        anim_pass1.anim_frame, roms.rom0p->read8(anim_pass1.anim_addr_curr + (anim_pass1.anim_frame << 3)),
+                        anim_obj6.sprite->id, anim_obj6.anim_frame);
             // Fix Wrong Palette Bug: Only occurs on 3 of the 5 possible end sequences (0 and 3 are ok)
-            anim_seq_outro(&anim_pass1, config.engine.fix_bugs ? 10 : -1);                        
+            // (the ROM gives the man palette 55 for his first frames in three of the endings; the fix draws
+            // him with 10 throughout). From the hand-over in endings A and C the ROM gives him palette 11,
+            // the man holding the award, and the override changed the award's colours: fixes.ending_trophy
+            // keeps the ROM's 11 (CannonBall-DX noticed this, f0c419d).
+            int man_pal = -1;
+            if (config.engine.fix_bugs && config.engine.fixes.ending_palette)
+            {
+                const uint8_t rom_pal = roms.rom0p->read8(anim_pass1.anim_addr_curr + (anim_pass1.anim_frame << 3));
+                if (!(config.engine.fixes.ending_trophy && rom_pal == 11))
+                    man_pal = 10;
+            }
+            anim_seq_outro(&anim_pass1, man_pal);
             anim_seq_shadow(&anim_pass1, &anim_obj4);           // Man Shadow
             anim_seq_outro(&anim_pass2);                        // Female Sprite
             anim_seq_shadow(&anim_pass2, &anim_obj5);           // Female Shadow

@@ -254,7 +254,7 @@ void Video::prepare_frame()
         tile_layer->render_tile_layer(pixels, 1, 0);      // background layer
         tile_layer->render_tile_layer(pixels, 0, 0);      // foreground layer
 
-        if (!config.engine.fix_bugs || oroad.horizon_base != ORoad::HORIZON_OFF)
+        if (!(config.engine.fix_bugs && config.engine.fixes.road_line) || oroad.horizon_base != ORoad::HORIZON_OFF)
             (hwroad.*hwroad.render_foreground)(pixels);
         sprite_layer->render(8);
         tile_layer->render_text_layer(pixels, 1);

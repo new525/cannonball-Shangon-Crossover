@@ -139,8 +139,9 @@ bool Render::init(int src_width, int src_height,
     }
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, config.video.filtering ? "linear" : "nearest");
+    const int display = display_index();    // config video.display: the window is centred on it
     window = SDL_CreateWindow(
-        "Cannonball", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, scn_width, scn_height,
+        "Cannonball", SDL_WINDOWPOS_CENTERED_DISPLAY(display), SDL_WINDOWPOS_CENTERED_DISPLAY(display), scn_width, scn_height,
         flags);
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);

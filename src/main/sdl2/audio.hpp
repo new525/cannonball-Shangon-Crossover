@@ -18,6 +18,8 @@
 
 #include "globals.hpp"
 #include <SDL.h>
+#include <string>
+#include <vector>
 
 #ifdef COMPILE_SOUND_CODE
 
@@ -42,10 +44,16 @@ public:
     void load_wav(const char* filename);
     void clear_wav();
 
+    // The names of SDL's output devices (config sound.playback_device chooses one by name;
+    // empty = the system default). Empty when the audio subsystem can't be started.
+    std::vector<std::string> device_names();
+
 private:
 	// Enable/Disable Sound
 	bool sound_enabled;
 	
+    bool init_subsystem();  // SDL's audio subsystem (ALSA on Linux); true if it is up
+
     // Stereo. Could be changed, requires some recoding.
     static const uint32_t CHANNELS = 2;
 
@@ -97,5 +105,6 @@ public:
     double adjust_speed() { return 1.0; }
     void load_wav(const char* filename);
     void clear_wav() {}
+    std::vector<std::string> device_names() { return std::vector<std::string>(); }
 };
 #endif

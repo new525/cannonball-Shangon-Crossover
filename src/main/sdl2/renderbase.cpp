@@ -1,4 +1,5 @@
 #include "renderbase.hpp"
+#include "frontend/config.hpp"
 #include <iostream>
 #include <cmath>
 
@@ -11,22 +12,51 @@ RenderBase::RenderBase()
     orig_height = 0;
 }
 
-// Setup screen size
+// Setup screen size (of the display the window opens on)
 bool RenderBase::sdl_screen_size()
 {
-    if (orig_width == 0 || orig_height == 0)
+    static int queried = -1;    // the display orig_* came from (queried once, as before, per display)
+    if (orig_width == 0 || orig_height == 0 || queried != display_index())
     {
 	    SDL_DisplayMode info;
-	    SDL_GetCurrentDisplayMode(0, &info);
-        
-        orig_width  = info.w; 
+	    SDL_GetCurrentDisplayMode(display_index(), &info);
+
+        orig_width  = info.w;
         orig_height = info.h;
+        queried     = display_index();
     }
 
     scn_width  = orig_width;
     scn_height = orig_height;
 
     return true;
+}
+
+int RenderBase::display_index()
+{
+    const int n = SDL_GetNumVideoDisplays();
+    if (config.video.display > 0 && config.video.display >= n)
+    {
+        static bool said = false;
+        if (!said)
+            std::cout << "Display " << config.video.display + 1 << " not found (" << n << " reported by SDL); using the first" << std::endl;
+        said = true;
+        return 0;
+    }
+    return config.video.display < 0 ? 0 : config.video.display;
+}
+
+bool RenderBase::moved = false;
+
+void RenderBase::remember_display(SDL_Window* window)
+{
+    if (!window) return;
+    const int d = SDL_GetWindowDisplayIndex(window);
+    if (d < 0 || d >= SDL_GetNumVideoDisplays() || d == config.video.display) return;
+    if (d != display_index())
+        std::cout << "Window moved to display " << d + 1 << std::endl;
+    config.video.display = d;   // also settles an out-of-range value on the display used instead
+    moved = true;
 }
 
 // See: SDL_PixelFormat

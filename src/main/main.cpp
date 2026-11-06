@@ -14,6 +14,7 @@
 // SDL Specific Code
 #include "sdl2/timer.hpp"
 #include "sdl2/input.hpp"
+#include "sdl2/renderbase.hpp"
 
 #include "video.hpp"
 
@@ -73,6 +74,8 @@ static void quit_func(int code)
     forcefeedback::close();
     delete menu;
     video.disable();    // crossover: release the window/GL context while SDL is still up (was in ~Video, after SDL_Quit)
+    if (RenderBase::display_moved())    // the window was moved to another display: remembered for next time
+        config.save();
     SDL_Quit();
     exit(code);
 }
@@ -137,6 +140,12 @@ static void process_events(void)
             case SDL_QUIT:
                 // Handle quit requests (like Ctrl-c).
                 state = STATE_QUIT;
+                break;
+
+            case SDL_WINDOWEVENT:
+                // The window moved (perhaps to another display): config video.display follows it
+                if (event.window.event == SDL_WINDOWEVENT_MOVED)
+                    RenderBase::remember_display(SDL_GetWindowFromID(event.window.windowID));
                 break;
         }
     }

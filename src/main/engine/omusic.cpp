@@ -500,7 +500,7 @@ void OMusic::blit_music_select()
         } // end for
 
         // Fix Misplaced tile on music select screen (above steering wheel)
-        if (config.engine.fix_bugs)
+        if (config.engine.fix_bugs && config.engine.fixes.music_tile)
             video.write_tile16(0x10F730, 0x0C80);
     } 
 }

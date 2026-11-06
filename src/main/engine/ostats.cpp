@@ -218,7 +218,7 @@ void OStats::init_next_level()
         // Note there is a bug in the original code here, where the current ms value is displayed, instead of the ms value from the last lap time
         ohud.blit_text1(TEXT1_LAPTIME1);
         ohud.blit_text1(TEXT1_LAPTIME2);
-        ohud.draw_lap_timer(0x110554, stage_times[cur_stage-1], config.engine.fix_bugs ? lap_ms[stage_times[cur_stage-1][2]] : ms_value);
+        ohud.draw_lap_timer(0x110554, stage_times[cur_stage-1], config.engine.fix_bugs && config.engine.fixes.lap_time ? lap_ms[stage_times[cur_stage-1][2]] : ms_value);
 
         otraffic.set_max_traffic();
         osoundint.queue_sound(sound::YM_CHECKPOINT);
