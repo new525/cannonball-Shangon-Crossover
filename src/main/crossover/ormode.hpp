@@ -73,6 +73,9 @@ private:
 
     void run_up(int course, int car, bool manual);
     void set_inputs();
+    void ffb_tick();                        // force feedback: MAD POWER on its board, from its RAM (ffb/ffb)
+    int  ffb_crash_ticks = 0, ffb_crash_dir = 1;
+    uint8_t ffb_gear = 0, ffb_hit_kind = 0;
     void take_sound();
     void show_frame();
 

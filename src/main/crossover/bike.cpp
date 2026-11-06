@@ -31,6 +31,7 @@
 #include "engine/osprites.hpp"
 #include "engine/olevelobjs.hpp"
 #include "engine/oentry.hpp"
+#include "ffb/ffb.hpp"
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
@@ -511,6 +512,49 @@ void CrossoverBike::tick()
     oroad.road_width_bak = oroad.road_width >> 16;
     oferrari.wheel_state = offroad() ? OFerrari::WHEELS_OFF : OFerrari::WHEELS_ON;
     oferrari.wheel_traction = offroad() ? 2 : OFerrari::TRACTION_ON;
+
+    ffb_tick();
+}
+
+// Force feedback: the bike's own state to the effects (ffb/ffb). Super Hang-On's cabinet has no motor, so
+// there is no arcade base: the effects are the speed spring, off-road (the whole bike: Super Hang-On's
+// off-road flag $260098), a traffic knockback ($260088, + = pushed left) as the skid, a scenery crash
+// ($260094) as a tumble from the side of the road the bike is on, the rough surface from OutRun's scenery,
+// and the throttle's rev shake on the start line. Not read: the bike's lean and its rear-wheel skid.
+void CrossoverBike::ffb_tick()
+{
+    if (!ffb::active()) return;
+    ffb::State s;
+    s.speed = speed_kmh();
+    if (outrun.game_state == GS_INGAME)
+    {
+        s.phase  = ffb::RACE;
+        s.wheels = offroad() ? ffb::OFF : ffb::ON;
+        s.side   = oinitengine.car_x_pos >= 0 ? 1 : -1;
+        s.rough  = olevelobjs.rough_surface;
+        const int16_t knock = (int16_t) RW(V_KNOCK);
+        s.skid   = knock > 0 ? 1 : (knock < 0 ? -1 : 0);
+        if (crashing())
+        {
+            if (ffb_crash_ticks == 0) ffb_crash_dir = oinitengine.car_x_pos >= 0 ? 1 : -1;
+            ffb_crash_ticks++;
+            s.crash         = ffb::CRASH_TUMBLE;
+            s.crash_state   = 1;
+            s.crash_counter = ffb_crash_ticks;
+            s.crash_dir     = ffb_crash_dir;
+        }
+        else
+            ffb_crash_ticks = 0;
+    }
+    else if (outrun.game_state >= GS_START1 && outrun.game_state <= GS_START3)
+    {
+        s.phase = ffb::START;
+        s.start_pedal = std::max(0, std::min(255, (int) oinputs.acc_adjust));
+        ffb_crash_ticks = 0;
+    }
+    else
+        ffb_crash_ticks = 0;
+    ffb::tick(s);
 }
 
 // ------------------------------------------------------------------------------------------------

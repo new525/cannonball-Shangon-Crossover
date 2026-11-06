@@ -92,6 +92,25 @@ struct sound_settings_t
     std::vector <music_t> music;
 };
 
+// Crossover: force feedback (controls/analog/haptic in config.xml; ffb/ffb.cpp). Strengths and spring
+// levels are 0-100; the two speeds are km/h on OutRun's scale (0-294)
+struct ffb_settings_t
+{
+    int strength;               // FFB STRENGTH (menu): the master, 10-100
+    int centering_strength;     // SPRING (menu): the centering spring's reference level, 0-100
+    int invert;                 // 1: the constant forces the other way (a wheel that turns the wrong way)
+    // effects
+    int motor;                  // the vehicle's own arcade motor output (OutRun's deluxe cabinet motor as a constant force)
+    int motor_vibration;        // a one-bit arcade vibration motor (OutRunners' wheel) as a vibration
+    int sand, tyre_slip, offroad_rumble_one_wheel, offroad_rumble_full, offroad_pull_one_wheel, offroad_pull_full,
+        gear_shift, traffic_skid, crash_bump, crash_spin_impact, crash_spin, crash_flip_impact, crash_flip,
+        crash_flip_landing, start_steering, start_rev_shake, engine, engine_period;
+    // spring
+    int low_speed, high_speed, sliding, speed_start, speed_full, sp_traffic_skid, sp_crash_bump, sp_crash_spin,
+        sp_crash_recovery, sp_crash_flip_start, sp_crash_flip_airborne, sp_crash_flip_transition, sp_crash_flip_landing,
+        sp_crash_flip_recovery;
+};
+
 struct controls_settings_t
 {
     const static int GEAR_BUTTON   = 0;
@@ -112,9 +131,7 @@ struct controls_settings_t
 
     float rumble;      // Simple Controller Rumble Support
     int haptic;        // Force Feedback Enabled
-    int max_force;
-    int min_force;
-    int force_duration;
+    ffb_settings_t ffb; // Crossover: the force feedback's strengths (ffb/ffb)
 };
 
 struct smartypi_settings_t

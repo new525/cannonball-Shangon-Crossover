@@ -36,6 +36,7 @@
 #include "engine/oinputs.hpp"
 #include "engine/osprites.hpp"
 #include "engine/olevelobjs.hpp"
+#include "ffb/ffb.hpp"
 #include "engine/oentry.hpp"
 
 CrossoverMadPower madpower;
@@ -140,6 +141,62 @@ int16_t CrossoverMadPower::speed_kmh() const { return car ? (int16_t)(car->s.spe
 int16_t CrossoverMadPower::car_x_relative() const { return car ? (int16_t)(-(int) car->s.lateral * LAT_OUT / LAT_OR) : 0; }
 int CrossoverMadPower::state() const { return car ? car->s.state : 0; }
 uint8_t CrossoverMadPower::gear() const { return car ? car->s.gear : 0; }
+
+// Force feedback: the car's own state to the effects (ffb/ffb). The arcade base is OutRunners' cabinet's
+// wheel vibration motor: its shaker byte ($20E0D0 + player: 0 on the road, the car's value $B970[car] off
+// it or in a minor contact, $10 in a crash; the bit the game writes to its I/O chip's port D bit 4, MAME's
+// Steering_Wheel_motor, see crossover/ormode). The effects: the speed spring; off-road by side (the wheel
+// kinds $209140 bit 0 right, bit 1 left: the sides in a surface zone, which beyond the asphalt is kind 7);
+// the manual box's shifts; the tyres sliding ($209067), spinning ($209065) or the shift's wheelspin
+// ($209144) as the slip; a rough surface when a side is in one of the course's surface zones on the road,
+// or OutRun's sand and debris on OutRun's courses. A contact is the car's
+// state 5 (a push, a jump and a speed change, decaying until the animation ends, $819D), for scenery and
+// traffic alike: a scenery hit (kind 0) is the crash, a tumble to the side it pushes to; a traffic hit
+// (kind 2) the skid in that direction. OutRunners' lateral is + right: a push right is a skid right.
+void CrossoverMadPower::ffb_tick()
+{
+    if (!car || !ffb::active()) return;
+    const orcar::State& st = car->s;
+    ffb::State s;
+    s.speed = speed_kmh();
+    s.motor_bit = st.shaker ? 1 : 0;
+    if (outrun.game_state == GS_INGAME)
+    {
+        s.phase    = ffb::RACE;
+        const int sides = st.wheel[0] & 3;      // the sides in a surface zone (a smoke kind each)
+        s.wheels   = !st.offroad ? ffb::ON : sides == 2 ? ffb::LEFT_OFF : sides == 1 ? ffb::RIGHT_OFF : ffb::OFF;
+        s.side     = oinitengine.car_x_pos >= 0 ? 1 : -1;
+        s.slipping = (st.sliding || st.spin || st.shift_smoke) && s.wheels == ffb::ON;
+        s.rough    = s.wheels == ffb::ON && ((sides && !st.shift_smoke) || (!on_board() && olevelobjs.rough_surface));
+        if (st.state == 5)
+        {
+            if (ffb_crash_ticks == 0) ffb_crash_dir = st.push > 0 ? -1 : (st.push < 0 ? 1 : (oinitengine.car_x_pos >= 0 ? 1 : -1));
+            ffb_crash_ticks++;
+            if (ffb_hit_kind == 2)
+                s.skid = ffb_crash_dir;
+            else
+            {
+                s.crash         = ffb::CRASH_TUMBLE;
+                s.crash_state   = 1;
+                s.crash_counter = ffb_crash_ticks;
+                s.crash_dir     = ffb_crash_dir;
+            }
+        }
+        else
+            ffb_crash_ticks = 0;
+        if (st.gear != ffb_gear && config.crossover.or_manual) s.gear_shift = st.gear > ffb_gear ? 1 : -1;
+    }
+    else if (outrun.game_state >= GS_START1 && outrun.game_state <= GS_START3)
+    {
+        s.phase = ffb::START;
+        s.start_pedal = std::max(0, std::min(255, (int) oinputs.acc_adjust));
+        ffb_crash_ticks = 0;
+    }
+    else
+        ffb_crash_ticks = 0;
+    ffb_gear = st.gear;
+    ffb::tick(s);
+}
 
 bool CrossoverMadPower::load()
 {
@@ -399,6 +456,7 @@ void CrossoverMadPower::tick()
     {
         in.hit_at_entry = in.hit = true;
         in.hit_kind = hit_kind;
+        ffb_hit_kind = hit_kind;
         in.car_lateral = hit_lateral; in.car_latvel = hit_latvel; in.car_speed = hit_speed; in.car_model = 0;
         have_hit = false;
     }
@@ -518,6 +576,8 @@ void CrossoverMadPower::tick()
     // OutRun's wheel state stays on the road: MAD POWER's off-road dust and sounds are its own
     oferrari.wheel_state = OFerrari::WHEELS_ON;
     oferrari.wheel_traction = OFerrari::TRACTION_ON;
+
+    ffb_tick();
 
     // the sound board: the parameters as the car's tick wrote them, the tyre sound, the queued commands
     snd_write(SH_ENGINE, s.snd_engine);

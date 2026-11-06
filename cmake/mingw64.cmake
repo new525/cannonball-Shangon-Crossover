@@ -7,4 +7,4 @@
 set(boost_dir ${BOOST_INC})
 set(sdl2_dir ${SDL2_ROOT}/lib/cmake/SDL2)
 set(OPENGL 1)
-set(platform_link_libs opengl32 glu32 dxguid dinput8 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)
+set(platform_link_libs opengl32 glu32 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)

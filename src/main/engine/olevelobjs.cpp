@@ -32,6 +32,7 @@ OLevelObjs olevelobjs;
 
 OLevelObjs::OLevelObjs(void)
 {
+    rough_surface = false;
 }
 
 OLevelObjs::~OLevelObjs(void)
@@ -293,6 +294,7 @@ void OLevelObjs::setup_sprite_routine(oentry* sprite)
 
 void OLevelObjs::do_sprite_routine()
 {
+    rough_surface = false;      // crossover (force feedback): rebuilt from the scenery under the car every frame
     for (uint8_t i = 0; i < osprites.no_sprites; i++)
     {
         oentry* sprite = &osprites.jump_table[i];
@@ -740,6 +742,18 @@ void OLevelObjs::sprite_minitree(oentry* sprite)
     if (road_x >= (160 + config.s16_x_off) || road_x < -(160 + config.s16_x_off)) return;
     sprite->x = road_x;
 
+    // Crossover (force feedback): a sand (routine 10) or stone (11) strip at the car's depth, across the car's
+    // x by the ROM's collision bounds for its sprite type (as CannonBall-DX reads it; the ending's wide sand,
+    // routine 14, left out). Changes nothing the game does.
+    if ((sprite->function_holder == 10 || sprite->function_holder == 11) && z16 >= 0x1B0)
+    {
+        uint32_t offset_addr = SPRITE_X_OFFS + sprite->type;
+        int16_t x1 = (int16_t) roms.rom0.read16(&offset_addr);
+        int16_t x2 = (int16_t) roms.rom0.read16(&offset_addr);
+        if (sprite->control & OSprites::HFLIP) { int16_t t = x1; x1 = -x2; x2 = -t; }
+        if (!(sprite->x + x1 > 0 || sprite->x + x2 < 0)) rough_surface = true;
+    }
+
     // 44fc
     int32_t road_y = -(oroad.road_y[oroad.road_p0 + z16] >> 4) + 223;
     sprite->y = road_y; // Set Sprite Y (Screen/Camera)
@@ -776,6 +790,7 @@ void OLevelObjs::sprite_debris(oentry* sprite)
     const uint8_t zoom = 2;
     if (spray_counter != 0 || (sprite->z >> 16) < 0x1B0)
     {
+        if (spray_counter != 0 && spray_type == 0xC) rough_surface = true;   // crossover: through the debris
         set_spr_zoom_priority(sprite, zoom);
         return;
     }
@@ -808,6 +823,7 @@ void OLevelObjs::sprite_debris(oentry* sprite)
     }
 
     // Passing through spray!
+    rough_surface = true;       // crossover (force feedback)
     spray_counter = SPRAY_RESET;
     spray_type = 0xC;
     set_spr_zoom_priority(sprite, zoom);

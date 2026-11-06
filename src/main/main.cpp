@@ -30,9 +30,8 @@
 #include "engine/ooutputs.hpp"
 #include "engine/omusic.hpp"
 
-// Direct X Haptic Support.
-// Fine to include on non-windows builds as dummy functions used.
-#include "directx/ffeedback.hpp"
+// Crossover: force feedback (SDL2 haptics; replaces the DirectX 8 backend)
+#include "ffb/ffb.hpp"
 
 // Crossover test harness (headless scripted runs)
 #include "crossover/harness.hpp"
@@ -71,7 +70,7 @@ static void quit_func(int code)
     harness.close();
     audio.stop_audio();
     input.close_joy();
-    forcefeedback::close();
+    ffb::close();
     delete menu;
     video.disable();    // crossover: release the window/GL context while SDL is still up (was in ~Video, after SDL_Quit)
     if (RenderBase::display_moved())    // the window was moved to another display: remembered for next time
@@ -135,6 +134,12 @@ static void process_events(void)
 
             case SDL_JOYDEVICEREMOVED:
                 input.close_joy();
+                break;
+
+            case SDL_WINDOWEVENT:
+                // Crossover: no force feedback while another window has the focus
+                if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)        ffb::focus(false);
+                else if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) ffb::focus(true);
                 break;
 
             case SDL_QUIT:
@@ -271,6 +276,18 @@ static void tick()
     if (tick_frame)
     {
          input.set_rumble(outrun.outputs->is_set(OOutputs::D_MOTOR), config.controls.rumble);
+    }
+
+    // Crossover: force feedback on a frame no vehicle drove (the menu, a pause, a board's run-up): the
+    // spring at its low-speed level and nothing else
+    if (tick_frame)
+    {
+        if (!ffb::ticked_this_frame())
+        {
+            if (state == STATE_GAME && pause_engine) ffb::stop();
+            else ffb::idle();
+        }
+        ffb::frame_done();
     }
 }
 
@@ -484,9 +501,8 @@ int main(int argc, char* argv[])
                config.controls.keyconfig, config.controls.padconfig, 
                config.controls.analog,    config.controls.axis, config.controls.invert, config.controls.asettings);
 
-    if (config.controls.haptic) 
-        config.controls.haptic = forcefeedback::init(config.controls.max_force, config.controls.min_force, config.controls.force_duration);
-        
+    ffb::init();    // crossover: force feedback, when controls.haptic is set
+
     // Populate menus
     menu = new Menu();
     menu->populate();

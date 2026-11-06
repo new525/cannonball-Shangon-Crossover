@@ -41,6 +41,11 @@ class OLevelObjs
 	    // Sprite Collision Counter (Hitting Scenery)
 	    int16_t sprite_collision_counter;
 
+        // Crossover (force feedback): a loose surface under the car this frame: a sand or stone strip
+        // (routines 10, 11) at the car's depth across the car's x, or the desert's debris (its spray).
+        // Set by the sprite routines, read by nothing in the game
+        bool rough_surface;
+
         OLevelObjs(void);
         ~OLevelObjs(void);
 

@@ -127,6 +127,9 @@ private:
     std::vector<uint16_t> image;        // the car's image (S32 15-bit pixels)
     void build_segments();
     void compute_frame(int16_t car_x);
+    void ffb_tick();                    // force feedback: the car's state to the effects (ffb/ffb)
+    int  ffb_crash_ticks = 0, ffb_crash_dir = 1;
+    uint8_t ffb_gear = 0, ffb_hit_kind = 0;     // the kind of the last contact given to the car
     void render();
     static void blit(void* ctx, uint16_t* target, int w, int h, int x_off, bool hires);
 

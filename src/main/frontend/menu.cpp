@@ -33,6 +33,7 @@
 #include "crossover/madpower.hpp"
 #include "crossover/hovehicle.hpp"
 #include "crossover/shferrari.hpp"
+#include "ffb/ffb.hpp"
 
 #include "sdl2/audio.hpp"
 #include "sdl2/renderbase.hpp"
@@ -230,6 +231,9 @@ void Menu::populate_controls()
     menu_controls.push_back(ENTRY_REDEFKEY);
     menu_controls.push_back(ENTRY_DSTEER);
     menu_controls.push_back(ENTRY_DPEDAL);
+    menu_controls.push_back(ENTRY_FFB);
+    menu_controls.push_back(ENTRY_FFB_STRENGTH);
+    menu_controls.push_back(ENTRY_FFB_SPRING);
     menu_controls.push_back(ENTRY_BACK);
 
     if (menu_controls_gp.size() > 0)
@@ -857,6 +861,26 @@ void Menu::tick_menu()
                 if (++config.controls.pedal_speed > 9)
                     config.controls.pedal_speed = 1;
             }
+            // Crossover: force feedback
+            else if (SELECTED(ENTRY_FFB))
+            {
+                config.controls.haptic ^= 1;
+                ffb::enable(config.controls.haptic != 0);
+                if (config.controls.haptic && !ffb::active())
+                    display_message("NO FORCE FEEDBACK DEVICE FOUND");
+            }
+            else if (SELECTED(ENTRY_FFB_STRENGTH))
+            {
+                config.controls.ffb.strength += 10;
+                if (config.controls.ffb.strength > 100) config.controls.ffb.strength = 10;
+                ffb::apply_settings();
+            }
+            else if (SELECTED(ENTRY_FFB_SPRING))
+            {
+                config.controls.ffb.centering_strength += 10;
+                if (config.controls.ffb.centering_strength > 100) config.controls.ffb.centering_strength = 0;
+                ffb::apply_settings();
+            }
             else if (SELECTED(ENTRY_BACK))
                 menu_back();
         }
@@ -1065,6 +1089,9 @@ void Menu::refresh_menu()
             if (SELECTED(ENTRY_GEAR))               set_menu_text(ENTRY_GEAR, GEAR_LABELS[config.controls.gear]);
             else if (SELECTED(ENTRY_DSTEER))        set_menu_text(ENTRY_DSTEER, Utils::to_string(config.controls.steer_speed));
             else if (SELECTED(ENTRY_DPEDAL))        set_menu_text(ENTRY_DPEDAL, Utils::to_string(config.controls.pedal_speed));
+            else if (SELECTED(ENTRY_FFB))           set_menu_text(ENTRY_FFB, config.controls.haptic ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FFB_STRENGTH))  set_menu_text(ENTRY_FFB_STRENGTH, Utils::to_string(config.controls.ffb.strength));
+            else if (SELECTED(ENTRY_FFB_SPRING))    set_menu_text(ENTRY_FFB_SPRING, Utils::to_string(config.controls.ffb.centering_strength));
         }
         else if (menu_selected == &menu_controls_gp)
         {

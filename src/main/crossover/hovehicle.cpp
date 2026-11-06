@@ -16,6 +16,7 @@
 #include "hwvideo/hwsprites.hpp"
 #include "frontend/config.hpp"
 #include "engine/outrun.hpp"
+#include "engine/ooutputs.hpp"
 #include "engine/oinitengine.hpp"
 #include "engine/oroad.hpp"
 #include "engine/oferrari.hpp"
@@ -603,6 +604,7 @@ void HOVehicle::tick()
     }
     osprites.sprite_copy();
     osprites.update_sprites();              // Outrun::vint: the list to the sprite chip, palettes
+    if (config.controls.haptic && vehicle == FERRARI) outrun.outputs->ffb_tick(oinputs.input_steering);  // force feedback (ffb/ffb)
 
     // OutRun's distance for this tick, given to the track over the next two board frames
     owed += oroad.road_pos - pos0;

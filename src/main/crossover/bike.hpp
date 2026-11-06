@@ -110,6 +110,11 @@ private:
     std::vector<uint32_t> def_ptrs;     // Super Hang-On sprite definition addresses
     std::vector<Frame>    frames;       // parallel to def_ptrs
 
+    // force feedback (ffb/ffb): the bike's state to the effects, once per tick
+    void    ffb_tick();
+    int     ffb_crash_ticks = 0;  // ticks since the crash began
+    int     ffb_crash_dir = 1;    // its side
+
     // crash
     int     sh_frame_acc = 0;     // 60 Hz Super Hang-On frames owed to OutRun's logic ticks
     int     last_frame = -1;      // cannonball::frame at the previous tick()
