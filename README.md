@@ -329,7 +329,23 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   at the chip's rate, 31,250 Hz (it played 2.4% sharp); the corrected PCM ROM optional, with Sega/M2's
   preferred; the high-score fixes (ED with TIMING FIXES, saving when the entry times out); the
   traffic brake-check fix as an option (TRAFFIC BRAKE FIX, off by default); undefined behaviour
-  removed in the tilemap scroll and traffic code with the same results.
+  removed in the tilemap scroll and traffic code with the same results; quick taps of the gear, view,
+  coin, start and menu buttons no longer lost between the game's 30 Hz input reads; DIGITAL NAME
+  ENTRY (off by default: one letter per press of left or right on the high-score screen, START
+  confirms); three more Ferrari colours (BLACK, WHITE, SILVER); the sound output device and the
+  display the window opens on as options (OUTPUT DEVICE, DISPLAY; a window moved to another display
+  is remembered); each of BUG FIXES' seven fixes as its own option (SELECT BUG FIXES), plus one DX
+  found: the ending palette fix recoloured the trophy in endings A and C (ENDING TROPHY, off by
+  default).
+- **Force feedback for steering wheels** (`ffb/`): on SDL2 haptics (Windows and Linux; replaces
+  Cannonball's DirectX 8 backend), off by default. The vehicle's own arcade motor output is the base
+  (OutRun's deluxe cabinet motor as a constant force; OutRunners' wheel vibration motor for MAD POWER;
+  the bikes' ride-on cabinets have none) plus CannonBall-DX's effects (sand, tyre slip, off-road rumble
+  and pull, gear shift, traffic contact, crash impacts and loads, start-line steering and rev shake,
+  engine shake) and its speed-dependent centering spring, each an option, on every vehicle and course.
+  Not tested on real hardware here: [`docs/FORCE-FEEDBACK.md`](docs/FORCE-FEEDBACK.md) says what to
+  check first.
+- **Version**: `crossover/version.hpp`, shown on ABOUT and printed at start-up.
 
 Super Hang-On, Hang-On, Cool Riders and OutRunners ROMs are optional. Without them, Cannonball runs as normal
 with the Ferrari, and each missing set only removes that game's part.
@@ -415,7 +431,7 @@ roms\orunners\   epr-15550.ic31, mpr-15551.ic1, mpr-15552.ic2   (OutRunners)
 Up/down moves through the menu and left/right changes a setting. Your choices are saved in
 `config.xml` (section `<crossover>`, which also holds the four crossover ROM folders; the music is saved by
 its title, so it survives ROM sets coming and going). **CLEAR HISCORES** under SETTINGS clears
-Super Hang-On's and Hang-On's rankings along with OutRun's. On Super Hang-On's and Hang-On's courses the game is that game's own, rankings
+Super Hang-On's, Hang-On's and OutRunners' rankings along with OutRun's. On Super Hang-On's and Hang-On's courses the game is that game's own, rankings
 included; when it ends you're back in the menu. The menu key leaves at any time.
 
 ### Controls (default keyboard)
@@ -436,7 +452,13 @@ song before) and **right** >> too; left with right (or down) plays Jingle Bell, 
 do in OutRunners. With digital steering left and right steer, so there is no <<.
 
 Keys can be changed under **SETTINGS > CONTROLS > REDEFINE KEYS**. Gamepads and analog wheels
-work as in Cannonball.
+work as in Cannonball. Force feedback: **CONTROLS > FORCE FEEDBACK**, **FFB STRENGTH** and **SPRING**;
+the per-effect strengths are in `config.xml` under `controls/analog/haptic` (`effects`, `spring`,
+0-100, DX's defaults; `invert` for a wheel that pulls the wrong way). The device is the controls'
+joystick, else any wheel; `FF_TARGET_VIDPID` (e.g. `046d:c24f`) picks one. Other settings added:
+`sound.playback_device` (an SDL output device by name, empty = default), `video.display` (the display
+the window opens on, 0 = first), `scores.digital_entry`, `engine.fixes.*` (the bug fixes one by one
+under `fix_bugs`).
 
 ---
 

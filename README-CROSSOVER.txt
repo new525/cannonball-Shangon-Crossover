@@ -15,6 +15,70 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
+Changes since 0.10.0 (not yet released)
+---------------------------------------
+- Force feedback for steering wheels, on SDL2 haptics (Windows and Linux;
+  it replaces Cannonball's DirectX 8 support). The base is each vehicle's
+  own arcade cabinet motor: OutRun's deluxe cabinet motor for the Ferrari
+  (as before), OutRunners' wheel vibration motor for MAD POWER; the bikes'
+  ride-on cabinets have none. On top, CannonBall-DX's effects (sand, tyre
+  slip, off-road rumble and pull, gear shift, traffic contact, crash
+  impacts and loads, start-line steering and rev shake, engine shake) and
+  its speed-dependent centering spring, on every vehicle and course. OFF by
+  default: SETTINGS > CONTROLS > FORCE FEEDBACK, FFB STRENGTH and SPRING;
+  each effect's strength is in config.xml under <haptic> (0-100, DX's
+  defaults; <invert> for a wheel that pulls the wrong way). The device is
+  the controls' wheel, or FF_TARGET_VIDPID (e.g. 046d:c24f) chooses one.
+  Untested on real hardware: docs\FORCE-FEEDBACK.md says what to check.
+- From CannonBall-SE and CannonBall-DX, rewritten for this program:
+  - Quick taps of the gear, view, coin, start and menu buttons are no
+    longer lost: the game reads its controls 30 times a second, and at 60
+    fps a press released again before the next read was never seen. MAD
+    POWER's manual box on OutRun's, Super Hang-On's and Hang-On's courses
+    counts such a tap too.
+  - New option DIGITAL NAME ENTRY (SETTINGS > GAME ENGINE > ENHANCEMENTS;
+    <digital_entry> in config.xml under <scores>), OFF by default, which is
+    the arcade: the wheel scrolls the letters (the keys through the
+    simulated wheel, slowly) and the accelerator confirms. ON: each press
+    of left or right moves one letter and START confirms as well as the
+    accelerator. A real wheel works as before either way.
+  - Three more Ferrari colours, BLACK, WHITE and SILVER (CannonBall-DX's
+    palettes), after CYAN in SETTINGS > GAME ENGINE > HANDLING > COLOR.
+  - SETTINGS > SOUND > OUTPUT DEVICE chooses the sound output (DEFAULT, or
+    one of the devices SDL reports; <playback_device> in config.xml). A
+    device that is no longer there falls back to the default.
+  - SETTINGS > VIDEO > DISPLAY chooses the display the window opens on,
+    full screen or windowed (<display> in config.xml, 0 = the first). A
+    window dragged to another display is remembered for the next start.
+  - SETTINGS > GAME ENGINE > ENHANCEMENTS: BUG FIXES is now on the PC menu
+    too, and SELECT BUG FIXES turns its fixes on and off one by one
+    (<fixes> in config.xml; all on by default, as BUG FIXES alone was):
+    ENDING PALETTE (the man's colours at the start of three endings), LAP
+    TIME HUNDREDTHS (at a checkpoint), MUSIC SCREEN TILE, MAP SEA EDGE,
+    STEERING FROM REST, SPRITE RIGHT EDGE, ROAD LINE ON MENUS. ENDING
+    TROPHY (off by default) keeps the gold of the trophy handed over in
+    endings A and C, which the ending palette fix recoloured (found by
+    CannonBall-DX).
+- Fixes from a code review:
+  - After a MAD POWER race on Super Hang-On's or Hang-On's course, or the
+    menu key during any MAD POWER race, its sound board ran on in the menu
+    and its unheard output piled up in memory (about 50 MB a minute).
+  - On Hang-On's course, sprites reaching the right edge of the screen put
+    a few pixels on the left edge of the next line.
+  - At 30 fps with the sound at 22,050 Hz the other games' sound boards
+    lost one sample a frame (they ran 0.14% slow, with a click).
+  - A ROM file of the other games' sets found by its name but with the
+    wrong CRC32 was used with only a console warning; it is refused with a
+    message now, since the reconstructed bike reads its tables from it.
+  - The music choice saved by title was lost at the next save when its ROM
+    set was missing.
+  - MAD POWER's score on OutRun's courses read past a table above 335 km/h.
+  - BALANCE's rounding carries are cleared at each race start, so a second
+    race is the same as the first.
+  - CLEAR HISCORES also clears OutRunners' rankings (its EEPROM file).
+  - The version is shown on the ABOUT page and printed at start-up.
+
+
 Changes in 0.10.0
 -----------------
 - New race setup option BALANCE (HALF by default, FULL, OFF). Each game's
@@ -366,7 +430,8 @@ Setting up
 5. Put the OutRunners ROMs in          roms\orunners\     (list: roms\orunners\roms.txt)
    For its music, 3 files of MAME's "orunners" set (or orunnersu,
    orunnersj). For its courses and MAD POWER, every file of "orunnersj".
-6. Run cannonball.exe.
+6. Run cannonball.exe. With a force-feedback wheel, turn on SETTINGS >
+   CONTROLS > FORCE FEEDBACK (docs\FORCE-FEEDBACK.md).
 
 The crossover ROM sets are optional: without Super Hang-On's ROMs you drive
 the Ferrari, and each missing set only removes that game's part (its
