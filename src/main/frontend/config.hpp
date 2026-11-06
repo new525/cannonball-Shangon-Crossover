@@ -96,8 +96,10 @@ struct ffb_settings_t
 {
     int strength;               // FFB STRENGTH (menu): the master, 10-100
     int centering_strength;     // SPRING (menu): the centering spring's reference level, 0-100
+    int invert;                 // 1: the constant forces the other way (a wheel that turns the wrong way)
     // effects
-    int motor;                  // the vehicle's own arcade motor output (OutRun's deluxe cabinet motor, OutRunners' wheel motor)
+    int motor;                  // the vehicle's own arcade motor output (OutRun's deluxe cabinet motor as a constant force)
+    int motor_vibration;        // a one-bit arcade vibration motor (OutRunners' wheel) as a vibration
     int sand, tyre_slip, offroad_rumble_one_wheel, offroad_rumble_full, offroad_pull_one_wheel, offroad_pull_full,
         gear_shift, traffic_skid, crash_bump, crash_spin_impact, crash_spin, crash_flip_impact, crash_flip,
         crash_flip_landing, start_steering, start_rev_shake, engine, engine_period;

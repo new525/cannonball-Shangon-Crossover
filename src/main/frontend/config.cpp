@@ -235,7 +235,9 @@ void Config::load()
         };
         f.strength                 = get("strength", 50);
         f.centering_strength       = get("centering_strength", 80);
+        f.invert                   = get("invert", 0, 1);
         f.motor                    = get("effects.motor", 100);
+        f.motor_vibration          = get("effects.motor_vibration", 50);
         f.sand                     = get("effects.sand", 3);
         f.tyre_slip                = get("effects.tyre_slip", 11);
         f.offroad_rumble_one_wheel = get("effects.offroad_rumble_one_wheel", 20);

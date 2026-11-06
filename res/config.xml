@@ -269,9 +269,14 @@
                  FFB STRENGTH and SPRING -->
             <strength>50</strength>
             <centering_strength>80</centering_strength>
+            <!-- 1 if the forces push the wheel the wrong way (off-road should pull away from the road) -->
+            <invert>0</invert>
             <effects>
-                <!-- the vehicle's own arcade motor output (OutRun's deluxe cabinet motor, OutRunners' wheel motor) -->
+                <!-- the vehicle's own arcade motor output: OutRun's deluxe cabinet motor commands as a constant
+                     force (linear in the motor's speed), and the vibration while OutRunners' wheel motor (one
+                     bit: off-road, a contact) is on -->
                 <motor>100</motor>
+                <motor_vibration>50</motor_vibration>
                 <!-- light taps on a loose surface (sand and stone strips, the desert's debris) -->
                 <sand>3</sand>
                 <!-- a vibration while the tyres slide on the road -->

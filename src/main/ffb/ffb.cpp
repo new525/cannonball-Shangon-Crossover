@@ -202,9 +202,11 @@ namespace ffb
     {
         const ffb_settings_t& c = cfg();
         const bool full = s.wheels == OFF;
+        // the pull is away from the road: the side the vehicle left on (DX's fallback for both wheels leaving
+        // at once pulled the other way; here it is the side of the road the vehicle is on, as for one wheel)
         if (s.wheels == LEFT_OFF)       offroad_dir = 1;
         else if (s.wheels == RIGHT_OFF) offroad_dir = -1;
-        else if (offroad_dir == 0)      offroad_dir = s.side >= 0 ? -1 : 1;
+        else if (offroad_dir == 0)      offroad_dir = s.side >= 0 ? 1 : -1;
 
         int cmd = s.motor;
         if (cmd < 0)
@@ -274,7 +276,7 @@ namespace ffb
         const int motor_base = motor_level(s.motor, c.motor);
         int level = 0;
         int spring = spring_level(c.low_speed);
-        int periodic = s.motor_bit > 0 ? c.motor : 0, period = 45;
+        int periodic = s.motor_bit > 0 ? c.motor_vibration : 0, period = 45;    // a one-bit vibration motor: a sine while it is on
 
         if (s.phase == START)
         {
@@ -338,7 +340,7 @@ namespace ffb
             level = motor_base;         // Cannonball's original behaviour outside a race: the motor centres the wheel
         }
 
-        ffbdev::set_constant(clamp(level, -100, 100));
+        ffbdev::set_constant(clamp(c.invert ? -level : level, -100, 100));
         ffbdev::set_spring(clamp(spring, 0, 100));
         ffbdev::set_periodic(clamp(periodic, 0, 100), period);
     }
