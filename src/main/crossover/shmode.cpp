@@ -22,6 +22,7 @@
 #include "engine/oinputs.hpp"
 #include "engine/omusic.hpp"
 #include "engine/audio/osoundint.hpp"
+#include "ffb/ffb.hpp"
 
 SHMode shmode;
 
@@ -208,5 +209,46 @@ void SHMode::tick()
         if (was_ingame && !ingame) finished = true;
         was_ingame = ingame;
     }
+    if (config.controls.haptic && cannonball::tick_frame && !shferrari.enabled) ffb_tick();
     show_frame();
+}
+
+// Force feedback (ffb/ffb): Super Hang-On's own bike from its RAM ($260000 + offset, the second CPU's RAM:
+// the addresses in crossover/bike.cpp), once per 30 Hz tick: mode $260000 (1 start line, 2 race), speed
+// $260078 (16.16 km/h), X $260022 (+ left), the traffic knockback $260088 (+ pushed left), the crash flag
+// $260094, off-road $260098, the throttle $26006C (0-127). Super Hang-On's cabinet has no motor (no
+// arcade base). Not read: the bike's lean and rear-wheel skid.
+void SHMode::ffb_tick()
+{
+    if (!ffb::active()) return;
+    const uint8_t* r = shboard.cpu1ram;
+    auto w = [&](uint32_t off) { return (int16_t)(r[off] << 8 | r[off + 1]); };
+    const bool ingame = shboard.workram[0x408] || shboard.workram[0x409];
+    const int mode = w(0x00);
+    ffb::State s;
+    s.speed = w(0x78);
+    if (ingame && mode == 2)
+    {
+        s.phase  = ffb::RACE;
+        s.wheels = (r[0x98] || r[0x99]) ? ffb::OFF : ffb::ON;
+        s.side   = w(0x22) >= 0 ? 1 : -1;
+        s.skid   = w(0x88) > 0 ? 1 : (w(0x88) < 0 ? -1 : 0);
+        if (r[0x94] || r[0x95])
+        {
+            if (ffb_crash_ticks == 0) ffb_crash_dir = s.side;
+            ffb_crash_ticks++;
+            s.crash = ffb::CRASH_TUMBLE; s.crash_state = 1; s.crash_counter = ffb_crash_ticks; s.crash_dir = ffb_crash_dir;
+        }
+        else
+            ffb_crash_ticks = 0;
+    }
+    else if (ingame && mode == 1)
+    {
+        s.phase = ffb::START;
+        s.start_pedal = std::min(255, 2 * (int) w(0x6C));
+        ffb_crash_ticks = 0;
+    }
+    else
+        ffb_crash_ticks = 0;
+    ffb::tick(s);
 }

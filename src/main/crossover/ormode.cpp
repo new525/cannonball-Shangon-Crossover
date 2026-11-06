@@ -23,6 +23,7 @@
 #include "crossover/orvehicle.hpp"
 #include "crossover/balance_push.hpp"
 #include "crossover/balance.hpp"
+#include "ffb/ffb.hpp"
 
 ORMode ormode;
 
@@ -318,6 +319,11 @@ void ORMode::tick()
         take_sound();
         balance::contact_trace_or(*board, vehicle == MAD_POWER);   // testing: CB_CONTACT_LOG, CB_CHASE
         if (board->read8(A_STATE) != 6) finished = true;
+        // testing: the wheel motor output (port D bit 4) against the shaker byte $20E0D0, per board frame
+        static FILE* motor_log = getenv("CB_OR_MOTOR_LOG") ? fopen(getenv("CB_OR_MOTOR_LOG"), "w") : nullptr;
+        if (motor_log)
+            fprintf(motor_log, "%llu %02x %02x %d %d %d\n", (unsigned long long) board->frame(), board->lamps_d[0], board->read8(0x20E0D0),
+                    board->read8(0x20040C), board->read8(0x20907C), board->read8(0x209140));
         // testing: the cars' sounds alone (the music stopped, $1F, at this board frame)
         static const int stop_music = getenv("CB_OR_STOP_MUSIC") ? atoi(getenv("CB_OR_STOP_MUSIC")) : 0;
         if (stop_music && board->frame() == (uint64_t) stop_music) board->write8(0x700700, 0x1F);
@@ -336,5 +342,66 @@ void ORMode::tick()
             kenya_goal = true;
         }
     }
+    if (config.controls.haptic && cannonball::tick_frame && vehicle == MAD_POWER) ffb_tick();
     show_frame();
+}
+
+// Force feedback (ffb/ffb): OutRunners' own car on its board, from its RAM once per 30 Hz tick (player 1's
+// addresses, docs/OUTRUNNERS-RE.md; crossover/madpower.cpp reads the same state from its transcription).
+// The arcade base is the cabinet's wheel vibration motor as the game drives it: bit 4 of the I/O chip's
+// port D (MAME's MA_Steering_Wheel_motor), the board's lamps_d[0]. The car: state $20040C (1 start line,
+// 2 driving, 3 time up, 4 goal run, 5 a contact's bounce), speed $209074 (km/h x 136), off-road $20907C,
+// the wheel kinds $209140 (bit 0 the right side in a surface zone, bit 1 the left: the side off the road,
+// or a loose surface on it), sliding $209067, wheelspin $209065 and the shift's $209144, gear $209062,
+// the contact's push $2004CE (+ right) and kind $20046E (0 scenery, 2 a car).
+void ORMode::ffb_tick()
+{
+    if (!ffb::active() || !board) return;
+    const ORBoard& b = *board;
+    auto r8  = [&](uint32_t a) { return (int) b.read8(a); };
+    auto r16 = [&](uint32_t a) { return (int)(int16_t)(b.read8(a) | b.read8(a + 1) << 8); };
+    const int cs = r8(0x20040C);
+    ffb::State s;
+    s.speed = (int)(uint16_t) r16(0x209074) / 136;
+    s.motor_bit = (b.lamps_d[0] >> 4) & 1;
+    if (r8(A_STATE) == 6 && cs >= 2 && cs <= 5)
+    {
+        s.phase    = ffb::RACE;
+        const int sides = r8(0x209140) & 3, shift_smoke = r8(0x209144);
+        s.wheels   = !r8(0x20907C) ? ffb::ON : sides == 2 ? ffb::LEFT_OFF : sides == 1 ? ffb::RIGHT_OFF : ffb::OFF;
+        s.side     = r16(0x209038) <= 0 ? 1 : -1;      // OutRunners' lateral is + right
+        s.slipping = (r8(0x209067) || r8(0x209065) || shift_smoke) && s.wheels == ffb::ON;
+        s.rough    = s.wheels == ffb::ON && sides && !shift_smoke;
+        if (cs == 5)
+        {
+            const int push = r16(0x2004CE);
+            if (ffb_crash_ticks == 0)
+            {
+                ffb_crash_dir = push > 0 ? -1 : (push < 0 ? 1 : s.side);
+                ffb_hit_kind = (uint8_t) r8(0x20046E);
+            }
+            ffb_crash_ticks++;
+            if (ffb_hit_kind == 2)
+                s.skid = ffb_crash_dir;
+            else
+            {
+                s.crash = ffb::CRASH_TUMBLE; s.crash_state = 1; s.crash_counter = ffb_crash_ticks; s.crash_dir = ffb_crash_dir;
+            }
+        }
+        else
+            ffb_crash_ticks = 0;
+        const uint8_t gear = (uint8_t) r8(0x209062);
+        if (gear != ffb_gear && manual_box) s.gear_shift = gear > ffb_gear ? 1 : -1;
+        ffb_gear = gear;
+    }
+    else if (r8(A_STATE) == 6 && cs == 1)
+    {
+        s.phase = ffb::START;
+        s.start_pedal = std::max(0, std::min(255, (int) oinputs.acc_adjust));
+        ffb_crash_ticks = 0;
+        ffb_gear = (uint8_t) r8(0x209062);
+    }
+    else
+        ffb_crash_ticks = 0;
+    ffb::tick(s);
 }

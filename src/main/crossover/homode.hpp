@@ -39,6 +39,8 @@ private:
     void set_inputs();
     void show_frame();
     bool ingame() const;
+    void ffb_tick();                        // force feedback: Hang-On's own bike from the board's RAM (ffb/ffb)
+    int  ffb_crash_ticks = 0, ffb_crash_dir = 1;
 
     // High scores. Hang-On resets its rankings ($20D800, 99 entries of 12 bytes, sub_05A7C), the value
     // at $20C03C and its lap-time records ($20DF90, sub_07E8A) at every power-on, and the board is powered

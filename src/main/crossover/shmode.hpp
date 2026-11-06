@@ -47,6 +47,8 @@ private:
     int  other_music = -1;                  // music list index replacing Super Hang-On's race music
     void set_inputs();
     void show_frame();
+    void ffb_tick();                        // force feedback: Super Hang-On's own bike from the board's RAM (ffb/ffb)
+    int  ffb_crash_ticks = 0, ffb_crash_dir = 1;
 
     // High scores. Super Hang-On resets its rankings at every power-on (sub_088FA, called from the
     // boot code at $1038: the four course tables at $61800-$619BF, $6003C and $61BE0-$61BFF), so
