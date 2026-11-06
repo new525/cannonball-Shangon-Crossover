@@ -135,6 +135,8 @@ void Config::load()
     video.filtering  = pt_config.get("video.filtering",          0); // Open GL Filtering Mode
     video.vsync      = pt_config.get("video.vsync",              1); // Use V-Sync where available (e.g. Open GL)
     video.shadow     = pt_config.get("video.shadow",             0); // Shadow Settings
+    video.display    = pt_config.get("video.display",            0); // Display the window opens on (0 = first)
+    if (video.display < 0) video.display = 0;
 
     // ------------------------------------------------------------------------
     // Sound Settings
@@ -145,6 +147,7 @@ void Config::load()
     sound.preview     = pt_config.get("sound.preview",     1);
     sound.fix_samples = pt_config.get("sound.fix_samples", 1);
     sound.music_timer = pt_config.get("sound.music_timer", 0);
+    sound.playback_device = pt_config.get("sound.playback_device", "");
 
     // Custom Music. Search for enabled custom tracks
     for (int i = 0;; i++)
@@ -251,6 +254,14 @@ void Config::load()
     engine.randomgen       = pt_config.get("engine.randomgen",    1);
     engine.fix_bugs_backup = 
     engine.fix_bugs        = pt_config.get("engine.fix_bugs",     1) != 0;
+    engine.fixes.ending_palette = pt_config.get("engine.fixes.ending_palette", 1) != 0;
+    engine.fixes.ending_trophy  = pt_config.get("engine.fixes.ending_trophy",  0) != 0;
+    engine.fixes.lap_time       = pt_config.get("engine.fixes.lap_time",       1) != 0;
+    engine.fixes.music_tile     = pt_config.get("engine.fixes.music_tile",     1) != 0;
+    engine.fixes.map_sea        = pt_config.get("engine.fixes.map_sea",        1) != 0;
+    engine.fixes.steering       = pt_config.get("engine.fixes.steering",       1) != 0;
+    engine.fixes.sprite_edge    = pt_config.get("engine.fixes.sprite_edge",    1) != 0;
+    engine.fixes.road_line      = pt_config.get("engine.fixes.road_line",      1) != 0;
     engine.fix_timer       = pt_config.get("engine.fix_timer",    0) != 0;
     engine.fix_traffic     = pt_config.get("engine.fix_traffic",  0);
     if (engine.fix_traffic < 0 || engine.fix_traffic > 2) engine.fix_traffic = 0;
@@ -292,8 +303,10 @@ bool Config::save()
     pt_config.put("video.fps",                video.fps);
     pt_config.put("video.widescreen",         video.widescreen);
     pt_config.put("video.hires",              video.hires);
+    pt_config.put("video.display",            video.display);
 
     pt_config.put("sound.enable",             sound.enabled);
+    pt_config.put("sound.playback_device",    sound.playback_device);
     pt_config.put("sound.advertise",          sound.advertise);
     pt_config.put("sound.preview",            sound.preview);
     pt_config.put("sound.fix_samples",        sound.fix_samples);
@@ -353,6 +366,14 @@ bool Config::save()
     pt_config.put("engine.prototype",       engine.prototype);
     pt_config.put("engine.levelobjects",    engine.level_objects);
     pt_config.put("engine.fix_bugs",        (int) engine.fix_bugs);
+    pt_config.put("engine.fixes.ending_palette", (int) engine.fixes.ending_palette);
+    pt_config.put("engine.fixes.ending_trophy",  (int) engine.fixes.ending_trophy);
+    pt_config.put("engine.fixes.lap_time",       (int) engine.fixes.lap_time);
+    pt_config.put("engine.fixes.music_tile",     (int) engine.fixes.music_tile);
+    pt_config.put("engine.fixes.map_sea",        (int) engine.fixes.map_sea);
+    pt_config.put("engine.fixes.steering",       (int) engine.fixes.steering);
+    pt_config.put("engine.fixes.sprite_edge",    (int) engine.fixes.sprite_edge);
+    pt_config.put("engine.fixes.road_line",      (int) engine.fixes.road_line);
     pt_config.put("engine.fix_timer",       (int) engine.fix_timer);
     pt_config.put("engine.fix_traffic",     engine.fix_traffic);
     pt_config.put("engine.new_attract",     engine.new_attract);

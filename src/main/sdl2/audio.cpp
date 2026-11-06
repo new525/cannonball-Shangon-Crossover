@@ -81,33 +81,8 @@ void Audio::start_audio()
     }
     if (!sound_enabled)
     {
-        // Since many GNU/Linux distros are infected with PulseAudio, SDL2 could chose PA as first
-	    // driver option before ALSA, and PA doesn't obbey our sample number requests, resulting
-	    // in audio gaps, if we're on a GNU/Linux we force ALSA.
-	    // Else we accept whatever SDL2 wants to give us or what the user specifies on SDL_AUDIODRIVER
-	    // enviroment variable.
-	    std::string platform = SDL_GetPlatform();
-
-	    if (platform=="Linux")
-        {
-            if (SDL_InitSubSystem(SDL_INIT_AUDIO)!= 0)
-                std::cout << "Error initalizing audio subsystem: " << SDL_GetError() << std::endl;
-
-	        if (SDL_AudioInit("alsa") != 0) 
-            {
-		        std::cout << "Error initalizing audio using ALSA: " << SDL_GetError() << std::endl;
-		        return;
-	        }
-
-	    }
-	    else 
-        {
-	        if(SDL_Init(SDL_INIT_AUDIO) == -1) 
-	        {
-		        std::cout << "Error initalizing audio: " << SDL_GetError() << std::endl;
-		        return;
-	        }		
-	    }
+        if (!init_subsystem())
+            return;
 
         // SDL Audio Properties
         SDL_AudioSpec desired, obtained;
@@ -118,9 +93,21 @@ void Audio::start_audio()
         desired.samples  = SAMPLES;
         desired.callback = fill_audio;
         desired.userdata = NULL;
-	
+
+        // The output device: config sound.playback_device names one of SDL's (the SOUND menu's
+        // OUTPUT DEVICE lists them); empty, or a name SDL doesn't report, means the default.
+        const char* device = NULL;
+        if (!config.sound.playback_device.empty())
+        {
+            const std::vector<std::string> names = device_names();
+            for (const std::string& n : names)
+                if (n == config.sound.playback_device) device = config.sound.playback_device.c_str();
+            if (!device)
+                std::cout << "Audio device \"" << config.sound.playback_device << "\" not found; using the default" << std::endl;
+        }
+
 	    // SDL2 block
-	    dev = SDL_OpenAudioDevice(NULL, 0, &desired, &obtained, /*SDL_AUDIO_ALLOW_FORMAT_CHANGE*/0);
+	    dev = SDL_OpenAudioDevice(device, 0, &desired, &obtained, /*SDL_AUDIO_ALLOW_FORMAT_CHANGE*/0);
 	    if (dev == 0)
 	    {
             std::cout << "Error opening audio device: " << SDL_GetError() << std::endl;
@@ -155,6 +142,56 @@ void Audio::start_audio()
 
         SDL_PauseAudioDevice(dev,0);
     }
+}
+
+// SDL's audio subsystem, started the way the original code did it
+bool Audio::init_subsystem()
+{
+    // Since many GNU/Linux distros are infected with PulseAudio, SDL2 could chose PA as first
+    // driver option before ALSA, and PA doesn't obbey our sample number requests, resulting
+    // in audio gaps, if we're on a GNU/Linux we force ALSA.
+    // Else we accept whatever SDL2 wants to give us or what the user specifies on SDL_AUDIODRIVER
+    // enviroment variable.
+    std::string platform = SDL_GetPlatform();
+
+    if (platform=="Linux")
+    {
+        if (SDL_InitSubSystem(SDL_INIT_AUDIO)!= 0)
+            std::cout << "Error initalizing audio subsystem: " << SDL_GetError() << std::endl;
+
+        if (SDL_AudioInit("alsa") != 0)
+        {
+            std::cout << "Error initalizing audio using ALSA: " << SDL_GetError() << std::endl;
+            return false;
+        }
+
+    }
+    else
+    {
+        if(SDL_Init(SDL_INIT_AUDIO) == -1)
+        {
+            std::cout << "Error initalizing audio: " << SDL_GetError() << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+// The names of SDL's output devices. The subsystem is started if it isn't up (sound off since
+// the start); not while a device is open, since on Linux that would restart the driver under it.
+std::vector<std::string> Audio::device_names()
+{
+    std::vector<std::string> names;
+    if (harness.headless) return names;
+    if (!SDL_WasInit(SDL_INIT_AUDIO) && (sound_enabled || !init_subsystem()))
+        return names;
+    const int n = SDL_GetNumAudioDevices(0);
+    for (int i = 0; i < n; i++)
+    {
+        const char* name = SDL_GetAudioDeviceName(i, 0);
+        if (name) names.push_back(name);
+    }
+    return names;
 }
 
 void Audio::clear_buffers()

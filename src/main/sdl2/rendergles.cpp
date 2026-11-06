@@ -179,7 +179,8 @@ bool Render::init(int src_width, int src_height,
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 
-	window = SDL_CreateWindow("Cannonball", 0, 0, 0, 0, flags);
+	// config video.display: the display the (full-screen) window takes; 0 is at 0,0 as before
+	window = SDL_CreateWindow("Cannonball", SDL_WINDOWPOS_UNDEFINED_DISPLAY(display_index()), SDL_WINDOWPOS_UNDEFINED_DISPLAY(display_index()), 0, 0, flags);
 
     glcontext = SDL_GL_CreateContext(window);
 

@@ -51,6 +51,11 @@
          2 is full-screen stretched, no borders. (Aspect ratio will be lost. Scanlines will be disabled.)
     -->
     <mode>0</mode>
+    <!-- The display the window opens on, full screen or windowed: 0 is the first of the displays SDL
+         reports, 1 the second, and so on (the video menu's DISPLAY lists them). A number SDL doesn't
+         have falls back to 0. When the window is moved to another display, that display is kept
+         here at the next save (SAVE AND RETURN, a race start) or on exit. -->
+    <display>0</display>
     <!-- 
         Windowed Mode Settings 
         Scale: Scale or zoom factor for window mode. 1 is original size. 
@@ -106,6 +111,11 @@
 
 	<!-- Sample Rate (Must be supported by your audio card. Example: 48000, 44100 etc.) -->
 	<rate>48000</rate>
+
+    <!-- Output device: SDL's name of one of the system's audio outputs (the sound menu's OUTPUT DEVICE
+         lists them, and sets this). Empty, or a name SDL doesn't report (said on the console), uses
+         the system default. -->
+    <playback_device></playback_device>
     
     <!-- Advertise Sound In Attract Mode -->
     <advertise>1</advertise>
@@ -315,6 +325,32 @@
     <!-- Fix minor bugs present in the original engine. -->
     <!-- Tile on music select screen, ms value at checkpoint etc. -->
     <fix_bugs>1</fix_bugs>
+    <!-- The fixes fix_bugs covers, one by one (the SELECT BUG FIXES menu): each applies when it is 1 and
+         fix_bugs is 1; fix_bugs 0 turns them all off. All 1 keeps what fix_bugs alone did.
+         ending_palette: the man's colours in the ending sequence (wrong in three of the five endings)
+         ending_trophy:  that fix drew the man with one palette throughout, which also recoloured the award
+                         he is handed in endings A and C (the ROM gives those frames their own palette, the
+                         gold trophy); 1 keeps the ROM's colours for them (noticed by CannonBall-DX).
+                         Default 0: the fix as it was.
+         lap_time:       the hundredths of the last lap time shown at a checkpoint (the current ones
+                         were shown)
+         music_tile:     a misplaced tile above the wheel on the music select screen
+         map_sea:        the sea on the end-of-game map is drawn out to the left edge of the screen
+                         (always so in widescreen)
+         steering:       a wheel turned while stationary made the car veer when it moved off, even
+                         with the wheel centred again
+         sprite_edge:    sprites reaching the right edge of the screen wrapped round (their shadows)
+         road_line:      a line of road left at the bottom of the music select and map screens -->
+    <fixes>
+        <ending_palette>1</ending_palette>
+        <ending_trophy>0</ending_trophy>
+        <lap_time>1</lap_time>
+        <music_tile>1</music_tile>
+        <map_sea>1</map_sea>
+        <steering>1</steering>
+        <sprite_edge>1</sprite_edge>
+        <road_line>1</road_line>
+    </fixes>
     
     <!-- Fixes two timing bugs:
          1. The hundredths of seconds lookup table contains 64 values but there should only be 60 values

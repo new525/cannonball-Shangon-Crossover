@@ -248,7 +248,7 @@ void OMap::load_sprites()
     }
 
     // Wide-screen hack to extend sea to edge of screen.
-    if (config.s16_x_off != 0 || config.engine.fix_bugs)
+    if (config.s16_x_off != 0 || (config.engine.fix_bugs && config.engine.fixes.map_sea))
     {
         for (uint8_t i = 26; i <= 30; i++)
         {

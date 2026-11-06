@@ -34,6 +34,38 @@
 #include "crossover/hovehicle.hpp"
 #include "crossover/shferrari.hpp"
 
+#include "sdl2/audio.hpp"
+#include "sdl2/renderbase.hpp"
+
+// The menu font has A-Z (lower case is drawn as upper), 0-9, space, '-', '.', '%', '!', ',' and
+// '/'; a name from SDL (an audio device, a display) is reduced to those, runs of spaces to one.
+static std::string menu_text_safe(const std::string& s)
+{
+    std::string out;
+    for (unsigned char c : s)
+    {
+        char u = (char) toupper(c);
+        if (!((u >= 'A' && u <= 'Z') || (u >= '0' && u <= '9') || u == ' ' || u == '-' || u == '.' ||
+              u == '%' || u == '!' || u == ',' || u == '/'))
+            continue;
+        if (u == ' ' && (out.empty() || out.back() == ' ')) continue;
+        out += u;
+    }
+    while (!out.empty() && out.back() == ' ') out.pop_back();
+    return out;
+}
+
+// The video menu's DISPLAY row: "1", "2", ... with SDL's name of the display after it (unless
+// that is just a number too, as some drivers report)
+static std::string display_label(int index)
+{
+    std::string label = Utils::to_string(index + 1);
+    const char* name = SDL_GetDisplayName(index);
+    std::string safe = name ? menu_text_safe(name) : std::string();
+    if (!safe.empty() && safe.find_first_not_of("0123456789") != std::string::npos) label += " " + safe;
+    return label;
+}
+
 // Logo Y Position
 const static int16_t LOGO_Y = -60;
 
@@ -72,6 +104,16 @@ void Menu::populate()
     menu_handling.push_back(ENTRY_TURBO);
     menu_handling.push_back(ENTRY_COLOR);
     menu_handling.push_back(ENTRY_BACK);
+
+    menu_fixes.push_back(ENTRY_FIX_ENDPAL);     // the master switch (BUG FIXES, fix_bugs) is in the menu above
+    menu_fixes.push_back(ENTRY_FIX_TROPHY);
+    menu_fixes.push_back(ENTRY_FIX_LAPTIME);
+    menu_fixes.push_back(ENTRY_FIX_MUSTILE);
+    menu_fixes.push_back(ENTRY_FIX_MAPSEA);
+    menu_fixes.push_back(ENTRY_FIX_STEER);
+    menu_fixes.push_back(ENTRY_FIX_SPREDGE);
+    menu_fixes.push_back(ENTRY_FIX_ROADLN);
+    menu_fixes.push_back(ENTRY_BACK);
 
     menu_cont.push_back(ENTRY_START_CONT);
     menu_cont.push_back(ENTRY_TRAFFIC);
@@ -143,6 +185,7 @@ void Menu::populate_for_pc()
 
     menu_video.push_back(ENTRY_FPS);
     menu_video.push_back(ENTRY_FULLSCREEN);
+    menu_video.push_back(ENTRY_DISPLAY);
     menu_video.push_back(ENTRY_WIDESCREEN);
     menu_video.push_back(ENTRY_HIRES);
     menu_video.push_back(ENTRY_SCALE);
@@ -150,6 +193,7 @@ void Menu::populate_for_pc()
     menu_video.push_back(ENTRY_BACK);
 
     menu_sound.push_back(ENTRY_MUTE);
+    menu_sound.push_back(ENTRY_SNDDEVICE);
     menu_sound.push_back(ENTRY_ADVERTISE);
     menu_sound.push_back(ENTRY_PREVIEWSND);
     menu_sound.push_back(ENTRY_FIXSAMPLES);
@@ -166,6 +210,8 @@ void Menu::populate_for_pc()
 
     menu_enhancements.push_back(ENTRY_TIMER);
     menu_enhancements.push_back(ENTRY_TRAFFICFIX);
+    menu_enhancements.push_back(ENTRY_S_BUGS);
+    menu_enhancements.push_back(ENTRY_SUB_FIXES);
     menu_enhancements.push_back(ENTRY_ATTRACT);
     menu_enhancements.push_back(ENTRY_OBJECTS);
     menu_enhancements.push_back(ENTRY_PROTOTYPE);
@@ -232,6 +278,7 @@ void Menu::populate_for_cabinet()
     menu_s_exsettings.push_back(ENTRY_MUTE);
 #endif
     menu_s_exsettings.push_back(ENTRY_ENHANCE);
+    menu_s_exsettings.push_back(ENTRY_SUB_FIXES);   // (the ENHANCEMENTS menu is full)
     menu_s_exsettings.push_back(ENTRY_SCORES);
     menu_s_exsettings.push_back(ENTRY_SAVE);
 
@@ -612,6 +659,7 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_TRACKS))        config.engine.jap ^= 1;
             else if (SELECTED(ENTRY_GEAR))          config.controls.gear = config.controls.gear == config.controls.GEAR_PRESS ? config.controls.GEAR_AUTO : config.controls.GEAR_PRESS;
             else if (SELECTED(ENTRY_ENHANCE))       set_menu(&menu_s_enhance);
+            else if (SELECTED(ENTRY_SUB_FIXES))     set_menu(&menu_fixes);
             else if (SELECTED(ENTRY_SCORES))        display_message(config.clear_scores() ? "SCORES CLEARED" : "NO SAVED SCORES FOUND!");
             else if (SELECTED(ENTRY_MUTE))
             {
@@ -692,6 +740,14 @@ void Menu::tick_menu()
                     config.video.mode = video.supports_window() ? video_settings_t::MODE_WINDOW : video_settings_t::MODE_WINDOW + 1;
                 restart_video();
             }
+            else if (SELECTED(ENTRY_DISPLAY))
+            {
+                // The next of the displays SDL reports; the window is remade on it
+                const int n = SDL_GetNumVideoDisplays();
+                if (++config.video.display >= n)
+                    config.video.display = 0;
+                restart_video();
+            }
             else if (SELECTED(ENTRY_WIDESCREEN))
             {
                 config.video.widescreen ^= 1;
@@ -744,6 +800,21 @@ void Menu::tick_menu()
                     cannonball::audio.start_audio();
                 else
                     cannonball::audio.stop_audio();
+            }
+            else if (SELECTED(ENTRY_SNDDEVICE))
+            {
+                // DEFAULT, then each output device SDL reports, by name; applied at once
+                const std::vector<std::string> names = cannonball::audio.device_names();
+                int current = 0;
+                for (int i = 0; i < (int) names.size(); i++)
+                    if (names[i] == config.sound.playback_device) current = i + 1;
+                if (++current > (int) names.size()) current = 0;
+                config.sound.playback_device = current ? names[current - 1] : "";
+                if (config.sound.enabled)
+                {
+                    cannonball::audio.stop_audio();
+                    cannonball::audio.start_audio();
+                }
             }
             else if (SELECTED(ENTRY_ADVERTISE))
                 config.sound.advertise ^= 1;
@@ -827,6 +898,22 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_PROTOTYPE))         config.engine.prototype ^= 1;
             else if (SELECTED(ENTRY_TIMER))             config.engine.fix_timer ^= 1;
             else if (SELECTED(ENTRY_TRAFFICFIX))        config.engine.fix_traffic = (config.engine.fix_traffic + 1) % 3;
+            // The master switch: a race takes fix_bugs from its backup (start_game), so set both
+            else if (SELECTED(ENTRY_S_BUGS))            config.engine.fix_bugs_backup = config.engine.fix_bugs ^= 1;
+            else if (SELECTED(ENTRY_SUB_FIXES))         set_menu(&menu_fixes);
+            else if (SELECTED(ENTRY_BACK))              menu_back();
+        }
+        else if (menu_selected == &menu_fixes)
+        {
+            engine_fixes_t& f = config.engine.fixes;
+            if (SELECTED(ENTRY_FIX_ENDPAL))             f.ending_palette ^= 1;
+            else if (SELECTED(ENTRY_FIX_TROPHY))        f.ending_trophy ^= 1;
+            else if (SELECTED(ENTRY_FIX_LAPTIME))       f.lap_time ^= 1;
+            else if (SELECTED(ENTRY_FIX_MUSTILE))       f.music_tile ^= 1;
+            else if (SELECTED(ENTRY_FIX_MAPSEA))        f.map_sea ^= 1;
+            else if (SELECTED(ENTRY_FIX_STEER))         f.steering ^= 1;
+            else if (SELECTED(ENTRY_FIX_SPREDGE))       f.sprite_edge ^= 1;
+            else if (SELECTED(ENTRY_FIX_ROADLN))        f.road_line ^= 1;
             else if (SELECTED(ENTRY_BACK))              menu_back();
         }
         else if (menu_selected == &menu_handling)
@@ -954,6 +1041,7 @@ void Menu::refresh_menu()
         else if (menu_selected == &menu_video)
         {
             if (SELECTED(ENTRY_FULLSCREEN))         set_menu_text(ENTRY_FULLSCREEN, VIDEO_LABELS[config.video.mode]);
+            else if (SELECTED(ENTRY_DISPLAY))       set_menu_text(ENTRY_DISPLAY, display_label(RenderBase::display_index()));
             else if (SELECTED(ENTRY_WIDESCREEN))    set_menu_text(ENTRY_WIDESCREEN, config.video.widescreen ? "ON" : "OFF");
             else if (SELECTED(ENTRY_SCALE))         set_menu_text(ENTRY_SCALE, Utils::to_string(config.video.scale) + "X");
             else if (SELECTED(ENTRY_HIRES))         set_menu_text(ENTRY_HIRES, config.video.hires ? "ON" : "OFF");
@@ -963,6 +1051,7 @@ void Menu::refresh_menu()
         else if (menu_selected == &menu_sound)
         {
             if (SELECTED(ENTRY_MUTE))               set_menu_text(ENTRY_MUTE, config.sound.enabled ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_SNDDEVICE))     set_menu_text(ENTRY_SNDDEVICE, config.sound.playback_device.empty() ? "DEFAULT" : menu_text_safe(config.sound.playback_device));
             else if (SELECTED(ENTRY_ADVERTISE))     set_menu_text(ENTRY_ADVERTISE, config.sound.advertise ? "ON" : "OFF");
             else if (SELECTED(ENTRY_PREVIEWSND))    set_menu_text(ENTRY_PREVIEWSND, config.sound.preview ? "ON" : "OFF");
             else if (SELECTED(ENTRY_FIXSAMPLES))    set_menu_text(ENTRY_FIXSAMPLES, roms.pcm_fixed ? "ON" : "OFF");
@@ -1007,6 +1096,18 @@ void Menu::refresh_menu()
             else if (SELECTED(ENTRY_S_BUGS))        set_menu_text(ENTRY_S_BUGS, config.engine.fix_bugs ? "ON" : "OFF");
             else if (SELECTED(ENTRY_TIMER))         set_menu_text(ENTRY_TIMER, config.engine.fix_timer ? "ON" : "OFF");
             else if (SELECTED(ENTRY_TRAFFICFIX))    set_menu_text(ENTRY_TRAFFICFIX, config.engine.fix_traffic == 0 ? "OFF" : config.engine.fix_traffic == 1 ? "PARTIAL" : "FULL");
+        }
+        else if (menu_selected == &menu_fixes)
+        {
+            const engine_fixes_t& f = config.engine.fixes;
+            if (SELECTED(ENTRY_FIX_ENDPAL))         set_menu_text(ENTRY_FIX_ENDPAL, f.ending_palette ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIX_TROPHY))    set_menu_text(ENTRY_FIX_TROPHY, f.ending_trophy ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIX_LAPTIME))   set_menu_text(ENTRY_FIX_LAPTIME, f.lap_time ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIX_MUSTILE))   set_menu_text(ENTRY_FIX_MUSTILE, f.music_tile ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIX_MAPSEA))    set_menu_text(ENTRY_FIX_MAPSEA, f.map_sea ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIX_STEER))     set_menu_text(ENTRY_FIX_STEER, f.steering ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIX_SPREDGE))   set_menu_text(ENTRY_FIX_SPREDGE, f.sprite_edge ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FIX_ROADLN))    set_menu_text(ENTRY_FIX_ROADLN, f.road_line ? "ON" : "OFF");
         }
         else if (menu_selected == &menu_handling)
         {

@@ -89,6 +89,7 @@ private:
     std::vector<std::string> menu_engine;
     std::vector<std::string> menu_enhancements;
     std::vector<std::string> menu_handling;
+    std::vector<std::string> menu_fixes;            // each of fix_bugs' fixes on its own
     std::vector<std::string> menu_musictest;
     std::vector<std::string> menu_xover;            // crossover race setup: vehicle / track / music
     std::vector<std::string> menu_s_exsettings;     // smartypi specific

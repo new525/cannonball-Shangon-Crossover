@@ -674,7 +674,7 @@ void OSprites::do_sprite(oentry* input)
     // as I had to change the storage size of the x-cordinate. 
     // Unsetting fix_bugs may no longer revert to the original behaviour.
     if (sprite_y2 < 256 || sprite_y1 > 479 ||
-        sprite_x2 < x2_bounds || (config.engine.fix_bugs ? sprite_x1 >= x1_bounds : sprite_x1 > x1_bounds))
+        sprite_x2 < x2_bounds || (config.engine.fix_bugs && config.engine.fixes.sprite_edge ? sprite_x1 >= x1_bounds : sprite_x1 > x1_bounds))
     {
         hide_hwsprite(input, output);
         return;

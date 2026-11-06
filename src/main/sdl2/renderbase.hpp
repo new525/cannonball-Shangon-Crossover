@@ -25,6 +25,17 @@ public:
     virtual bool supports_window() { return true; }
     virtual bool supports_vsync() { return false; }
 
+    // The display the window opens on: config video.display, or 0 when SDL doesn't have that
+    // many (said once on the console). The window is centred on it (SDL_WINDOWPOS_CENTERED_DISPLAY),
+    // and a full-screen window takes that display.
+    static int display_index();
+    // Keeps the display the window is on in config video.display when it is moved (main.cpp, on
+    // SDL's window-moved event), so the next restart or save keeps it; display_moved() says whether
+    // that changed the setting, for a save on exit
+    static void remember_display(SDL_Window* window);
+    static bool display_moved() { return moved; }
+    static bool moved;
+
 protected:
 	SDL_Surface *surface;
 

@@ -11,6 +11,7 @@
     See license.txt for more details.
 ***************************************************************************/
 
+#include <cstdlib>
 #include "trackloader.hpp"
 
 #include "engine/oanimseq.hpp"
@@ -40,7 +41,9 @@ OInitEngine oinitengine;
 const static uint8_t CONTINUOUS_LEVELS[] = {0, 0x8, 0x9, 0x10, 0x11, 0x12, 0x18, 0x19, 0x1A, 0x1B, 0x20, 0x21, 0x22, 0x23, 0x24};
 
 // Set to 0 to 4 to test bonus sequence, -1 disables
-const static int DEBUG_BONUS = -1;
+// Crossover testing: the environment variable CB_DEBUG_BONUS=<0-4> sets it (the ending comes a
+// little way into stage 1), so the endings can be reached in a short headless run.
+static const int DEBUG_BONUS = getenv("CB_DEBUG_BONUS") ? atoi(getenv("CB_DEBUG_BONUS")) : -1;
 
 OInitEngine::OInitEngine()
 {

@@ -61,9 +61,21 @@ const static char* ENTRY_TIMER = "TIMING FIXES ";
 const static char* ENTRY_S_BUGS = "BUG FIXES ";
 const static char* ENTRY_TRAFFICFIX = "TRAFFIC BRAKE FIX ";
 
+// Bug Fixes Sub-Menu (each of fix_bugs' fixes on its own; ENTRY_S_BUGS is the master switch)
+const static char* ENTRY_SUB_FIXES   = "SELECT BUG FIXES";
+const static char* ENTRY_FIX_ENDPAL  = "ENDING PALETTE ";
+const static char* ENTRY_FIX_TROPHY  = "ENDING TROPHY ";
+const static char* ENTRY_FIX_LAPTIME = "LAP TIME HUNDREDTHS ";
+const static char* ENTRY_FIX_MUSTILE = "MUSIC SCREEN TILE ";
+const static char* ENTRY_FIX_MAPSEA  = "MAP SEA EDGE ";
+const static char* ENTRY_FIX_STEER   = "STEERING FROM REST ";
+const static char* ENTRY_FIX_SPREDGE = "SPRITE RIGHT EDGE ";
+const static char* ENTRY_FIX_ROADLN  = "ROAD LINE ON MENUS ";
+
 // Video Menu
 const static char* ENTRY_FPS = "FRAME RATE ";
 const static char* ENTRY_FULLSCREEN = "FULL SCREEN ";
+const static char* ENTRY_DISPLAY = "DISPLAY ";
 const static char* ENTRY_WIDESCREEN = "WIDESCREEN ";
 const static char* ENTRY_HIRES = "HIRES ";
 const static char* ENTRY_SCALE = "WINDOW SCALE ";
@@ -71,6 +83,7 @@ const static char* ENTRY_SCANLINES = "SCANLINES ";
 
 // Sound Menu
 const static char* ENTRY_MUTE = "SOUND ";
+const static char* ENTRY_SNDDEVICE = "OUTPUT DEVICE ";
 const static char* ENTRY_BGM = "BGM VOL ";
 const static char* ENTRY_SFX = "SFX VOL ";
 const static char* ENTRY_ADVERTISE = "ATTRACT SOUND ";
