@@ -119,6 +119,9 @@ public:
     // ---- device_start ------------------------------------------------------------------
     // gfx1 is decoded (copied); `sprites` is referenced, not copied, and must outlive this
     // object (MAME's required_region_ptr<uint32_t> m_sprite_region; words = length()).
+    // init() may be called again (another power-on): everything is set up again except the
+    // decoded tiles, which are kept when gfx1 is the same region as before (same address and
+    // size; its contents must not have changed).
     bool init(const uint8_t* gfx1, uint32_t gfx1_bytes, const uint32_t* sprites, uint32_t sprite_words);
 
     // ---- memory handlers (MAME signatures; offsets as in the memory map above) --------
@@ -237,6 +240,8 @@ private:
     // gfx (MAME gfx_segas32: bgcharlayout, 16x16 4bpp, colorbase 0, 0x3ff colors)
     std::vector<uint8_t> m_gfxdata;            // decoded, 256 bytes per tile
     uint32_t m_gfx_elements = 0;
+    const uint8_t* m_gfx_region = nullptr;     // the region m_gfxdata was decoded from
+    uint32_t m_gfx_region_bytes = 0;
     const uint32_t* m_sprite_region = nullptr;
     uint32_t m_sprite_region_length = 0;       // in uint32 units
 

@@ -40,28 +40,17 @@ static inline void combine_data(uint16_t* varptr, uint16_t data, uint16_t mem_ma
  *
  *************************************/
 
-static uint32_t crc32_of(const std::vector<uint8_t>& d)
-{
-    uint32_t crc = 0xffffffff;
-    for (uint8_t b : d)
-    {
-        crc ^= b;
-        for (int k = 0; k < 8; k++)
-            crc = (crc >> 1) ^ (0xedb88320 & (0 - (crc & 1)));
-    }
-    return ~crc;
-}
-
 static bool read_rom(const std::string& dir, const char* name, uint32_t length, uint32_t crc,
                      std::vector<uint8_t>& out, std::string& error)
 {
     std::string path = rom_file(dir, name).where();
     if (!read_rom(dir, name, out)) { error = "missing " + path; return false; }
     if (out.size() != length) { error = "wrong size: " + path; return false; }
-    if (crc32_of(out) != crc)
+    const uint32_t found = rom_crc32(out.data(), out.size());
+    if (found != crc)
     {
         char b[64];
-        snprintf(b, sizeof b, " (CRC %08x, expected %08x)", crc32_of(out), crc);
+        snprintf(b, sizeof b, " (CRC %08x, expected %08x)", found, crc);
         error = "wrong CRC: " + path + b;
         return false;
     }
@@ -88,8 +77,11 @@ bool S32Video::load_orunnersj_regions(const std::string& dir, std::vector<uint8_
             gfx1[r.offset + i * 2] = rom[i];
     }
 
-    // ROM_REGION32_BE( 0x1000000, "mainpcb:sprites", 0 )
-    std::vector<uint8_t> region(0x1000000, 0);
+    // ROM_REGION32_BE( 0x1000000, "mainpcb:sprites", 0 ). romload region_post_process: a 32-bit
+    // big-endian region is byte-swapped on a little-endian host, so MAME's uint32_t reads give
+    // the big-endian values. PORT: the region is built as those values (region bytes 4n and
+    // 4n + 1 are bits 31-16 of word n, bytes 4n + 2 and 4n + 3 its bits 15-0)
+    sprites.assign(0x1000000 / 4, 0);
     static const struct { const char* name; uint32_t offset, length, crc; } spr[] =
     {
         { "mpr-15540.ic14", 0x000000, 0x200000, 0xa10d72b4 },   // ROM_LOAD64_WORD
@@ -105,19 +97,13 @@ bool S32Video::load_orunnersj_regions(const std::string& dir, std::vector<uint8_
     {
         if (!read_rom(dir, r.name, r.length, r.crc, rom, error)) return false;
         // ROM_LOAD64_WORD = ROMX_LOAD(..., ROM_GROUPWORD | ROM_SKIP(6)): groups of 2 bytes
-        // copied in file order (not reversed), then 6 bytes skipped
+        // copied in file order (not reversed), then 6 bytes skipped: group g is region bytes
+        // offset + 8g and offset + 8g + 1
+        const int shift = (r.offset & 2) ? 0 : 16;
+        uint32_t* const words = &sprites[r.offset / 4];
         for (uint32_t g = 0; g < r.length / 2; g++)
-        {
-            region[r.offset + g * 8 + 0] = rom[g * 2 + 0];
-            region[r.offset + g * 8 + 1] = rom[g * 2 + 1];
-        }
+            words[g * 2] |= (uint32_t(rom[g * 2]) << 8 | rom[g * 2 + 1]) << shift;
     }
-    // romload region_post_process: a 32-bit big-endian region is byte-swapped on a
-    // little-endian host, so MAME's uint32_t reads give the big-endian values
-    sprites.assign(region.size() / 4, 0);
-    for (size_t i = 0; i < sprites.size(); i++)
-        sprites[i] = uint32_t(region[i * 4]) << 24 | uint32_t(region[i * 4 + 1]) << 16 |
-                     uint32_t(region[i * 4 + 2]) << 8 | region[i * 4 + 3];
     return true;
 }
 
@@ -133,7 +119,10 @@ bool S32Video::init(const uint8_t* gfx1, uint32_t gfx1_bytes, const uint32_t* sp
     m_ok = false;
 
     // PORT: MAME's gfxdecode device decodes gfx1 with gfx_segas32 / bgcharlayout lazily
-    // (gfx_element::decode on first use); here every element is decoded up front.
+    // (gfx_element::decode on first use); here every element is decoded up front, once: a
+    // later init() with the same region (the board's power-on for another race) keeps the
+    // decoded tiles, which are only read (the caller keeps the region unchanged).
+    if (m_gfxdata.empty() || gfx1 != m_gfx_region || gfx1_bytes != m_gfx_region_bytes)
     {
         static const uint32_t planeoffset[4] = { 0, 1, 2, 3 };                       // STEP4(0,1)
         static const uint32_t xoffset[16] = { 0, 4, 16, 20, 8, 12, 24, 28, 32, 36, 48, 52, 40, 44, 56, 60 };
@@ -166,6 +155,8 @@ bool S32Video::init(const uint8_t* gfx1, uint32_t gfx1_bytes, const uint32_t* sp
                 }
             }
         }
+        m_gfx_region = gfx1;
+        m_gfx_region_bytes = gfx1_bytes;
     }
 
     m_sprite_region = sprites;

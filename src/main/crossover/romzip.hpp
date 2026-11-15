@@ -38,6 +38,18 @@ struct RomFile
 // entry's CRC32). The bytes are the same as the file unzipped. False if it cannot be read.
 bool read_rom_file(const RomFile& f, std::vector<uint8_t>& out);
 
+// Reads a whole loose file. False if it cannot be opened.
+bool read_loose_file(const std::filesystem::path& p, std::vector<uint8_t>& out);
+
+// CRC32 of a block of bytes (the zips' and MAME's: polynomial $EDB88320)
+uint32_t rom_crc32(const uint8_t* data, size_t size);
+
+// The CRC32 of a loose file's contents. A file is read and summed once per process: the sum is
+// remembered by the file's path, size and modification time, so loaders that list the same
+// folder one after another (crossover/romset.cpp lists OutRunners' twice) don't read its files
+// again. False if the file cannot be read.
+bool loose_file_crc32(const std::filesystem::path& p, uint32_t& crc);
+
 // True if `path` names an existing file whose name ends in .zip (any case)
 bool is_zip_file(const std::string& path);
 

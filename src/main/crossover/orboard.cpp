@@ -63,6 +63,18 @@ bool ORBoard::load_roms(const std::string& dir, Roms& r, std::string& error)
     return S32Video::load_orunnersj_regions(dir, r.gfx1, r.sprites, error);
 }
 
+std::shared_ptr<const ORBoard::Roms> ORBoard::shared_roms(const std::string& dir, std::string& error)
+{
+    static std::shared_ptr<const Roms> loaded;
+    static std::string loaded_dir;
+    if (loaded && loaded_dir == dir) return loaded;
+    std::shared_ptr<Roms> r = std::make_shared<Roms>();
+    if (!load_roms(dir, *r, error)) return nullptr;
+    loaded = r;
+    loaded_dir = dir;
+    return loaded;
+}
+
 // ------------------------------------------------------------------------------------------------
 // device_execute_interface arithmetic (diexec.cpp interface_clock_changed, schedule.cpp)
 // ------------------------------------------------------------------------------------------------
@@ -90,15 +102,24 @@ OrTime ORBoard::Exec::local() const { return at(cycles); }
 // ------------------------------------------------------------------------------------------------
 bool ORBoard::init(Roms&& r)
 {
+    return init(std::make_shared<const Roms>(std::move(r)));
+}
+
+bool ORBoard::init(std::shared_ptr<const Roms> r)
+{
     ready_ = false;
-    roms = std::move(r);
+    roms_ = std::move(r);
+    if (!roms_) return false;
+    const Roms& roms = *roms_;
     if (roms.maincpu.size() != 0x200000 || roms.soundcpu.size() != 0x80000 || roms.sega.size() != 0x400000) return false;
     cpu.reset(new V60Cpu(*this));
     // multi32_map: global_mask $FFFFFF; ROM $000000-$1FFFFF and $F00000-$FFFFFF (region offset
-    // 0); work RAM $200000-$21FFFF mirrored over $200000-$2FFFFF
+    // 0); work RAM $200000-$21FFFF mirrored over $200000-$2FFFFF. The ROM pages have no write
+    // base: the core only reads through this pointer (the regions may be shared)
+    uint8_t* const program = const_cast<uint8_t*>(roms.maincpu.data());
     cpu->set_direct_decode_mask(0xffffff);
-    cpu->map_direct(0x000000, 0x1fffff, roms.maincpu.data(), nullptr);
-    cpu->map_direct(0xf00000, 0xffffff, roms.maincpu.data(), nullptr);
+    cpu->map_direct(0x000000, 0x1fffff, program, nullptr);
+    cpu->map_direct(0xf00000, 0xffffff, program, nullptr);
     for (uint32_t m = 0; m < 8; m++)
         cpu->map_direct(0x200000 + m * 0x20000, 0x21ffff + m * 0x20000, work_ram, work_ram);
     vid.reset(new S32Video());
@@ -157,7 +178,8 @@ void ORBoard::power_on(const uint8_t* eeprom128)
 
     // device_start: the devices' power-on state
     std::memset(work_ram, 0, sizeof work_ram);              // memory shares are zero-filled
-    if (!vid->init(roms.gfx1.data(), (uint32_t) roms.gfx1.size(), roms.sprites.data(), (uint32_t) roms.sprites.size()))
+    // (the tiles are decoded at the first power-on only: S32Video::init)
+    if (!vid->init(roms_->gfx1.data(), (uint32_t) roms_->gfx1.size(), roms_->sprites.data(), (uint32_t) roms_->sprites.size()))
         { ready_ = false; return; }
     snd.power_on();
     analog_bank = 0;                                        // sega_multi32_analog_state::device_start
@@ -775,10 +797,10 @@ void ORBoard::irq_line(int state, int vector)
 uint8_t ORBoard::read8(uint32_t a) const
 {
     a &= 0xffffff;
-    if (a < 0x200000) return roms.maincpu[a];
+    if (a < 0x200000) return roms_->maincpu[a];
     if (a < 0x300000) return work_ram[a & 0x1ffff];
     if (a >= 0x700000 && a < 0x800000) return snd.shared[a & 0x1fff];
-    if (a >= 0xf00000) return roms.maincpu[a - 0xf00000];
+    if (a >= 0xf00000) return roms_->maincpu[a - 0xf00000];
     return 0xff;
 }
 

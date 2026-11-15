@@ -54,7 +54,8 @@ bool ORSound::init(const std::vector<uint8_t>& soundcpu, const std::vector<uint8
 {
     ready = false;
     if (soundcpu.size() < 0x80000 || pcmrom.size() < 0x400000) return false;
-    rom = soundcpu; pcm_rom = pcmrom;
+    rom = soundcpu.data(); rom_size = soundcpu.size();
+    pcm_rom = pcmrom.data(); pcm_size = pcmrom.size();
     iface.reset(new Iface(this));
     ym.reset(new ymfm::ym3438(*iface));
     ym_rate_ = ym->sample_rate((uint32_t) CLOCK);    // MAME's stream: the integer rate
@@ -62,8 +63,8 @@ bool ORSound::init(const std::vector<uint8_t>& soundcpu, const std::vector<uint8
     {
         // segas32 multipcm_map: 1 MB direct, then the two 512 KB bank windows
         if (a < 0x100000) return pcm_rom[a];
-        if (a < 0x180000) return pcm_rom[(pcm_bank_lo * 0x80000 + (a - 0x100000)) % pcm_rom.size()];
-        if (a < 0x200000) return pcm_rom[(pcm_bank_hi * 0x80000 + (a - 0x180000)) % pcm_rom.size()];
+        if (a < 0x180000) return pcm_rom[(pcm_bank_lo * 0x80000 + (a - 0x100000)) % pcm_size];
+        if (a < 0x200000) return pcm_rom[(pcm_bank_hi * 0x80000 + (a - 0x180000)) % pcm_size];
         return 0;
     };
     ready = true;
@@ -134,7 +135,7 @@ int64_t ORSound::time() const
 uint8_t ORSound::rom_byte(uint16_t a) const
 {
     if (a < 0xa000) return rom[a];
-    if (a < 0xc000) return rom[((uint32_t) sound_bank * 0x2000 + (a - 0xa000)) % rom.size()];
+    if (a < 0xc000) return rom[((uint32_t) sound_bank * 0x2000 + (a - 0xa000)) % rom_size];
     if (a >= 0xe000) return shared[a - 0xe000];
     return 0;
 }
@@ -284,7 +285,7 @@ uint8_t ORSound::mem_r(void* ud, uint16_t a)
 {
     ORSound* b = (ORSound*) ud;
     if (a < 0xa000) return b->rom[a];
-    if (a < 0xc000) return b->rom[((uint32_t) b->sound_bank * 0x2000 + (a - 0xa000)) % b->rom.size()];
+    if (a < 0xc000) return b->rom[((uint32_t) b->sound_bank * 0x2000 + (a - 0xa000)) % b->rom_size];
     if (a < 0xe000) return b->pcm.read();
     return b->shared[a - 0xe000];
 }

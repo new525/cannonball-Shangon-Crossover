@@ -21,25 +21,6 @@ HangOnRoms      ho_roms;
 CoolRidersRoms  cr_roms;
 OutRunnersRoms  or_roms;
 
-static uint32_t crc32_of(const std::vector<uint8_t>& d)
-{
-    static uint32_t table[256];
-    static bool init = false;
-    if (!init)
-    {
-        for (uint32_t i = 0; i < 256; i++)
-        {
-            uint32_t c = i;
-            for (int k = 0; k < 8; k++) c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-            table[i] = c;
-        }
-        init = true;
-    }
-    uint32_t c = 0xFFFFFFFFu;
-    for (uint8_t b : d) c = table[(c ^ b) & 0xFF] ^ (c >> 8);
-    return c ^ 0xFFFFFFFFu;
-}
-
 // A file found by its MAME name whose CRC32 is not the set's: a wrong dump, which the emulation (and
 // the reconstructed vehicles' tables read from it) would run on. Refused, like Cannonball's own
 // loader, unless CB_ACCEPT_WRONG_CRC is set (testing).
@@ -56,17 +37,10 @@ static std::string wrong_crc(const char* name, uint32_t crc, const RomFile& p)
     return o.str();
 }
 
-static bool read_file(const fs::path& p, std::vector<uint8_t>& out)
-{
-    std::ifstream f(p, std::ios::binary);
-    if (!f) return false;
-    out.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
-    return true;
-}
-
 // A ROM folder's files found so far: loose files by CRC32 and by name (each loader below lists
-// the folder its own way), and the entries of the folder's zips (crossover/romzip.hpp). The
-// folder may also be a single .zip, which then has no loose files.
+// the folder its own way; a file's CRC32 is computed once, loose_file_crc32), and the entries of
+// the folder's zips (crossover/romzip.hpp). The folder may also be a single .zip, which then has
+// no loose files.
 struct RomFinder
 {
     std::string dir;
@@ -117,9 +91,9 @@ bool RomSet::load(const std::string& dir, const RomEntry* list, int count)
     for (auto& e : fs::directory_iterator(dir, ec))
     {
         if (!e.is_regular_file(ec) || e.file_size(ec) > 0x100000) continue;
-        std::vector<uint8_t> d;
-        if (!read_file(e.path(), d)) continue;
-        by_crc[crc32_of(d)] = e.path();
+        uint32_t crc;
+        if (!loose_file_crc32(e.path(), crc)) continue;
+        by_crc[crc] = e.path();
         by_name[e.path().filename().string()] = e.path();
     }
     if (found.folder_error(ec)) { error = "cannot read folder " + dir; return false; }
@@ -265,9 +239,8 @@ static bool load_big(const std::string& dir, const BigRomEntry* list, int count,
         bool wanted = false;
         for (int i = 0; i < count; i++) if (sz == list[i].length) wanted = true;
         if (!wanted) continue;
-        std::vector<uint8_t> d;
-        if (!read_file(e.path(), d)) continue;
-        by_crc[crc32_of(d)] = e.path();
+        uint32_t crc;
+        if (loose_file_crc32(e.path(), crc)) by_crc[crc] = e.path();
     }
     if (found.folder_error(ec)) { error = "cannot read folder " + dir; return false; }
 
@@ -356,8 +329,8 @@ static bool find_board_files(const std::string& dir, std::string& error)
         bool wanted = false;
         for (auto& f : OR_BOARD_FILES) if (sz == f.length) wanted = true;
         if (!wanted) continue;
-        std::vector<uint8_t> d;
-        if (read_file(e.path(), d)) by_crc[crc32_of(d)] = e.path();
+        uint32_t crc;
+        if (loose_file_crc32(e.path(), crc)) by_crc[crc] = e.path();
     }
     if (found.folder_error(ec)) { error = "cannot read folder " + dir; return false; }
     std::map<std::string, RomFile> files;

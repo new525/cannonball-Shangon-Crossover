@@ -11,6 +11,8 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <map>
+#include <tuple>
 
 namespace fs = std::filesystem;
 
@@ -70,15 +72,81 @@ std::string RomFile::where() const
     return in_zip() ? path.string() + " (" + entry + ")" : path.string();
 }
 
-bool read_rom_file(const RomFile& rf, std::vector<uint8_t>& out)
+bool read_loose_file(const fs::path& p, std::vector<uint8_t>& out)
 {
-    if (!rf.in_zip())
+    std::ifstream f(p, std::ios::binary);
+    if (!f) return false;
+    // the file's size, then one read; a file whose size cannot be asked for is read to its end
+    std::error_code ec;
+    const uintmax_t size = fs::file_size(p, ec);
+    if (ec)
     {
-        std::ifstream f(rf.path, std::ios::binary);
-        if (!f) return false;
         out.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
         return true;
     }
+    out.resize((size_t) size);
+    f.read(reinterpret_cast<char*>(out.data()), (std::streamsize) size);
+    out.resize((size_t) f.gcount());
+    return true;
+}
+
+// Eight table lookups for eight bytes ("slicing by 8"); the same sum as the bytewise table
+uint32_t rom_crc32(const uint8_t* p, size_t n)
+{
+    struct Tables
+    {
+        uint32_t t[8][256];
+        Tables()
+        {
+            for (uint32_t i = 0; i < 256; i++)
+            {
+                uint32_t c = i;
+                for (int k = 0; k < 8; k++) c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+                t[0][i] = c;
+            }
+            for (uint32_t i = 0; i < 256; i++)
+                for (int k = 1; k < 8; k++) t[k][i] = (t[k - 1][i] >> 8) ^ t[0][t[k - 1][i] & 0xFF];
+        }
+    };
+    static const Tables tab;
+    const uint32_t (*t)[256] = tab.t;
+    uint32_t c = 0xFFFFFFFFu;
+    for (; n >= 8; p += 8, n -= 8)
+    {
+        const uint32_t a = c ^ ((uint32_t) p[0] | (uint32_t) p[1] << 8 | (uint32_t) p[2] << 16 | (uint32_t) p[3] << 24);
+        const uint32_t b = (uint32_t) p[4] | (uint32_t) p[5] << 8 | (uint32_t) p[6] << 16 | (uint32_t) p[7] << 24;
+        c = t[7][a & 0xFF] ^ t[6][(a >> 8) & 0xFF] ^ t[5][(a >> 16) & 0xFF] ^ t[4][a >> 24] ^
+            t[3][b & 0xFF] ^ t[2][(b >> 8) & 0xFF] ^ t[1][(b >> 16) & 0xFF] ^ t[0][b >> 24];
+    }
+    for (; n; p++, n--) c = t[0][(c ^ *p) & 0xFF] ^ (c >> 8);
+    return c ^ 0xFFFFFFFFu;
+}
+
+bool loose_file_crc32(const fs::path& p, uint32_t& crc)
+{
+    typedef std::tuple<fs::path::string_type, uintmax_t, fs::file_time_type> Key;
+    static std::map<Key, uint32_t> known;
+    std::error_code es, et;
+    const uintmax_t size = fs::file_size(p, es);
+    const fs::file_time_type time = fs::last_write_time(p, et);
+    const bool keyed = !es && !et;
+    const Key key(p.native(), size, time);
+    if (keyed)
+    {
+        auto it = known.find(key);
+        if (it != known.end()) { crc = it->second; return true; }
+    }
+    std::vector<uint8_t> d;
+    if (!read_loose_file(p, d)) return false;
+    crc = rom_crc32(d.data(), d.size());
+    if (keyed && d.size() == size) known[key] = crc;
+    return true;
+}
+
+bool read_rom_file(const RomFile& rf, std::vector<uint8_t>& out)
+{
+    if (!rf.in_zip())
+        return read_loose_file(rf.path, out);
     ZipReader z;
     if (!z.init(rf.path)) return false;
     // The entry must still be the one indexed
