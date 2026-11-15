@@ -35,6 +35,7 @@
 
 // Crossover test harness (headless scripted runs)
 #include "crossover/harness.hpp"
+#include "crossover/startlog.hpp"
 #include "crossover/version.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/bike.hpp"
@@ -314,6 +315,13 @@ static void main_loop()
         video.prepare_frame();
         video.render_frame();
         harness.after_render(video.pixels, config.s16_width, config.s16_height);
+        if (startlog::on())             // testing (CB_STARTUP_LOG): the first frame drawn, and a race's first
+        {
+            static bool first = true;
+            if (first) { first = false; startlog::mark("first frame drawn (the menu)"); }
+            if (state == STATE_GAME || state == STATE_SHANGON || state == STATE_HANGON || state == STATE_OUTRUNNERS)
+                startlog::race_frame();
+        }
 
         // Fill SDL Audio Buffer For Callback
         audio.tick();
@@ -385,8 +393,11 @@ int main(int argc, char* argv[])
     std::cout << "OutRun / Super Hang-On / Hang-On crossover " << CROSSOVER_VERSION << " on Cannonball" << std::endl;
     if (ok)
     {
+        startlog::mark("process start to main");
         config.load(); // Load config.XML file
+        startlog::mark("config");
         ok = harness.load() && roms.load_revb_roms(config.sound.fix_samples);
+        startlog::mark("OutRun ROMs");
     }
     if (!ok)
     {
@@ -405,6 +416,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    startlog::mark("SDL init, controller mappings");
+
     // Load patched widescreen tilemaps
     if (!omusic.load_widescreen_map(config.data.res_path))
         std::cout << "Unable to load widescreen tilemaps" << std::endl;
@@ -413,27 +426,37 @@ int main(int argc, char* argv[])
     config.set_fps(config.video.fps);
     if (!video.init(&roms, &config.video))
         quit_func(1);
+    startlog::mark("video init (window; OutRun's tiles, sprites and road converted)");
 
     // Crossover: other games' ROMs and the bike
-    if (sh_roms.load(config.crossover.shangon_rompath))
+    const bool sh_ok = sh_roms.load(config.crossover.shangon_rompath);
+    startlog::mark("Super Hang-On ROMs");
+    if (sh_ok)
         bike.init();
     else
         std::cout << "Super Hang-On ROMs not loaded: " << sh_roms.error << std::endl;
+    startlog::mark("Super Hang-On's bike (tables, sprites)");
     bike.enabled = config.crossover.vehicle == 1 && bike.ready;
     if (!ho_roms.load(config.crossover.hangon_rompath))
         std::cout << "Hang-On ROMs not loaded: " << ho_roms.error << std::endl;
+    startlog::mark("Hang-On ROMs");
     if (!cr_roms.load(config.crossover.coolriders_rompath))
         std::cout << "Cool Riders ROMs not loaded: " << cr_roms.error << std::endl;
+    startlog::mark("Cool Riders ROMs");
     if (!or_roms.load(config.crossover.outrunners_rompath))
         std::cout << "OutRunners ROMs not loaded: " << or_roms.error << std::endl;
+    startlog::mark("OutRunners ROMs");
     if (!xaudio.init(config.sound.rate))
         std::cout << "No crossover sound boards started" << std::endl;
     if (sh_roms.loaded() && !shmode.init())
         std::cout << "Super Hang-On board not started" << std::endl;
+    startlog::mark("Super Hang-On board and video");
     if (ho_roms.loaded() && !homode.init())
         std::cout << "Hang-On board not started" << std::endl;
+    startlog::mark("Hang-On board and video");
     if (or_roms.loaded() && !ormode.init())
         std::cout << "OutRunners' courses need every file of MAME's orunnersj set: " << or_roms.full_error << std::endl;
+    startlog::mark("OutRunners board");
     // A saved vehicle or track whose ROM set is no longer there: back to the Ferrari / OutRun's
     // route (the menu's numbering: tracks 16-19 Super Hang-On's courses, 20 Hang-On's, 21-22
     // OutRunners'; vehicles 0 Ferrari, 1 Super Hang-On's bike, 2 Hang-On's, 3 MAD POWER)
@@ -492,6 +515,7 @@ int main(int argc, char* argv[])
 
     // Initialize SDL Audio
     audio.init();
+    startlog::mark("audio init");
 
     state = config.menu.enabled ? STATE_INIT_MENU : STATE_INIT_GAME;
 
@@ -501,10 +525,12 @@ int main(int argc, char* argv[])
                config.controls.analog,    config.controls.axis, config.controls.invert, config.controls.asettings);
 
     ffb::init();    // crossover: force feedback, when controls.haptic is set
+    startlog::mark("input, force feedback");
 
     // Populate menus
     menu = new Menu();
     menu->populate();
+    startlog::mark("menu");
     main_loop();  // Loop until we quit the app
 
     // Never Reached

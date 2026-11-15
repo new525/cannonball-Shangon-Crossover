@@ -17,6 +17,7 @@
 #include "frontend/config.hpp"
 #include "engine/oroad.hpp"
 #include "crossover/radio.hpp"
+#include "crossover/startlog.hpp"
 
 #ifdef WITH_OPENGL
 #include "sdl2/rendergl.hpp"
@@ -52,6 +53,7 @@ int Video::init(Roms* roms, video_settings_t* settings)
 {
     if (!set_video_mode(settings))
         return 0;
+    startlog::mark("video init: window and renderer");
 
     // Internal pixel array. The size of this is always constant
     if (pixels) delete[] pixels;

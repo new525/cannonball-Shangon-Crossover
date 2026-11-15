@@ -13,6 +13,7 @@
 #include "menu.hpp"
 #include "menulabels.hpp"
 #include "crossover/version.hpp"
+#include "crossover/startlog.hpp"
 #include "../utils.hpp"
 
 #include "engine/ohud.hpp"
@@ -1464,6 +1465,7 @@ void Menu::xover_cycle(int dir)
 
 void Menu::xover_start()
 {
+    startlog::race_begin();             // testing (CB_STARTUP_LOG)
     if (config.crossover.vehicle == 1 && !bike.ready) config.crossover.vehicle = 0;
     if (config.crossover.vehicle == 2 && (!homode.available() || config.crossover.track != XOVER_HO_TRACK)) config.crossover.vehicle = 0;
     bike.enabled = config.crossover.vehicle == 1;

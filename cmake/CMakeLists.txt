@@ -208,6 +208,8 @@ set(src_engine_audio
 set(src_crossover
     "${main_cpp_base}/crossover/harness.hpp"
     "${main_cpp_base}/crossover/harness.cpp"
+    "${main_cpp_base}/crossover/startlog.hpp"
+    "${main_cpp_base}/crossover/startlog.cpp"
     "${main_cpp_base}/crossover/version.hpp"
     "${main_cpp_base}/crossover/balance.hpp"
     "${main_cpp_base}/crossover/balance.cpp"
