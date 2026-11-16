@@ -4,6 +4,7 @@
 #include "crossover/ormode.hpp"
 #include "crossover/orboard.hpp"
 #include "crossover/romset.hpp"
+#include "crossover/startlog.hpp"
 #include "main.hpp"
 
 #include <algorithm>
@@ -91,20 +92,21 @@ bool ORMode::init()
     return ok;
 }
 
-// The board's ROMs (26 MB) are loaded on the first race only
+// The board's ROMs (27 MB) are loaded on the first race only; MAD POWER on the other games' courses
+// (crossover/madpower) uses the same copy
 bool ORMode::load_board()
 {
     if (loaded) return true;
-    ORBoard::Roms roms;
     std::string err;
-    if (!ORBoard::load_roms(config.crossover.outrunners_rompath, roms, err))
+    const std::shared_ptr<const ORBoard::Roms> roms = ORBoard::shared_roms(config.crossover.outrunners_rompath, err);
+    if (!roms)
     {
         std::cerr << "OutRunners board: " << err << std::endl;
         ok = false;
         return false;
     }
     board.reset(new ORBoard());
-    if (!board->init(std::move(roms))) { ok = false; return false; }
+    if (!board->init(roms)) { ok = false; return false; }
     loaded = true;
     return true;
 }
@@ -185,9 +187,11 @@ void ORMode::run_up(int course, int car, bool manual)
 void ORMode::start(int course, Vehicle v, bool manual)
 {
     if (!ok || !load_board()) return;
+    startlog::mark("OutRunners board: ROMs loaded, board set up");
     std::vector<uint8_t> e;
     load_eeprom(e);
     board->power_on(e.empty() ? nullptr : e.data());
+    startlog::mark("OutRunners board: power-on");
     vehicle = v;
     course_ = course;
     kenya_goal = false;
@@ -196,6 +200,7 @@ void ORMode::start(int course, Vehicle v, bool manual)
     // OutRunners' tests, docs/CROSSOVER-OUTRUNNERS.md 7 and 8)
     manual_box = v == MAD_POWER && manual;
     run_up(course, CAR_MAD_POWER, manual_box);
+    startlog::mark("OutRunners board: run-up (emulation, unseen)");
     orvehicle.enabled = v != MAD_POWER;
     orvehicle.vehicle = v == SH_BIKE ? ORVehicle::SH_BIKE : ORVehicle::FERRARI;
     orvehicle.begin(board.get());

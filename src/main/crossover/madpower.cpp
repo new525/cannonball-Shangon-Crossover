@@ -11,6 +11,7 @@
 #include "crossover/orsound.hpp"
 #include "crossover/resample.hpp"
 #include "crossover/romset.hpp"
+#include "crossover/startlog.hpp"
 #include "crossover/harness.hpp"
 #include "crossover/balance_pace.hpp"
 #include "crossover/balance_push.hpp"
@@ -200,33 +201,33 @@ bool CrossoverMadPower::load()
 {
     if (loaded) return true;
     if (!available()) return false;
-    ORBoard::Roms r;
+    // the regions the board of OutRunners' courses uses too (crossover/ormode): one copy, read only
     std::string err;
-    if (!ORBoard::load_roms(config.crossover.outrunners_rompath, r, err))
+    const std::shared_ptr<const ORBoard::Roms> r = ORBoard::shared_roms(config.crossover.outrunners_rompath, err);
+    if (!r)
     {
         std::cerr << "MAD POWER: " << err << std::endl;
         return false;
     }
-    maincpu = std::move(r.maincpu);
-    soundcpu = std::move(r.soundcpu);
-    samples = std::move(r.sega);
-    sprites = std::move(r.sprites);
-    car.reset(new orcar::ORCar(maincpu.data()));
+    roms = r;
+    const uint8_t* const maincpu = r->maincpu.data();
+    car.reset(new orcar::ORCar(maincpu));
     car->push_fn = [](int p) { return balance::push_scaled(balance::MAD_POWER, p); };     // BALANCE's curve push
-    spr.reset(new orcar::CarSprite(maincpu.data()));
-    s32.reset(new orcar::S32Sprites(maincpu.data(), sprites.data(), sprites.size()));
-    road.rom = maincpu.data();
+    spr.reset(new orcar::CarSprite(maincpu));
+    s32.reset(new orcar::S32Sprites(maincpu, r->sprites.data(), r->sprites.size()));
+    road.rom = maincpu;
     // the car's colours (palette entries $000-$FFF as the mixer shows sprite pixels) after OutRun's
     std::vector<uint32_t> rgb(XCAR_COLOURS, 0);
     for (uint32_t i = 0; i < XCAR_COLOURS; i++) { uint32_t c = 0; if (s32->colour((uint16_t)(0x8000 | i), c)) rgb[i] = c; }
     video.set_car_colours(rgb.data());
     board.reset(new ORSound());
-    if (!board->init(soundcpu, samples)) { board.reset(); std::cerr << "MAD POWER: sound board not started" << std::endl; }
+    if (!board->init(r->soundcpu, r->sega)) { board.reset(); std::cerr << "MAD POWER: sound board not started" << std::endl; }
     if (board && getenv("CB_MP_CHIPS")) board->chip_log = fopen(getenv("CB_MP_CHIPS"), "w");     // testing: its chip writes
     ym.reset(new FrameResampler());
     pcm.reset(new FrameResampler());
     image.assign((size_t) IMG_W * IMG_H, 0);
     loaded = true;
+    startlog::mark("MAD POWER: ROMs loaded, car set up");
     return true;
 }
 

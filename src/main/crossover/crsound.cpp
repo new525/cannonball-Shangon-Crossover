@@ -43,7 +43,7 @@ bool CRSound::init(const std::vector<uint8_t>& maincpu, const std::vector<uint8_
 {
     ready = false;
     if (maincpu.size() < 0x200000 || gfx.size() < 0x1000000 || sub.size() < 0x20000) return false;
-    main_rom = maincpu; gfx_rom = gfx; sub_rom = sub;
+    main_rom = maincpu.data(); gfx_rom = gfx.data(); sub_rom = sub.data();
     sh.reset(new ShCpu(*this, true, 0xc7ffffff));
     m68k_init();
     m68k_ctx.assign(m68k_context_size(), 0);
@@ -505,7 +505,7 @@ static inline void ram_write(uint8_t* m, uint32_t o, int size, uint32_t v)
 
 uint32_t CRSound::sh_read(uint32_t a, int size)
 {
-    if (a < 0x20000) return ram_read(sub_rom.data(), a, size);
+    if (a < 0x20000) return ram_read(sub_rom, a, size);
     if (a >= 0x01000000 && a < 0x01010000) return ram_read(comm_ram, a - 0x01000000, size);
     // sound RAM and SCSPs: 16-bit devices on the 32-bit bus
     int chip = -1; bool regs = false; uint32_t base = 0;

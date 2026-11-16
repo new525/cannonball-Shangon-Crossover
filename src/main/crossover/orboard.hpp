@@ -79,10 +79,17 @@ public:
     };
     // Loads the orunnersj files by their MAME names from `dir`
     static bool load_roms(const std::string& dir, Roms& roms, std::string& error);
+    // The same regions, loaded once per process and shared by their users (the board for
+    // OutRunners' courses, crossover/ormode; MAD POWER on the other games' courses,
+    // crossover/madpower): 27 MB that nothing writes to (the V70 has the program as ROM, the
+    // sound board and the video only read their regions, MAD POWER's car code takes them as
+    // const). Null and `error` if they cannot be loaded; a failed load is not remembered.
+    static std::shared_ptr<const Roms> shared_roms(const std::string& dir, std::string& error);
 
     ORBoard();
     ~ORBoard();
     bool init(Roms&& roms);                 // device_start of everything
+    bool init(std::shared_ptr<const Roms> roms);    // the same, with regions that may be shared
     bool ready() const { return ready_; }
 
     // Power-on (MAME start + hard reset). eeprom128: the EEPROM's 128 bytes (MAME's nvram file
@@ -185,7 +192,7 @@ private:
     static void bit(uint8_t& port, uint8_t mask, bool down) { port = down ? (uint8_t)(port & ~mask) : (uint8_t)(port | mask); }
 
     bool ready_ = false;
-    Roms roms;
+    std::shared_ptr<const Roms> roms_;
     std::unique_ptr<V60Cpu> cpu;
     std::unique_ptr<S32Video> vid;
     ORSound snd;

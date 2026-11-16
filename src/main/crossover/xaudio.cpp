@@ -6,6 +6,7 @@
 #include "crossover/radio.hpp"
 #include "crossover/romset.hpp"
 #include "crossover/units.hpp"
+#include "crossover/startlog.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -24,12 +25,16 @@ bool CrossoverAudio::init(int rate)
     bool any = false;
     if (sh_roms.loaded())
         any |= ch[SHANGON].board.init(SegaSoundBoard::Kind::OUTRUN, sh_roms["soundcpu"].data, sh_roms["pcm"].data, rate, 60);
+    startlog::mark("Super Hang-On sound board");
     if (ho_roms.loaded())
         any |= ch[HANGON].board.init(SegaSoundBoard::Kind::HANGON, ho_roms["soundcpu"].data, ho_roms["pcm"].data, rate, 60);
-    if (cr_roms.loaded())
+    startlog::mark("Hang-On sound board");
+    if (cr_roms.found())
         any |= cr.init(rate);
+    startlog::mark("Cool Riders sound board");
     if (or_roms.loaded())
         any |= orun.init(rate);
+    startlog::mark("OutRunners sound board");
     return any;
 }
 

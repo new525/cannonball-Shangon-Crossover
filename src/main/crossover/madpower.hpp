@@ -93,8 +93,7 @@ public:
 
 private:
     bool loaded = false, started = false;
-    std::vector<uint8_t> maincpu, soundcpu, samples;
-    std::vector<uint32_t> sprites;
+    std::shared_ptr<const void> roms;   // OutRunners' ROM regions (ORBoard::shared_roms), shared with its board: only read
     std::unique_ptr<orcar::ORCar> car;
     std::unique_ptr<orcar::CarSprite> spr;
     std::unique_ptr<orcar::S32Sprites> s32;

@@ -63,7 +63,8 @@ public:
     // the program (about 3,000). A design decision. The music player has its own level (crossover/ormusic.cpp).
     static constexpr float RACE_GAIN = 0.17f;
 
-    // soundcpu: epr-15550 (512 KB); pcm: the MultiPCM region (4 MB)
+    // soundcpu: epr-15550 (512 KB); pcm: the MultiPCM region (4 MB). Both are referenced, not
+    // copied: the caller keeps them, unchanged, for as long as the board is used (it only reads them)
     bool init(const std::vector<uint8_t>& soundcpu, const std::vector<uint8_t>& pcm);
     bool ready = false;
 
@@ -133,7 +134,9 @@ private:
     int64_t cb_at = 0;
 
 private:
-    std::vector<uint8_t> rom, pcm_rom;
+    const uint8_t* rom = nullptr;       // the caller's regions (init): referenced, not copied
+    const uint8_t* pcm_rom = nullptr;
+    size_t rom_size = 0, pcm_size = 0;
     z80 cpu;
     bool cpu_held = true;
     int64_t released_at = 0;

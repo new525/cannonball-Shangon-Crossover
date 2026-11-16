@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "crossover/romzip.hpp"
+
 struct RomRegion
 {
     std::vector<uint8_t> data;
@@ -69,10 +71,18 @@ public:
 // Cool Riders (MAME coolridr), for its sound board only. Regions, big-endian as the SH CPUs see
 // them: "maincpu" (2 MB, the SH-2 program; the sound DMA reads it), "gfx_data" (16 MB, the
 // sample data), "sub" (128 KB, the SH-1 program). The compressed sprite ROMs are not needed.
+// load() finds the files and reports a missing, wrong or unreadable one, as the other sets do,
+// but keeps nothing: the set is one song of the music selection, and its 18 MB of regions are
+// read by read() when that song is first played (crossover/crmusic). loaded() is false until then.
 class CoolRidersRoms : public RomSet
 {
 public:
     bool load(const std::string& dir);
+    bool found() const { return found_; }   // every file is there: the song can be offered
+    bool read();                            // the regions, at first use; false (and `error`) if a file cannot be read
+private:
+    bool found_ = false;
+    std::vector<RomFile> files_;            // the files found, in the list's order, until they are read
 };
 
 // OutRunners (MAME orunners, orunnersu or orunnersj). Regions for its sound board: "soundcpu"

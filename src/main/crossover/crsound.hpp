@@ -66,6 +66,8 @@ public:
 
     // maincpu: the SH-2 program ROM image (2 MB, big-endian); gfx: the data ROMs (16 MB, big-endian);
     // sub: the SH-1 program (big-endian). nvram: the SH-1's 512-byte backup RAM (nullptr = zeros).
+    // The three regions are referenced, not copied (36 MB with the caller's otherwise): the caller
+    // keeps them, unchanged, for as long as the board is used. The board only reads them.
     bool init(const std::vector<uint8_t>& maincpu, const std::vector<uint8_t>& gfx, const std::vector<uint8_t>& sub);
     void power_on(const uint8_t* nvram = nullptr);
     bool ready = false;
@@ -120,7 +122,9 @@ public:
     uint8_t an_port[8] = { 0x80, 0xff, 0xff, 0xff, 0x80, 0xff, 0xff, 0xff };
 
 private:
-    std::vector<uint8_t> main_rom, gfx_rom, sub_rom;
+    const uint8_t* main_rom = nullptr;  // the caller's regions (init): referenced, not copied
+    const uint8_t* gfx_rom = nullptr;
+    const uint8_t* sub_rom = nullptr;
     std::unique_ptr<ShCpu> sh;
     Scsp scsp[2];
     std::vector<uint8_t> m68k_ctx;

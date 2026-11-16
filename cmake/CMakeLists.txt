@@ -208,6 +208,8 @@ set(src_engine_audio
 set(src_crossover
     "${main_cpp_base}/crossover/harness.hpp"
     "${main_cpp_base}/crossover/harness.cpp"
+    "${main_cpp_base}/crossover/startlog.hpp"
+    "${main_cpp_base}/crossover/startlog.cpp"
     "${main_cpp_base}/crossover/version.hpp"
     "${main_cpp_base}/crossover/balance.hpp"
     "${main_cpp_base}/crossover/balance.cpp"
@@ -384,6 +386,7 @@ target_compile_definitions(cannonball PRIVATE
     MINIZ_NO_STDIO
     MINIZ_NO_TIME
     MINIZ_NO_ZLIB_COMPATIBLE_NAMES
+    USE_EXTERNAL_MZCRC                 # miniz's mz_crc32 is crossover/romzip.cpp's (the same sum, faster)
 )
 
 # -----------------------------------------------------------------------------

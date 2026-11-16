@@ -7,7 +7,7 @@
       <frame> brake <0-255>          hold the brake
       <frame> release                stop overriding analog inputs
       <frame> press <key> [frames]   hold a digital input (coin, start, gear1, gear2, left,
-                                     right, up, down, accel, brake, viewpoint) for N frames (default 2)
+                                     right, up, down, accel, brake, viewpoint, menu) for N frames (default 2)
       <frame> snap [name]            write a PPM screenshot after this frame is rendered
       <frame> steerto <x> [abs]      steer towards lateral position x each frame, relative to the
                                      bike's road (abs: absolute); "steerto off" ends it
@@ -121,6 +121,7 @@ static int key_index(const std::string& k)
     static const char* names[] = { "left", "right", "up", "down", "accel", "brake", "gear1", "gear2",
                                    "start", "coin", "viewpoint" };
     for (int i = 0; i < 11; i++) if (k == names[i]) return i;
+    if (k == "menu") return Input::MENU;
     return -1;
 }
 
@@ -199,6 +200,7 @@ void Harness::before_tick()
 
     // digital keys (not with a virtual wheel: its buttons arrive as SDL's events, and stay)
     for (int k = 0; k < 11 && !vjoy; k++) input.keys[k] = false;
+    if (!vjoy) input.keys[Input::MENU] = false;
     for (auto it = held_keys.begin(); it != held_keys.end();)
     {
         if (frame >= it->until) { it = held_keys.erase(it); continue; }
