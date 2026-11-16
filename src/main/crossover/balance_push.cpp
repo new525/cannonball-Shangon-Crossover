@@ -1,5 +1,6 @@
 /***************************************************************************
-    BALANCE, curve push: see balance.hpp, balance_push.hpp and docs/balance-push.md.
+    BALANCE, curve push: see balance.hpp, balance_push.hpp and the part Curve push of
+    docs/CROSSOVER-BALANCE.md.
 
     Each vehicle's curve push comes from its own game's code (OutRun's set_curve_adjust for the
     Ferrari, Super Hang-On's centrifugal task for its bike, OutRunners' heading change for MAD POWER),
@@ -23,6 +24,9 @@
 #include "crossover/shferrari.hpp"
 #include "crossover/hovehicle.hpp"
 #include "crossover/orvehicle.hpp"
+#include "crossover/shaddr.hpp"
+#include "crossover/hoaddr.hpp"
+#include "crossover/oraddr.hpp"
 #include "engine/oferrari.hpp"
 #include "engine/oinitengine.hpp"
 #include "engine/oroad.hpp"
@@ -31,7 +35,7 @@
 namespace balance
 {
     // Full factor per (vehicle, course): r = D_own / D_host, the vehicle's demand on its own game's courses
-    // over its demand on this course (docs/balance-push.md). D is the demand averaged along the course's
+    // over its demand on this course (the doc's part Curve push). D is the demand averaged along the course's
     // curves (bins of 8 positions or segments where it is 0.03 or more: the demand summed over the curves over
     // their length), measured with CB_PUSH_LOG at BALANCE OFF: the push each vehicle's own code gives at its
     // top speed (no supercharger; MAD POWER automatic) over its full-lock steering per tick (the Ferrari 18 per
@@ -112,15 +116,15 @@ namespace balance
     static inline uint16_t sh_rw(uint32_t a)
     {
         const uint8_t* p = nullptr;
-        if (a >= 0x260000 && a < 0x268000) p = shboard.cpu1ram + (a - 0x260000);
-        else if (a >= 0x060000 && a < 0x068000) p = shboard.workram + (a - 0x060000);
+        if (a >= shaddr::SHARED && a < shaddr::SHARED + shaddr::RAM_SIZE) p = shboard.cpu1ram + (a - shaddr::SHARED);
+        else if (a >= shaddr::WORK && a < shaddr::WORK + shaddr::RAM_SIZE) p = shboard.workram + (a - shaddr::WORK);
         return p ? (uint16_t)(p[0] << 8 | p[1]) : 0;
     }
     static inline uint16_t ho_rw(uint32_t a)
     {
         const uint8_t* p = nullptr;
-        if (a >= 0xC7C000 && a < 0xC80000) p = hoboard.subram + (a - 0xC7C000);
-        else if (a >= 0x20C000 && a < 0x210000) p = hoboard.workram + (a - 0x20C000);
+        if (a >= hoaddr::SUB && a < hoaddr::SUB + hoaddr::RAM_SIZE) p = hoboard.subram + (a - hoaddr::SUB);
+        else if (a >= hoaddr::WORK && a < hoaddr::WORK + hoaddr::RAM_SIZE) p = hoboard.workram + (a - hoaddr::WORK);
         return p ? (uint16_t)(p[0] << 8 | p[1]) : 0;
     }
     static inline uint16_t or_rw(ORBoard* b, uint32_t a) { return (uint16_t)(b->read8(a) | b->read8(a + 1) << 8); }
@@ -131,9 +135,9 @@ namespace balance
     {
         switch (host())
         {
-            case SUPER_HANG_ON: return (int16_t) sh_rw(0x260030);
-            case HANG_ON:       return (int16_t) ho_rw(0xC7E030);
-            case OUTRUNNERS:    return or_board ? or_rw(or_board, 0x209042) : -1;
+            case SUPER_HANG_ON: return (int16_t) sh_rw(shaddr::V_POS);
+            case HANG_ON:       return (int16_t) ho_rw(hoaddr::V_POS);
+            case OUTRUNNERS:    return or_board ? or_rw(or_board, oraddr::A_SEGCNT) : -1;
             default:            return (int) (oroad.road_pos >> 16);
         }
     }
@@ -163,25 +167,26 @@ namespace balance
     {
         FILE* log = push_log();
         if (!log || shferrari.enabled) return;
-        const uint32_t a0 = 0x260800 + (int16_t) sh_rw(0x2607FE);
-        const bool sc = (shboard.workram[0x0412] != 0);
+        const uint32_t a0 = shaddr::V_ROADTAB + (int16_t) sh_rw(shaddr::V_ROADBUF);
+        const bool sc = (shboard.workram[shaddr::W_SC_ACTIVE - shaddr::WORK] != 0);
         const int16_t dx = (int16_t)(sh_rw(a0 + (sc ? 0x8C : 0xA6)) - sh_rw(a0 + 0x1B8));
-        const int16_t speed = (int16_t) sh_rw(0x260078), x = (int16_t) sh_rw(0x260022);
-        const int16_t div = (int16_t) sh_rw(0x063A40 + 0x1E);
+        const int16_t speed = (int16_t) sh_rw(shaddr::V_SPEED), x = (int16_t) sh_rw(shaddr::V_X);
+        const int16_t div = (int16_t) sh_rw(SHO_A5_CENTRIFUGAL + 0x1E);
         int p = 0;
         int16_t q = (int16_t)(dx / 0x40);
         if (q && div)
         {
             int16_t r = (int16_t)((int32_t) speed * q / div);
             p = r + (r < 0 ? -1 : 1);
-            if (std::abs(x + p) > 500) p = 0;
+            if (std::abs(x + p) > shaddr::X_LIMIT) p = 0;
         }
-        fprintf(log, "S %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) SUPER_HANG_ON, (int16_t) sh_rw(0x260030), speed, x, dx, p, p,
-                (int16_t) sh_rw(0x064080 + 0x34), sc ? 1 : 0);
-        if (hold() && sh_rw(0x060408))      // in a game: X at the centre ($260022), the timer ($60500) held
+        fprintf(log, "S %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) SUPER_HANG_ON, (int16_t) sh_rw(shaddr::V_POS), speed, x, dx, p, p,
+                (int16_t) sh_rw(SHO_A5_BIKE + 0x34), sc ? 1 : 0);
+        if (hold() && sh_rw(shaddr::W_INGAME))      // in a game: X at the centre ($260022), the timer ($60500) held
         {
-            if (hold() == 1) { shboard.cpu1ram[0x22] = 0; shboard.cpu1ram[0x23] = 0; }
-            shboard.workram[0x500] = 0x50;
+            uint8_t* px = shboard.cpu1ram + (shaddr::V_X - shaddr::SHARED);
+            if (hold() == 1) { px[0] = 0; px[1] = 0; }
+            shboard.workram[shaddr::W_TIMER - shaddr::WORK] = 0x50;
         }
     }
 
@@ -193,22 +198,23 @@ namespace balance
         FILE* log = push_log();
         if (!log || hovehicle.enabled) return;
         const int16_t dx = (int16_t)(ho_rw(0xC7E84C) - ho_rw(0xC7E8DE));
-        const int16_t speed = (int16_t) ho_rw(0xC7E078), x = (int16_t) ho_rw(0xC7E050);
-        const int16_t div = (int16_t) ho_rw(0x20CA80 + 0x1E);
+        const int16_t speed = (int16_t) ho_rw(hoaddr::V_SPEED), x = (int16_t) ho_rw(hoaddr::V_X);
+        const int16_t div = (int16_t) ho_rw(hoaddr::SLOT_CENTRIFUGAL + 0x1E);
         int p = 0;
         int16_t q = (int16_t)(dx / 0x40);
         if (q && div)
         {
             int16_t r = (int16_t)((int32_t) speed * q / div);
             p = r + (r < 0 ? -1 : 1);
-            if (std::abs(x + p) > 500) p = 0;
+            if (std::abs(x + p) > hoaddr::X_LIMIT) p = 0;
         }
-        fprintf(log, "H %d %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) HANG_ON, (int16_t) ho_rw(0xC7E030), speed, x, dx, p, p,
-                (int16_t) ho_rw(0x20D080 + 0x34), (int16_t) ho_rw(0xC7E068), div);
-        if (hold() && ho_rw(0x20C408))      // in a game: X at the centre ($C7E050), the timer ($20C500) held
+        fprintf(log, "H %d %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) HANG_ON, (int16_t) ho_rw(hoaddr::V_POS), speed, x, dx, p, p,
+                (int16_t) ho_rw(hoaddr::SLOT_BIKE + 0x34), (int16_t) ho_rw(0xC7E068), div);
+        if (hold() && ho_rw(hoaddr::W_INGAME))      // in a game: X at the centre ($C7E050), the timer ($20C500) held
         {
-            if (hold() == 1) { hoboard.subram[0x2050] = 0; hoboard.subram[0x2051] = 0; }
-            hoboard.workram[0x500] = 0x50;
+            uint8_t* px = hoboard.subram + (hoaddr::V_X - hoaddr::SUB);
+            if (hold() == 1) { px[0] = 0; px[1] = 0; }
+            hoboard.workram[hoaddr::W_TIMER - hoaddr::WORK] = 0x50;
         }
     }
 
@@ -220,13 +226,14 @@ namespace balance
         or_board = b;
         FILE* log = push_log();
         if (!log || orvehicle.enabled) return;
-        if (hold() && b->read8(0x20040C) == 2)  // racing: lateral at the centre ($209038), the countdown ($20FB6A) held
+        using namespace oraddr;
+        if (hold() && b->read8(OBJ_CAR + O_STATE) == 2)  // racing: lateral at the centre ($209038), the countdown ($20FB6A) held
         {
-            if (hold() == 1) { b->write8(0x209038, 0); b->write8(0x209039, 0); }
-            b->write8(0x20FB6A, 1200 & 0xFF); b->write8(0x20FB6B, 1200 >> 8);
+            if (hold() == 1) { b->write8(A_LAT, 0); b->write8(A_LAT + 1, 0); }
+            b->write8(A_COUNTDOWN, 1200 & 0xFF); b->write8(A_COUNTDOWN + 1, 1200 >> 8);
         }
         static uint32_t last = 0xFFFFFFFF;
-        const uint32_t pos = or_rw(b, 0x209034) | (uint32_t) or_rw(b, 0x209036) << 16;
+        const uint32_t pos = or_rw(b, A_SEGPOS) | (uint32_t) or_rw(b, A_SEGPOS + 2) << 16;
         if (pos == last) return;
         last = pos;
         const uint16_t cur = or_rw(b, 0x20048E), prev = or_rw(b, 0x200490);
@@ -234,8 +241,8 @@ namespace balance
         h8 = (int16_t)(h8 / 0x100);
         const int catchup = or_rw(b, 0x20906A);
         const int p = (int)(((int32_t) h8 << 8) / (catchup + 0x100));
-        fprintf(log, "R %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) OUTRUNNERS, or_rw(b, 0x209042), or_rw(b, 0x209074),
-                (int16_t) or_rw(b, 0x209038), h8, p, p, (int16_t) or_rw(b, 0x200496), (int16_t) or_rw(b, 0x20042E),
-                b->read8(0x209067), (int16_t) or_rw(b, 0x2004B8), catchup, b->read8(0x20040C));
+        fprintf(log, "R %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) OUTRUNNERS, or_rw(b, A_SEGCNT), or_rw(b, A_SPEED),
+                (int16_t) or_rw(b, A_LAT), h8, p, p, (int16_t) or_rw(b, 0x200496), (int16_t) or_rw(b, OBJ_CAR + O_LATVEL),
+                b->read8(A_SLIDING), (int16_t) or_rw(b, 0x2004B8), catchup, b->read8(OBJ_CAR + O_STATE));
     }
 }

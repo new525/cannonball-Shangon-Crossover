@@ -60,8 +60,16 @@
 #include "crossover/shmode.hpp"
 #include "crossover/homode.hpp"
 #include "engine/osprites.hpp"
+#include "crossover/units.hpp"
+#include "crossover/shaddr.hpp"
+#include "crossover/hoaddr.hpp"
+#include "crossover/oraddr.hpp"
 
 Harness harness;
+
+// The boards' own bikes' X ($260022 / $C7E050)
+static int sh_bike_x() { const uint8_t* p = shboard.cpu1ram + (shaddr::V_X - shaddr::SHARED); return (int16_t)(p[0] << 8 | p[1]); }
+static int ho_bike_x() { const uint8_t* p = hoboard.subram + (hoaddr::V_X - hoaddr::SUB); return (int16_t)(p[0] << 8 | p[1]); }
 
 bool Harness::parse_arg(int& i, int argc, char* argv[])
 {
@@ -209,13 +217,13 @@ void Harness::before_tick()
             x = rw > 0xFF ? cx - (cx < 0 ? -rw : rw) : cx;
         }
         if (steer_road && cannonball::state == cannonball::STATE_SHANGON && !shferrari.enabled)
-            x = (int16_t)(shboard.cpu1ram[0x22] << 8 | shboard.cpu1ram[0x23]);
+            x = sh_bike_x();
         if (steer_road && cannonball::state == cannonball::STATE_HANGON && !hovehicle.enabled)
-            x = (int16_t)(hoboard.subram[0x2050] << 8 | hoboard.subram[0x2051]);
+            x = ho_bike_x();
         if (steer_road && cannonball::state == cannonball::STATE_OUTRUNNERS && !orvehicle.driving() && ormode.board_for_tests())
         {
             const ORBoard* b = ormode.board_for_tests();
-            x = -(int16_t)(b->read8(0x209038) | b->read8(0x209039) << 8) * 6 / 11;
+            x = -(int16_t)(b->read8(oraddr::A_LAT) | b->read8(oraddr::A_LAT + 1) << 8) * units::LAT_OUTRUN / units::LAT_OUTRUNNERS;
         }
         int w = 0x80 + (x - steer_target) / 3;
         // testing (CB_STEER_REL): steered relative to the centre of the vehicle's road, gently and damped (the
@@ -227,9 +235,9 @@ void Harness::before_tick()
         {
             int target = steer_target;
             if (shmode.active && !shferrari.enabled)
-                x = (int16_t)(shboard.cpu1ram[0x22] << 8 | shboard.cpu1ram[0x23]);
+                x = sh_bike_x();
             else if (homode.active && !hovehicle.enabled)
-                x = (int16_t)(hoboard.subram[0x2050] << 8 | hoboard.subram[0x2051]);
+                x = ho_bike_x();
             else if (!bike.enabled && !madpower.enabled)
             {
                 int rw = (int16_t)(oroad.road_width >> 16);
@@ -243,7 +251,7 @@ void Harness::before_tick()
             if (chase && (shmode.active || homode.active))
             {
                 const uint8_t* ram = shmode.active ? shboard.workram : hoboard.workram;
-                uint32_t task = shmode.active ? 0x74B6 : 0xA8D0, from = shmode.active ? 0x3000 : 0x800;
+                uint32_t task = shmode.active ? shaddr::TASK_RIVAL : hoaddr::TASK_RIVAL, from = shmode.active ? 0x3000 : 0x800;
                 int dfield = shmode.active ? 0x14 : 0x0C, dlo = shmode.active ? 0x60 : 0x90, dhi = shmode.active ? 0xB0 : 0xE0;
                 int best = -1;
                 for (uint32_t a = from; a < 0x4000 + (shmode.active ? 0x4000 : 0); a += 0x40)
@@ -254,7 +262,7 @@ void Harness::before_tick()
                     if ((s[0] & 0x80) && t == task && d >= dlo && d < dhi && d > best)
                     {
                         best = d;
-                        target = x + (0x160 - rw16(s + 0x0A));
+                        target = x + ((shmode.active ? shaddr::BIKE_SX : hoaddr::BIKE_SX) - rw16(s + 0x0A));
                     }
                 }
             }
@@ -262,17 +270,18 @@ void Harness::before_tick()
             {
                 const ORBoard& b = *balance::test_or_board;
                 auto r16 = [&](uint32_t a) { return (int)(int16_t)(b.read8(a) | b.read8(a + 1) << 8); };
-                int own_lat = r16(0x209038), own_seg = r16(0x209042);
-                if (!orvehicle.enabled) x = -own_lat * 6 / 11;
+                using namespace oraddr;
+                int own_lat = r16(A_LAT), own_seg = r16(A_SEGCNT);
+                if (!orvehicle.enabled) x = -own_lat * units::LAT_OUTRUN / units::LAT_OUTRUNNERS;
                 int best = 99;
                 for (int n = 1; n < 8; n++)
                 {
-                    uint32_t c = 0x20FC00 + 0x80 * n;
-                    int ds = (int16_t)(r16(c + 0x46) - own_seg);
-                    if (ds >= 0 && ds <= 3 && ds < best && r16(c + 0x4C) > 0)
+                    uint32_t c = CARS + CAR_SIZE * n;
+                    int ds = (int16_t)(r16(c + CAR_SEGCNT) - own_seg);
+                    if (ds >= 0 && ds <= 3 && ds < best && r16(c + CAR_SPEED) > 0)
                     {
                         best = ds;
-                        target = x - (r16(c + 0x44) - own_lat) * 6 / 11;
+                        target = x - (r16(c + CAR_LAT) - own_lat) * units::LAT_OUTRUN / units::LAT_OUTRUNNERS;
                     }
                 }
             }

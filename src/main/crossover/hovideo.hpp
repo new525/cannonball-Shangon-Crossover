@@ -17,6 +17,8 @@
 
 #include <cstdint>
 #include <vector>
+#include "globals.hpp"
+#include "crossover/shvideo.hpp"
 
 class HOBoard;
 class RomSet;
@@ -24,7 +26,7 @@ class RomSet;
 class HOVideo
 {
 public:
-    static const int W = 320, H = 224, MAXW = 398;
+    static const int W = 320, H = 224, MAXW = S16_WIDTH_WIDE;   // MAXW: Cannonball's widescreen width (398)
 
     void set_width(int w);
     int width = W, xoff = 0;
@@ -38,8 +40,9 @@ public:
 
     // Another game's sprites drawn into the frame (as SHVideo::overlay)
     // An entry whose sprite data address is TAG_ADDR (while tag_active) is that point of the list: the
-    // overlay is drawn there, with the entry's priority; with no overlay the entry is not drawn
-    static const uint16_t TAG_ADDR = 0xFE7A;
+    // overlay is drawn there, with the entry's priority; with no overlay the entry is not drawn. The tag is
+    // the crossover's own, the same on both boards.
+    static const uint16_t TAG_ADDR = SHVideo::TAG_ADDR;
     bool tag_active = false;
     const uint16_t* overlay = nullptr;
     bool overlay_placed = false;

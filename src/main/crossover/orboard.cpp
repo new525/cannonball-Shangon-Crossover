@@ -15,9 +15,9 @@
 #include <cstring>
 
 // segas32.cpp
-static const uint32_t V70_CLOCK = 20000000;                 // MULTI32_CLOCK/2 (XTAL 40 MHz)
-static const uint32_t Z80_CLOCK = 32215900 / 4;             // MASTER_CLOCK/4
-static const int64_t  TIMER_0_ATTOS = OrTime::ATTO / ((32215900 / 2) / 2048);   // from_hz(TIMER_0_CLOCK): 7865 Hz (integer)
+static const uint32_t V70_CLOCK = (uint32_t)(ORSound::MULTI32_CLOCK / 2);   // MULTI32_CLOCK/2 (XTAL 40 MHz)
+static const uint32_t Z80_CLOCK = (uint32_t) ORSound::CLOCK;                // MASTER_CLOCK/4
+static const int64_t  TIMER_0_ATTOS = OrTime::ATTO / ((ORSound::MASTER_CLOCK / 2) / 2048);   // from_hz(TIMER_0_CLOCK): 7865 Hz (integer)
 // from_hz(TIMER_1_CLOCK): (XTAL(50'000'000)/16)/256 = 12207.03125 Hz (an XTAL, a double):
 // attoseconds_t(1e18 / 12207.03125) = 81,920,000,000,000 exactly
 static const int64_t  TIMER_1_ATTOS = 81920000000000LL;

@@ -1,6 +1,7 @@
 /***************************************************************************
     BALANCE, pace: the distance a vehicle covers in the course's world per unit of its own speed.
-    See balance.hpp for the factors and docs/balance-pace.md for the method and measurements.
+    See balance.hpp for the factors and docs/CROSSOVER-BALANCE.md (Pace) for the method and
+    measurements.
 
     The vehicle keeps its own speed (its physics, sounds, curve push input and speedometer); where
     its motion enters the course's world (the distance the host's position advances by, and the

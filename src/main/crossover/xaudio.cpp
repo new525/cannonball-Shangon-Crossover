@@ -5,6 +5,7 @@
 #include "crossover/ormode.hpp"
 #include "crossover/radio.hpp"
 #include "crossover/romset.hpp"
+#include "crossover/units.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -123,7 +124,7 @@ void CrossoverAudio::mix(int32_t* out, int samples, int fps)
     ch[SHANGON].active = ch[SHANGON].raw_mode || sh_vehicle || ch[SHANGON].music;
     ch[HANGON].active  = ch[HANGON].raw_mode || ch[HANGON].music;
     // the boards run in 60 Hz frames; at 30 fps two of them make one audio tick
-    int sub = fps >= 60 || fps <= 0 ? 1 : 60 / fps;
+    int sub = fps >= units::BOARD_FPS || fps <= 0 ? 1 : units::BOARD_FPS / fps;
     int per = samples / sub;                // the last sub-frame takes the remainder (735 at 30 fps / 22,050 Hz is odd)
     // testing: Super Hang-On's board runs as usual but is not heard (the other boards alone)
     static const bool mute_sh = getenv("CB_XAUDIO_MUTE_SH") != nullptr;

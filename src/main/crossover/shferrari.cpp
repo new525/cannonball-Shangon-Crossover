@@ -38,27 +38,30 @@
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
+#include "crossover/shophys/sho_sound.h"
 }
+#include "crossover/units.hpp"
+#include "crossover/shaddr.hpp"
 
 SHFerrari shferrari;
 
 // ------------------------------------------------------------------------------------------------
-// Super Hang-On addresses (main CPU view; see crossover/shophys and the bike's notes)
+// Super Hang-On addresses (main CPU view; see crossover/shophys and the bike's notes); those other files
+// use too are in crossover/shaddr.hpp
 // ------------------------------------------------------------------------------------------------
-static const uint32_t V_MODE = 0x260000, V_STAGE_DONE = 0x260010, V_X = 0x260022, V_POS = 0x260030,
-    V_SPR_LEAN = 0x260056, V_SPR_X = 0x260058, V_SPR_Y = 0x26005A, V_SPEED = 0x260078,
-    V_CRASH_COUNT = 0x260084, V_KNOCK = 0x260088, V_CRASH = 0x260094, V_OFFROAD = 0x260098,
-    V_CURVE_NEXT = 0x2600A4, V_CURVE_NEXT_R = 0x2600A8, V_CURVE = 0x2600AC, V_CURVE_R = 0x2600B0,
-    V_GOAL = 0x2600EA, V_RETIRE = 0x2600EC, V_RETIRE2 = 0x2600E2, V_FRAME_TGL = 0x2607FE,
-    V_ROADY = 0x261200;
-static const uint32_t W_INGAME = 0x060408, W_SC_ACTIVE = 0x060412, W_TIMER = 0x060500,
-    W_SPRITES = 0x061400, W_DRAWLISTS = 0x061C00, W_PKT = 0x060640;
+using shaddr::V_MODE; using shaddr::V_STAGE_DONE; using shaddr::V_COURSE; using shaddr::V_X; using shaddr::V_POS;
+using shaddr::V_SPEED; using shaddr::V_CRASH_COUNT; using shaddr::V_KNOCK; using shaddr::V_CRASH; using shaddr::V_OFFROAD;
+using shaddr::V_CURVE_NEXT; using shaddr::V_CURVE_NEXT_R; using shaddr::V_CURVE; using shaddr::V_CURVE_R;
+using shaddr::V_ROADBUF; using shaddr::V_ROADY; using shaddr::W_INGAME; using shaddr::W_SC_ACTIVE; using shaddr::W_TIMER;
+static const uint32_t V_SPR_LEAN = 0x260056, V_SPR_X = 0x260058, V_SPR_Y = 0x26005A,
+    V_GOAL = 0x2600EA, V_RETIRE = 0x2600EC, V_RETIRE2 = 0x2600E2;
+static const uint32_t W_SPRITES = 0x061400, W_DRAWLISTS = 0x061C00, W_PKT = SHO_PKT;
 static const uint32_t SUB_PATH_PTR = 0x2604F0;          // the course's road path (second CPU's $0604F0)
 
-// object slots ($63800 + 64 * n) and the tasks expected in them
-static const uint32_t SLOT_SOUND = 0x063840, SLOT_SPEED = 0x063A00, SLOT_CENTRIFUGAL = 0x063A40,
-    SLOT_BIKE = 0x064080;
-static const uint32_t SLOT_CRASH[4] = { 0x0638C0, 0x063900, 0x063940, 0x063980 };
+// object slots ($63800 + 64 * n) and the tasks expected in them (the slots: crossover/shophys's headers)
+static const uint32_t SLOT_SOUND = SHO_A5_SOUND, SLOT_SPEED = SHO_A5_SPEED, SLOT_CENTRIFUGAL = SHO_A5_CENTRIFUGAL,
+    SLOT_BIKE = SHO_A5_BIKE;
+static const uint32_t SLOT_CRASH[4] = { SHO_A5_CRASH, SHO_A5_CRASH_SHADOW, SHO_A5_RIDER, SHO_A5_RIDER_SHADOW };
 static const uint32_t TASK_SOUND = 0x5B98, TASK_SPEED = 0x610A, TASK_CENTRIFUGAL = 0x63CE, TASK_BIKE = 0x7AE6;
 
 // hooked main-CPU addresses
@@ -82,10 +85,8 @@ static const uint32_t ROM_SPR_LEAN = 0xCA4E;             // the bike's lean fram
 static const uint32_t ROM_RIVAL_SPEED = 0x870E;          // rivals' speeds by difficulty, course, stage
 static const uint32_t ROM_RIVAL_DIV = 0x85C4;
 
-// OutRun: the Ferrari treats Super Hang-On's rivals as its own traffic. OutRun's per-type spin chance
-// (traffic property +5) is 1 for its cars and 3 for its trucks (ROM $4CFA); the rivals are bikes, so
-// they get the cars' value.
-static const uint16_t RIVAL_COLLISION_MASK = 1;
+// OutRun: the Ferrari treats Super Hang-On's rivals as its own traffic. The rivals are bikes, so they
+// get the spin chance of OutRun's cars (units::OUTRUN_CAR_COLLISION_MASK).
 
 // OutRun single road of half-width $40 (OutRun road_width units): OFerrari::check_wheels puts one
 // wheel off at |x| > $40 + $D4 and both off at |x| > $40 + $104, i.e. the edge midpoint at $12C = 300,
@@ -97,8 +98,8 @@ static const int32_t ROAD_WIDTH = 0x40;
 static inline uint8_t* loc(uint32_t a)
 {
     a &= 0xFFFFFF;
-    if (a >= 0x260000 && a < 0x268000) return shboard.cpu1ram + (a - 0x260000);
-    if (a >= 0x060000 && a < 0x068000) return shboard.workram + (a - 0x060000);
+    if (a >= shaddr::SHARED && a < shaddr::SHARED + shaddr::RAM_SIZE) return shboard.cpu1ram + (a - shaddr::SHARED);
+    if (a >= shaddr::WORK && a < shaddr::WORK + shaddr::RAM_SIZE) return shboard.workram + (a - shaddr::WORK);
     static uint8_t dummy[4];
     return dummy;
 }
@@ -118,9 +119,10 @@ static inline uint32_t ROML(uint32_t a) { return (uint32_t) ROMW(a) << 16 | ROMW
 static bool dbg() { static int d = getenv("CB_SHFERRARI_DEBUG") ? 1 : 0; return d; }
 static int16_t sh_path_word(void*, uint32_t off);
 
-// MAD POWER (docs/CROSSOVER-OUTRUNNERS.md section 10): lateral units OutRun's (Super Hang-On's) x 11/6; Super
-// Hang-On's road edge for its bike (sub_07F30: off the road at |X| > 300)
-static const int LAT_OR = 11, LAT_OUT = 6, SPEED_PER_KMH = 136, SH_EDGE = 300;
+// MAD POWER (docs/CROSSOVER-OUTRUNNERS.md section 10): lateral units OutRun's (Super Hang-On's) x 11/6 and
+// speed km/h x 136 (crossover/units.hpp); Super Hang-On's road edge for its bike (sub_07F30: off the road at
+// |X| > 300)
+static const int SH_EDGE = 300;
 
 // ------------------------------------------------------------------------------------------------
 // Start and end
@@ -336,7 +338,7 @@ void SHFerrari::speed_task(uint32_t a5)
 {
     if (RW(V_MODE) == 1)                                          // $63A4: start line, nothing moves
     {
-        WW(V_FRAME_TGL, RW(V_FRAME_TGL) ^ 0x400);
+        WW(V_ROADBUF, RW(V_ROADBUF) ^ 0x400);
         return;
     }
     if (RW(V_GOAL))
@@ -412,13 +414,13 @@ void SHFerrari::bike_task(uint32_t a5)
     WW(V_KNOCK, 0);
     WW(V_CRASH, 0);
     WB(V_SPR_LEAN, 0); WB(V_SPR_LEAN + 1, 0);
-    WW(V_SPR_X, 0x160); WW(V_SPR_Y, 0xDF);
+    WW(V_SPR_X, shaddr::BIKE_SX); WW(V_SPR_Y, shaddr::BIKE_SY);
 
     // its object: drawn as OutRun's sprites (tagged in sub_02994). At its own depth in the sprite list,
     // or, while OutRun's crash throws the car up the road, at the crashed car's depth.
     WL(a5 + 0x1A, ROML(ROM_SPR_LEAN));
-    WW(a5 + 0x0A, 0x160);
-    WW(a5 + 0x0C, 0xDF);
+    WW(a5 + 0x0A, shaddr::BIKE_SX);
+    WW(a5 + 0x0C, shaddr::BIKE_SY);
     int depth = slot_depth;
     const oentry& c = osprites.jump_table[OSprites::SPRITE_CRASH];
     if ((c.control & OSprites::ENABLE) && ocrash.crash_counter)
@@ -504,7 +506,7 @@ void SHFerrari::tick()
         if (config.engine.bumper) d0 /= 3;
         d0 += ocrash.skid_counter;
         if (d0 <= OCrash::SKID_MAX && d0 >= -OCrash::SKID_MAX) ocrash.skid_counter = d0;
-        otraffic.collision_mask = RIVAL_COLLISION_MASK;
+        otraffic.collision_mask = units::OUTRUN_CAR_COLLISION_MASK;
         if (outrun.game_state == GS_INGAME)
         {
             int s = std::max(0, hits[i].speed - 80);
@@ -561,8 +563,9 @@ void SHFerrari::tick_madpower()
     // $34, the same units and centre as X, + = right as OutRunners' lateral; its change a frame x 2 for the
     // 30 Hz tick), its speed
     for (int i = 0; i < n_hits; i++)
-        madpower.rival_hit((int16_t)(hits[i].lat * LAT_OR / LAT_OUT), (int16_t)(hits[i].latvel * 2 * LAT_OR / LAT_OUT),
-                           (uint16_t) std::max(0, std::min(0xFFFF, hits[i].speed * SPEED_PER_KMH)));
+        madpower.rival_hit((int16_t)(hits[i].lat * units::LAT_OUTRUNNERS / units::LAT_OUTRUN),
+                           (int16_t)(hits[i].latvel * units::FRAMES_PER_TICK * units::LAT_OUTRUNNERS / units::LAT_OUTRUN),
+                           (uint16_t) std::max(0, std::min(0xFFFF, hits[i].speed * units::OUTRUNNERS_SPEED_PER_KMH)));
     n_hits = 0;
     madpower.accel_cut = ostats.time_counter == 0;               // time over: no accelerator, as the Ferrari
     madpower.tick();
@@ -644,7 +647,7 @@ void SHFerrari::rival_contact(uint32_t a5)
 {
     for (int i = 0; i < n_hits; i++) if (hits[i].slot == a5) return;     // once per OutRun tick
     if (n_hits >= 8) return;
-    int16_t x = (int16_t)(RW(a5 + 0x0A) - 0x160);                  // screen x from the centre (+ = right)
+    int16_t x = (int16_t)(RW(a5 + 0x0A) - shaddr::BIKE_SX);                  // screen x from the centre (+ = right)
     int16_t lat = (int16_t) RW(a5 + 0x34), v = 0;
     for (const RivalLat& r : rival_lat) if (r.slot == a5) v = r.latvel;
     hits[n_hits++] = { a5, x < 0 ? -1 : 1, rival_speed(a5), lat, v };
@@ -674,7 +677,7 @@ void SHFerrari::rival_lateral(uint32_t a5)
 // so it keeps pace with the player at player speed S - 1.6 * d0.
 int SHFerrari::rival_speed(uint32_t a5)
 {
-    uint32_t d1 = (RW(0x060450) & 6) * 36 + RW(0x260012) * 18 + RW(V_STAGE_DONE) * 2;
+    uint32_t d1 = (RW(0x060450) & 6) * 36 + RW(V_COURSE) * 18 + RW(V_STAGE_DONE) * 2;
     int s = (int16_t) ROMW(ROM_RIVAL_SPEED + d1);
     int d0 = (int16_t) RW(a5 + 0x36);
     int t32 = RW(a5 + 0x32);
