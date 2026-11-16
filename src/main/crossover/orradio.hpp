@@ -13,14 +13,20 @@
         held 2 s, sliding out to the left; the replacement of a title by the next one;
       - the voice clock of $18C45 ($208F30, $208F34): a voice ends when its lip-sync script does
         (one byte every 3 ticks), and the DJ waits for it before the next;
+      - the rest of $18C45, what the radio shows on the radio panel's LCD (16 characters,
+        $208F10-$208F1F): the DJ's face in the first two, its mouth following the voice's script,
+        and a new title scrolled through the other fourteen, a character every 5 ticks, while
+        which ($208F44) the rest of the game writes nothing there;
       - the sound command queue ($12124: $208800, 32 entries) and its drain, one command a tick to
         the sound board's $700700 ($3F8DA, in the frame interrupt at the end of the tick);
       - the random numbers ($120B1, state $208F00).
-    Not transcribed: the cabinet's LCD (F10-F1F, F40-F48: the titles and the DJ's mouth on the
-    radio panel's display), the lamps.
+    Not transcribed: what the rest of the game shows on the LCD between titles (the time, the
+    order, the speed: the object $18E1E), the lamps (both lit throughout a race).
 
     The model reads no memory: what the original reads from the rest of the game is passed in
-    (In, Race); the ROM's tables are transcribed below with their addresses.
+    (In, Race); the ROM's tables are transcribed below with their addresses. The voices' scripts
+    (1,195 bytes: the DJ's mouth, 0 shut, 1, 2 open) are not: given the program ROM (rom) the
+    mouth follows them, without it the mouth stays shut.
 
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
@@ -45,6 +51,12 @@ extern const uint8_t NODE_STATION[31];       // $196C4: Mega Radio Station's com
 // is the number of bytes before the negative one that ends it)
 struct Voice { uint8_t cmd; uint32_t script; uint8_t len; };
 extern const Voice VOICES[0x31];
+// $197CD: the title's palettes (the sprites' palette word), one every 2 ticks: (D[obj] >> 1) & 7
+extern const uint8_t TITLE_PALETTE[8];
+// $18D54: the two characters of the DJ's face by the script's byte (the game's own characters 1-6)
+extern const uint8_t MOUTH[4][2];
+const int LCD_CHARS = 16;
+const uint8_t LCD_NOTE = 7;                  // $18CFA: the title's '`' on the LCD is the game's character 7
 
 // The inputs of one tick (each read where the original reads it)
 struct In
@@ -75,6 +87,7 @@ struct Title
     bool     active = true;          // [obj] bit 0
     uint8_t  c = 0;                  // C[obj]: 0 start, 1 in, 2 held, 3 out, 4 out fast
     uint8_t  d = 0;                  // D[obj]: frames drawn (the colour: $197CD[(d >> 1) & 7])
+    int      palette() const { return (d >> 1) & 7; }   // this tick's, an index into TITLE_PALETTE
     uint16_t timer = 0x3C;           // 10[obj]: ticks held
     int16_t  speed = 0;              // 12[obj]
     int16_t  x = 0;                  // 20[obj] (low half; the high half is y = $C8)
@@ -93,7 +106,7 @@ public:
     void init(const Race& race, uint8_t node);
     // One tick of the radio object, then its title objects
     void tick(const In& in);
-    // Then, after the rest of the tick's objects, $18C45's voice clock (its $208F30 part)
+    // Then, after the rest of the tick's objects, $18C45: the voice clock ($208F30) and the LCD
     void voice_clock();
     // $3F8DA: the frame interrupt at the end of the tick sends one queued command; -1 if none
     int drain();
@@ -125,10 +138,19 @@ public:
     uint8_t  f34 = 3;                // $208F34: ticks to the script's next byte
     bool     f35 = true;             // $208F35 ($FF in a race): the voice clock runs
     uint32_t rng = 0;                // $208F00
+    // The radio panel's LCD as $18C45 writes it
+    uint8_t  lcd[LCD_CHARS];         // $208F10-$208F1F (spaces at the start: $18D5C)
+    const char* f40 = nullptr;       // $208F40: a title for the LCD (a title object's first tick, $195BD)
+    const char* f44 = nullptr;       // $208F44: the title being scrolled in, at its next character;
+    uint8_t  f44_spaces = 0;         //   then the spaces still to follow it ($18D23)
+    uint8_t  f48 = 0, f49 = 0;       // $208F48: the scroll's state; $208F49: its clock (5 ticks a character)
+    bool     lcd_title() const { return f44 != nullptr || f44_spaces != 0; }    // $208F44 != 0
+    const uint8_t* rom = nullptr;    // the program ROM by address, or null: the voices' scripts
     uint8_t  q[32] = {};             // $208802: the queue, read index $208800, write index $208801
     uint8_t  q_read = 0, q_write = 0;
     uint8_t  q_src[32] = {};         // (the model's) 1: queued by queue_external
 
+    Radio();
     uint16_t rand();                 // $120B1
     // tools/orradiotest: $208F30 set by the rest of the game (its script's end, $208F34)
     void set_voice(uint32_t script_pos, uint32_t script_end, uint8_t clock);

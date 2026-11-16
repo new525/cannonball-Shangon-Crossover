@@ -3,7 +3,7 @@
 # <name>.log (the commands sent to $700700: frame, value, radio or game) in <out dir>; then the
 # instructions of the transcribed routines that no scenario executed
 B=$1; R=$2; O=$3; mkdir -p $O
-run() { $B $R $1 -v -log $O/$1.log > $O/$1.txt 2>&1; echo "$1: $(tail -1 $O/$1.txt)"; }
+run() { $B $R $1 -v -screen -log $O/$1.log > $O/$1.txt 2>&1; echo "$1: $(tail -1 $O/$1.txt)"; }
 run buttons & run dj & wait
 run branch & run fast & wait
 run two

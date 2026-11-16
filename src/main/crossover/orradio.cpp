@@ -3,6 +3,8 @@
 ***************************************************************************/
 #include "crossover/orradio.hpp"
 
+#include <cstring>
+
 namespace orradio
 {
 
@@ -56,6 +58,15 @@ const Voice VOICES[0x31] = {
     { 0x8A, 0x19D9C, 19 }, { 0x8B, 0x19DB0, 59 }, { 0x8C, 0x19DEC, 22 },
     { 0x8D, 0x19E03, 11 },
 };
+
+// $197CD: eight 16-bit palette words
+const uint8_t TITLE_PALETTE[8] = { 0x80, 0xC0, 0xA0, 0xB0, 0xD0, 0x90, 0xE0, 0xF0 };
+
+// $18D54: four 16-bit entries, the face's left and right characters (the mouth shut, half open,
+// open, half open; the scripts use 0-2)
+const uint8_t MOUTH[4][2] = { { 1, 2 }, { 3, 4 }, { 5, 6 }, { 3, 4 } };
+
+Radio::Radio() { std::memset(lcd, 0x20, sizeof lcd); }    // $18D5C
 
 // $198D8: the runs of remarks, chosen when the random number & $3FF is below 14
 static const uint32_t SEQ_START[14] = {
@@ -383,6 +394,7 @@ void Radio::title_tick(Title& t)
     {
         case 0:                                              // $195B0
             t.xoff = t.song->x;
+            f40 = t.song->text;                              // $195BD: the title for the LCD
             t.x = 0xD2;
             t.speed = 0x14;
             t.c = 1;
@@ -419,15 +431,68 @@ void Radio::title_tick(Title& t)
     t.drawn = true;
 }
 
-// $18C45 (its $208F30 part), after the objects: the voice's script, a byte every 3 ticks
+// $18C45, after the objects: the voice's script, a byte every 3 ticks, its mouth to the LCD's first
+// two characters ($208F35 set: in a race); then the title scrolled through the rest of the LCD
 void Radio::voice_clock()
 {
-    if (!f35) return;
-    if (f30 == 0) { f34 = 3; return; }
-    if (--f34 != 0) return;
-    if (f30 >= f30_end) f30 = 0;                             // the negative byte: the voice is over
-    else f30++;
-    f34 = 3;
+    uint8_t* p = lcd;                                        // R10
+    int n = 15;                                              // R0 ($18C9C): the text's last character
+    if (f35)
+    {
+        int mouth = -1;
+        if (f30 == 0) { mouth = 0; f34 = 3; }                // $18C83
+        else if (--f34 == 0)
+        {
+            if (f30 >= f30_end) { f30 = 0; mouth = 0; }      // the negative byte: the voice is over
+            else { mouth = rom ? rom[f30] & 3 : 0; f30++; }  // $18C66
+            f34 = 3;
+        }
+        if (mouth >= 0) { p[0] = MOUTH[mouth][0]; p[1] = MOUTH[mouth][1]; }
+        p += 2;
+        n = 13;
+    }
+    if (f40)                                                 // $18C9F: a new title: the text cleared
+    {
+        f44 = f40;
+        f44_spaces = 0;
+        f40 = nullptr;
+        f48 = 0;
+        std::memset(p, 0x20, (size_t) n + 1);
+    }
+    if (!lcd_title()) return;
+    switch (f48)
+    {
+        case 0:                                              // $18CEC: the next character in from the right
+        {
+            uint8_t ch = (uint8_t) *f44++;
+            if (ch == 0x60) ch = LCD_NOTE;
+            std::memmove(p, p + 1, (size_t) n);
+            p[n] = ch;
+            f49 = 5;
+            f48 = 1;
+        }
+            // fall through
+        case 1:                                              // $18D11
+            if (--f49 != 0) return;
+            if (*f44 != 0) { f48 = 0; return; }
+            f44 = nullptr;                                   // $18D23: the text is in: as many spaces
+            f44_spaces = (uint8_t)(n + 1);
+            f48 = 2;
+            // fall through
+        case 2:                                              // $18D2E
+            std::memmove(p, p + 1, (size_t) n);
+            p[n] = 0x20;
+            f49 = 5;
+            f48 = 3;
+            // fall through
+        case 3:                                              // $18D44
+            if (--f49 != 0) return;
+            f44_spaces--;
+            f48 = 2;
+            return;
+        default:
+            return;
+    }
 }
 
 void Radio::set_voice(uint32_t script_pos, uint32_t script_end, uint8_t clock)

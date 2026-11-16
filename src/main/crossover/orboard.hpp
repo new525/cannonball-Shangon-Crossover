@@ -60,6 +60,7 @@
 #include <vector>
 
 #include "crossover/s32io.hpp"
+#include "crossover/orlcd.hpp"
 #include "crossover/orsound.hpp"
 #include "crossover/s32video.hpp"
 #include "crossover/v60/v60.hpp"
@@ -136,6 +137,7 @@ public:
     uint8_t draw_mask = 3;
     ORSound& sound() { return snd; }        // its streams (ym0/ym1/pcm0/pcm1); flush_streams() after a frame
     uint8_t lamps_d[2] = {}, lamps_g[2] = {}; // I/O chips' port D and G outputs (lamps, coin counters)
+    OrLcd lcd[2];                           // the radio panels' displays, from the port G writes (crossover/orlcd.hpp)
 
     // ---- memory ---------------------------------------------------------------------------------
     uint8_t work_ram[0x20000];              // main $200000-$21FFFF (byte = address order)

@@ -161,6 +161,7 @@ void ORBoard::power_on(const uint8_t* eeprom128)
         { ready_ = false; return; }
     snd.power_on();
     analog_bank = 0;                                        // sega_multi32_analog_state::device_start
+    lcd[0].reset(); lcd[1].reset();
     eeprom.device_start();
     if (eeprom128) eeprom.load(eeprom128); else eeprom.nvram_default();
     std::memset(comm.m_shared, 0, sizeof comm.m_shared);
@@ -701,7 +702,7 @@ void ORBoard::io_out_port(int chip, int port, uint8_t data)
     switch (port)
     {
         case 3: lamps_d[chip] = data; break;                // misc_output_0_w / _1_w (coin counters, orunners_sw1_output)
-        case 6: lamps_g[chip] = data; break;                // sw2_output_0_w / _1_w (orunners_sw2_output)
+        case 6: lamps_g[chip] = data; lcd[chip].port_w(data); break;   // sw2_output_0_w / _1_w (orunners_sw2_output)
         case 7:
             if (chip == 0)
                 vid->tilebank_external_w(data);

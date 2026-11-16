@@ -1,0 +1,33 @@
+# 19. The radio panel's LCD (section 14.8): what the port G writes ($C0000C, player 1) put on the
+#     display, read as an HD44780-type controller's protocol (crossover/orlcd.hpp; "lcd" prints its 16
+#     characters, the game's own characters 0-7 as digits). The first writes of the power-on sequence
+#     ($18968: the nibbles 3, 3, 3, 2, then $0C, $40 and the eight characters of $18DBA) with their PCs;
+#     "SEGA Enterprises" at 30; the entry screen at 2560 ("Entry:1_" after the DJ's face, characters 1
+#     and 2); the countdown's bar at 2575; in the race the time ("Time:  0'07"24" at 3300); >> at 3300:
+#     the title scrolls in from the right behind the note (character 7), a character every 5 ticks, and
+#     out again ($18C9F-$18D52), while the title object shows it on the screen; DJ/MUSIC at 3600: "Mega
+#     Radio Station", the face's mouth moving with the DJ's voice (characters 3-6).
+include race_mp.inc
+1 vwatch $C0000C $C0000F 60
+30 lcd
+30 lcd cg
+700 lcd
+2560 lcd
+2575 lcd
+2900 lcd
+3300-3305 set P2_A 04 1
+3306 set P2_A 04 0
+3300-3310 lcd
+3300-3310 mem $208F10 16
+3318 lcd
+3324 lcd
+3336 lcd
+3348 lcd
+3400 lcd
+3460 lcd
+3520 lcd
+3580 lcd
+3600-3605 set P2_A 01 1
+3606 set P2_A 01 0
+3610-3700 lcd
+3900 exit
