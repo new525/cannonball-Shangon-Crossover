@@ -177,9 +177,11 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
 - **OUTRUNNERS RADIO** (`crossover/orradio.*`, `crossover/radio.*`): OutRunners' in-race radio,
   transcribed from its code: its ten songs (Magical Sound Shower, Passing Breeze, Splash Wave,
   Picture the Rivers, Blow Your Cool, Looking for the Rainbow, Speed King, Adventure, Sonic Control,
-  Last Wave), the DJ's Mega Radio Station, and the title sliding in at the bottom of the screen.
+  Last Wave), the DJ's Mega Radio Station, and its titles, sliding in at the bottom of the screen in
+  OutRunners' own lettering and cycling colours, with the cabinet's radio-panel display shown below
+  them while it scrolls the title.
   On OutRun's, Super Hang-On's and Hang-On's courses the d-pad is the radio's buttons (up DJ/MUSIC,
-  down >>; left << and right >> with analogue steering) and the radio sends OutRunners' sound board
+  down >>; START >> (not in Mega Radio Station); left << and right >> with analogue steering) and the radio sends OutRunners' sound board
   the commands OutRunners' main CPU would; on OutRunners' own courses the same d-pad directions
   press the emulated board's radio buttons. On the emulated board the transcription queued and sent
   the same commands as OutRunners and moved its titles the same way, tick by tick
@@ -306,18 +308,18 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   vehicle and course measured in harness runs; FULL matches, HALF (the default) takes the geometric
   midpoint, OFF changes nothing. The vehicle keeps its own physics, acceleration, sounds and speedometer.
   On a vehicle's own course every factor is 1, and with OFF every run is byte-identical to before.
-  - Pace ([`docs/balance-pace.md`](docs/balance-pace.md)): the course's world moves by the vehicle's
+  - Pace ([`docs/CROSSOVER-BALANCE.md`](docs/CROSSOVER-BALANCE.md#pace)): the course's world moves by the vehicle's
     speed x a factor, so at FULL each vehicle at its top speed covers the course at the pace of the
     course's own vehicle (MAD POWER on OutRun's courses at the Ferrari's 293 km/h, the Ferrari on
     OutRunners' at MAD POWER's 451). The boards' speedometers are hooked to show the vehicle's own speed.
-  - Curve push ([`docs/balance-push.md`](docs/balance-push.md)): the push the vehicle's own code gives is
+  - Curve push ([`docs/CROSSOVER-BALANCE.md`](docs/CROSSOVER-BALANCE.md#curve-push)): the push the vehicle's own code gives is
     scaled so it feels the course's curves as hard as its own game's: its demand (the push at top speed
     as a share of its full-lock steering, averaged along the curves) becomes its own-course demand at
     FULL. Measured with `CB_PUSH_LOG`: Super Hang-On's bike 0.99 on OutRun's and Hang-On's courses and
     1.27 on OutRunners'; the Ferrari 0.94 / 0.85 / 1.33 on Super Hang-On's / Hang-On's / OutRunners';
     MAD POWER 0.81 / 0.80 / 0.83 on OutRun's / Super Hang-On's / Hang-On's (divided by its pace factor,
     since its push grows with the distance it crosses per tick).
-  - Contact ([`docs/balance-contact.md`](docs/balance-contact.md)): in a contact with another vehicle,
+  - Contact ([`docs/CROSSOVER-BALANCE.md`](docs/CROSSOVER-BALANCE.md#contact)): in a contact with another vehicle,
     a visiting vehicle loses the share of its speed the course's own vehicle would lose in the same
     contact (the same other vehicle, met at the same fraction of its top speed): OutRun's Ferrari is cut
     to the other's speed - 80, the bikes brake through their knockback, MAD POWER bounces off Kenya's
@@ -337,6 +339,9 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
   is remembered); each of BUG FIXES' seven fixes as its own option (SELECT BUG FIXES), plus one DX
   found: the ending palette fix recoloured the trophy in endings A and C (ENDING TROPHY, off by
   default).
+- **Shared constants** (`crossover/units.hpp`, `shaddr.hpp`, `hoaddr.hpp`, `oraddr.hpp`): the unit
+  conversions between the games and the boards' RAM addresses that several joins use, defined once
+  with their sources.
 - **Force feedback for steering wheels** (`ffb/`): on SDL2 haptics (Windows and Linux; replaces
   Cannonball's DirectX 8 backend), off by default. The vehicle's own arcade motor output is the base
   (OutRun's deluxe cabinet motor as a constant force; OutRunners' wheel vibration motor for MAD POWER;
@@ -449,7 +454,8 @@ With *OUTRUNNERS RADIO* (and on OutRunners' courses) the d-pad / up and down key
 radio buttons in a race: **up** DJ/MUSIC (Mega Radio Station; any radio button there goes back to
 the song), **down** >> (next song). With analogue steering (a wheel or a stick), **left** is << (the
 song before) and **right** >> too; left with right (or down) plays Jingle Bell, as << and >> together
-do in OutRunners. With digital steering left and right steer, so there is no <<.
+do in OutRunners. With digital steering left and right steer, so there is no <<. **START** in a race
+is OutRunners' START: the next song, as >> (nothing in Mega Radio Station).
 
 Keys can be changed under **SETTINGS > CONTROLS > REDEFINE KEYS**. Gamepads and analog wheels
 work as in Cannonball. Force feedback: **CONTROLS > FORCE FEEDBACK**, **FFB STRENGTH** and **SPRING**;
@@ -514,9 +520,10 @@ has only been built and tested on Windows (MinGW-w64) and Linux.
   flat-road heights.
 - The bike on OutRunners' courses gets OutRun's off-road smoke (as on OutRun's courses), not Super
   Hang-On's dust, and OutRunners' roadside hit areas have not been compared with the objects as drawn.
-- *OUTRUNNERS RADIO* on OutRun's, Super Hang-On's and Hang-On's courses: the title is in OutRun's
-  radio-screen lettering and colours (OutRunners cycles its own eight colours), OutRunners' radio-panel
-  LCD is not shown, and Mega Radio Station plays OutRunners' first station throughout (its stations
+- *OUTRUNNERS RADIO* on OutRun's, Super Hang-On's and Hang-On's courses: the radio-panel display's
+  letters are a stand-in (the display's own are not in OutRunners' ROMs), its time/order/speed
+  displays and lamps are not shown, the title needs the whole OutRunners set (with the sound ROMs
+  alone it is in OutRun's lettering, one colour), and Mega Radio Station plays OutRunners' first station throughout (its stations
   belong to places on OutRunners' map). With digital steering there is no << (left and right steer).
 - Hang-On's bike stays on Hang-On's course: it exists only as Hang-On's program on its emulated board,
   and its tasks have not been rebuilt as code that can run in another game's world, as Super Hang-On's

@@ -30,6 +30,12 @@ Changes since 0.11.0
     from the Linux driver project logitech-rs50-linux-driver; not checked
     on a real wheel.
   - STEERING DEAD ZONE in the same menu (WHEEL SETUP sets it to 0).
+- OUTRUNNERS RADIO: the song title is drawn in OutRunners' own lettering
+  and cycles through its eight colours, as OutRunners does (needs the whole
+  OutRunners set). The radio panel's display (the DJ's face, its mouth
+  moving as the DJ speaks, the title scrolling) is shown below the title
+  while it scrolls, on OutRunners' courses too (with OUTRUNNERS RADIO
+  chosen). START in a race is the next song, as in OutRunners.
 - Force feedback: when no device is found the reason is shown, and
   ffb-report.txt (next to the program) lists what SDL sees of every
   joystick and why each was refused; CONFIGURE GAMEPAD > DEVICE REPORT
@@ -111,8 +117,7 @@ Changes in 0.10.0
   handling, acceleration, sounds and speedometer. FULL matches, HALF goes
   half way (the geometric mean), OFF leaves everything as in 0.9.0. On a
   vehicle's own course it changes nothing. Three things are balanced, each
-  from measurements (docs/balance-pace.md, balance-push.md,
-  balance-contact.md):
+  from measurements (docs\CROSSOVER-BALANCE.md):
   - Pace: the course moves by the vehicle's speed times a factor, so at
     FULL every vehicle at its top speed covers the course as fast as the
     course's own vehicle. MAD POWER on OutRun's roads then goes at the
@@ -536,10 +541,11 @@ the up/down keys) is OutRunners' radio buttons:
     DOWN   >>: the next song
     LEFT   <<: the song before   } only with analogue steering (a wheel
     RIGHT  >>: the next song     } or a stick); otherwise they steer
+    START  >>: the next song (not in Mega Radio Station)
     << and >> together (LEFT with RIGHT or DOWN): Jingle Bell
 Each change shows the song's title at the bottom of the screen for about
-three seconds, as OutRunners does, in the lettering of OutRun's radio
-screen. OutRunners' map (its stations by place, the slow-down at its
+three seconds, as OutRunners does, in OutRunners' own lettering and
+colours, with the radio panel's display below it. OutRunners' map (its stations by place, the slow-down at its
 branches) is not on the other games' courses: there Mega Radio Station
 plays OutRunners' first station. The radio stops when the music would
 (GAME OVER, the end of a Super Hang-On or Hang-On race, leaving the race).
@@ -685,10 +691,8 @@ Not done yet
 - OUTRUNNERS KENYA: the results show 0 for the four checkpoints before Kenya.
 - On OutRunners' courses the MUSIC choice is not used: OutRunners plays its
   own radio (the d-pad works its buttons).
-- OUTRUNNERS RADIO on the other games' courses: the title does not cycle
-  through OutRunners' eight colours (it is in OutRun's radio-screen colours),
-  and OutRunners' radio-panel display (its LCD) is not shown. OutRunners'
-  START (also "next song") is not mapped.
+- OUTRUNNERS RADIO: the radio panel's letters are a stand-in; its
+  time/order/speed displays and lamps are not shown.
 - Bike versions of OutRun's start and ending scenes (the ending shows the
   Ferrari).
 - In widescreen mode, crash objects near the screen edges are hidden early.
