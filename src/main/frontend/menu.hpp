@@ -37,6 +37,7 @@ private:
         STATE_REDEFINE_JOY,
         STATE_TTRIAL,
         STATE_DIAGNOSTICS,
+        STATE_WHEEL_SETUP,      // crossover: turn the wheel, press each pedal
     };
 
     TTrial* ttrial;
@@ -46,6 +47,12 @@ private:
 
     // Redefine keys/joystick substate
     uint8_t redef_state;
+
+    // Crossover: WHEEL SETUP
+    int  wheel_step = 0, wheel_wait = 0;
+    bool wheel_offered = false; // offered by itself once (a wheel whose axes aren't chosen)
+    void wheel_setup_begin();
+    void wheel_setup();
 
     uint32_t frame;
 

@@ -15,6 +15,30 @@ Project page and source: https://github.com/new525/cannonball-Shangon-Crossover
 Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 
+Changes since 0.11.0
+--------------------
+- Steering wheels: a wheel that SDL reads as a plain joystick (most of
+  them) had no steering axis and no buttons until set by hand.
+  - pad_id -1, the new default, uses a wheel if one is connected.
+  - WHEEL SETUP (SETTINGS > CONTROLS > CONFIGURE GAMEPAD; it runs by
+    itself the first time a wheel is found) asks you to centre the wheel,
+    turn it a quarter turn left, press each pedal and press the button
+    to use as START, and sets the axes, their directions and START.
+  - Logitech PRO Racing Wheel (046d:c272 Xbox/PC, 046d:c268 PS/PC) button
+    defaults: left paddle gear down, right paddle gear up, Menu START,
+    View COIN, B MENU, Y VIEW, d-pad for the menus. The button numbers come
+    from the Linux driver project logitech-rs50-linux-driver; not checked
+    on a real wheel.
+  - STEERING DEAD ZONE in the same menu (WHEEL SETUP sets it to 0).
+- Force feedback: when no device is found the reason is shown, and
+  ffb-report.txt (next to the program) lists what SDL sees of every
+  joystick and why each was refused; CONFIGURE GAMEPAD > DEVICE REPORT
+  writes it at any time. The device search also tries SDL's haptic list,
+  a wheel plugged in later is picked up, the simple rumble no longer holds
+  a second handle on a wheel's motor, and a wheel whose driver refuses the
+  steering-axis direction gets a cartesian one.
+
+
 Changes in 0.11.0
 -----------------
 - Force feedback for steering wheels, on SDL2 haptics (Windows and Linux;
@@ -430,8 +454,9 @@ Setting up
 5. Put the OutRunners ROMs in          roms\orunners\     (list: roms\orunners\roms.txt)
    For its music, 3 files of MAME's "orunners" set (or orunnersu,
    orunnersj). For its courses and MAD POWER, every file of "orunnersj".
-6. Run cannonball.exe. With a force-feedback wheel, turn on SETTINGS >
-   CONTROLS > FORCE FEEDBACK (docs\FORCE-FEEDBACK.md).
+6. Run cannonball.exe. With a steering wheel, follow WHEEL SETUP when it
+   appears; for force feedback turn on SETTINGS > CONTROLS > FORCE FEEDBACK
+   (docs\FORCE-FEEDBACK.md). If it says no device, send ffb-report.txt.
 
 The crossover ROM sets are optional: without Super Hang-On's ROMs you drive
 the Ferrari, and each missing set only removes that game's part (its

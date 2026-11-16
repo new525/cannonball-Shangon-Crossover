@@ -12,7 +12,9 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <SDL.h>
 #include "frontend/config.hpp"
+#include "sdl2/input.hpp"
 
 namespace ffb
 {
@@ -47,14 +49,73 @@ namespace ffb
         0x8, 0x3, 0x8, 0xD, 0x8, 0x3, 0x8, 0xD, 0x8, 0x2, 0x8, 0xE, 0x8, 0x2, 0x8, 0xE,
     };
 
+    // The device opened; the simple rumble's handle on the same joystick is closed (one user of its motor)
+    static void release_rumble()
+    {
+        if (opened && input.pad_index() >= 0 &&
+            ffbdev::instance_id() == SDL_JoystickGetDeviceInstanceID(input.pad_index()))
+            input.close_rumble();
+    }
+
+    static bool open_device()
+    {
+        opened = ffbdev::init(input.pad_index());
+        release_rumble();
+        return opened;
+    }
+
     void init()
     {
         enabled = config.controls.haptic != 0;
         if (!enabled) return;
-        opened = ffbdev::init(config.controls.pad_id);
-        if (!opened) return;
+        if (!open_device())
+        {
+            write_report();
+            return;
+        }
         apply_settings();
         idle();
+    }
+
+    bool device_open() { return opened; }
+    const char* status() { return ffbdev::status(); }
+
+    void device_changed()
+    {
+        if (!enabled) return;
+        // the device in use went away: SDL closes nothing by itself, so it is closed and looked for again
+        if (opened && ffbdev::instance_id() >= 0 && SDL_JoystickFromInstanceID(ffbdev::instance_id()) != nullptr &&
+            !SDL_JoystickGetAttached(SDL_JoystickFromInstanceID(ffbdev::instance_id())))
+            close();
+        if (!opened)
+        {
+            if (open_device()) apply_settings();
+            else write_report();    // the file says what the latest attempt found
+        }
+        release_rumble();       // (the joystick was opened again, and its rumble with it)
+    }
+
+    std::string write_report()
+    {
+        const std::string path = config.data.save_path + "ffb-report.txt";
+        FILE* f = fopen(path.c_str(), "w");
+        if (!f) return "";
+        fprintf(f, "Force feedback device report (CONTROLS > FORCE FEEDBACK, DEVICE REPORT)\n\n");
+        const int* ax = config.controls.axis;
+        const bool* inv = config.controls.invert;
+        const int* pc = config.controls.padconfig;
+        fprintf(f, "Controls: joystick %d \"%s\" %04x:%04x%s; profile: %s; config pad_id %d, analog %d,\n"
+                   "  axes: wheel %d%s, accel %d%s, brake %d%s; steering dead zone %d; force feedback %s\n"
+                   "  buttons: accel %d, brake %d, gear1 %d, gear2 %d, start %d, coin %d, menu %d, view %d (-1 = none)\n\n",
+                input.pad_index(), input.pad_name(), input.pad_vendor(), input.pad_product(),
+                input.is_wheel() ? " (wheel)" : "", *input.profile_name() ? input.profile_name() : "none",
+                config.controls.pad_id, config.controls.analog,
+                ax[0], inv[0] ? " reversed" : "", ax[1], inv[1] ? " reversed" : "", ax[2], inv[2] ? " reversed" : "",
+                config.controls.asettings[1], config.controls.haptic ? "on" : "off",
+                pc[0], pc[1], pc[2], pc[3], pc[4], pc[5], pc[6], pc[7]);
+        fputs(ffbdev::report().c_str(), f);
+        fclose(f);
+        return path;
     }
 
     void close()
@@ -70,8 +131,8 @@ namespace ffb
         enabled = on;
         if (on && !opened)
         {
-            opened = ffbdev::init(config.controls.pad_id);
-            if (opened) apply_settings();
+            if (open_device()) apply_settings();
+            else write_report();
         }
         if (!on && opened) ffbdev::stop();
     }

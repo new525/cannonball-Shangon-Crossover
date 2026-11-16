@@ -107,6 +107,9 @@ const static char* ENTRY_FFB_SPRING = "SPRING ";
 const static char* ENTRY_ANALOG = "ANALOG ";
 const static char* ENTRY_RUMBLE = "RUMBLE STRENGTH ";
 const static char* ENTRY_REDEFJOY = "REDEFINE GAMEPAD";
+const static char* ENTRY_WHEELSETUP = "WHEEL SETUP";       // crossover: finds the steering and pedal axes
+const static char* ENTRY_DEADZONE = "STEERING DEAD ZONE ";  // crossover: controls.analog.wheel.dead
+const static char* ENTRY_DEVREPORT = "DEVICE REPORT";      // crossover: writes ffb-report.txt
 
 // Game Engine Menu
 const static char* ENTRY_TRACKS = "TRACKS ";

@@ -218,11 +218,12 @@ void Config::load()
     controls.padconfig[13] = pt_config.get("controls.padconfig.limit_c", -1);
     controls.padconfig[14] = pt_config.get("controls.padconfig.limit_r", -1);
     controls.analog        = pt_config.get("controls.analog.<xmlattr>.enabled", 1);
-    controls.pad_id        = pt_config.get("controls.pad_id", 0);
+    controls.pad_id        = pt_config.get("controls.pad_id", -1);     // crossover: -1 = a wheel if there is one, else the first
     controls.axis[0]       = pt_config.get("controls.analog.axis.wheel", -1);
     controls.axis[1]       = pt_config.get("controls.analog.axis.accel", -1);
     controls.axis[2]       = pt_config.get("controls.analog.axis.brake", -1);
     controls.axis[3]       = pt_config.get("controls.analog.axis.motor", -1);
+    controls.invert[0]     = pt_config.get("controls.analog.axis.wheel.<xmlattr>.invert", 0);     // crossover (WHEEL SETUP)
     controls.invert[1]     = pt_config.get("controls.analog.axis.accel.<xmlattr>.invert", 0);
     controls.invert[2]     = pt_config.get("controls.analog.axis.brake.<xmlattr>.invert", 0);
     controls.asettings[0]  = pt_config.get("controls.analog.wheel.zone", 75);
@@ -390,6 +391,11 @@ bool Config::save()
     pt_config.put("controls.analog.axis.wheel", controls.axis[0]);
     pt_config.put("controls.analog.axis.accel", controls.axis[1]);
     pt_config.put("controls.analog.axis.brake", controls.axis[2]);
+    // crossover: the directions WHEEL SETUP found
+    pt_config.put("controls.analog.axis.wheel.<xmlattr>.invert", (int) controls.invert[0]);
+    pt_config.put("controls.analog.axis.accel.<xmlattr>.invert", (int) controls.invert[1]);
+    pt_config.put("controls.analog.axis.brake.<xmlattr>.invert", (int) controls.invert[2]);
+    pt_config.put("controls.analog.wheel.dead", controls.asettings[1]);     // crossover: STEERING DEAD ZONE, WHEEL SETUP
     pt_config.put("controls.analog.haptic.<xmlattr>.enabled", controls.haptic);     // crossover: the force feedback menu entries
     pt_config.put("controls.analog.haptic.strength", controls.ffb.strength);
     pt_config.put("controls.analog.haptic.centering_strength", controls.ffb.centering_strength);

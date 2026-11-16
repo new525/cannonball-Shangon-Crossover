@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <string>
 #include <SDL.h>
 
 class Input
@@ -93,6 +94,34 @@ public:
     int get_axis_config();
     void set_rumble(bool, float strength = 1.0f);
 
+    // Crossover: steering wheels
+    // The joystick in use: its index among SDL's (-1 none), whether SDL calls it a wheel, its name and
+    // USB ids, and the name of the built-in profile whose button defaults it took ("" none)
+    int  pad_index() const { return pad_open; }
+    bool is_wheel() const { return wheel_device; }
+    const char* pad_name() const { return pad_name_text.c_str(); }
+    int  pad_vendor() const { return pad_vid; }
+    int  pad_product() const { return pad_pid; }
+    const char* profile_name() const { return profile; }
+    // A wheel whose steering or pedal axes are not chosen yet (the menu then runs WHEEL SETUP)
+    bool wheel_needs_setup() const;
+    // WHEEL SETUP: capture_begin() notes where every axis rests; capture_axis() then returns the axis
+    // that has moved from there by at least `travel` (of 65,535 for the whole range), or -1, with the
+    // direction it moved in (+1 / -1). Axes in `skip` (a bit each) are left out. capture_settled():
+    // every axis is back where it rested.
+    void capture_begin();
+    int  capture_axis(int travel, unsigned skip, int& direction);
+    bool capture_settled();
+    // the dead zone in the centre of the steering (of 128 for the whole range), changed in the menu
+    void set_wheel_dead(int dead) { wheel_dead = dead; }
+    // the rumble's haptic handle closed (force feedback takes the device)
+    void close_rumble();
+    // an event of the joystick in use (SDL sends those of every open joystick, and force feedback
+    // may have another one open)
+    bool ours(SDL_JoystickID which) const { return stick != NULL && which == SDL_JoystickInstanceID(stick); }
+    // a wheel read as a plain joystick: WHEEL SETUP chooses its axes (REDEFINE GAMEPAD its buttons)
+    bool wheel_by_setup() const { return gamepad && wheel_device && controller == NULL; }
+
 private:
     static const int CENTRE = 0x80;
 
@@ -113,6 +142,17 @@ private:
 
     // Last axis used
     int axis_last , axis_counter, axis_config;
+
+    // Crossover: the joystick in use and the wheel setup's resting values
+    int pad_open = -1;
+    bool wheel_device = false;
+    int pad_vid = 0, pad_pid = 0;
+    std::string pad_name_text;
+    const char* profile = "";
+    static const int CAPTURE_AXES = 16;
+    int capture_rest[CAPTURE_AXES];
+    int choose_pad() const;
+    void apply_profile();
 
     void bind_axis(SDL_GameControllerAxis ax, int offset);
     void bind_button(SDL_GameControllerButton button, int offset);

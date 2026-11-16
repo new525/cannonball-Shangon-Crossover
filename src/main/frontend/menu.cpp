@@ -243,7 +243,10 @@ void Menu::populate_controls()
 
     menu_controls_gp.push_back(ENTRY_ANALOG);
     if (input.rumble_supported) menu_controls_gp.push_back(ENTRY_RUMBLE);
+    menu_controls_gp.push_back(ENTRY_DEADZONE);
+    menu_controls_gp.push_back(ENTRY_WHEELSETUP);
     menu_controls_gp.push_back(ENTRY_REDEFJOY);
+    menu_controls_gp.push_back(ENTRY_DEVREPORT);
     menu_controls_gp.push_back(ENTRY_BACK);
 }
 
@@ -364,6 +367,10 @@ void Menu::tick()
         case STATE_MENU:
         case STATE_REDEFINE_KEYS:
         case STATE_REDEFINE_JOY:
+        case STATE_WHEEL_SETUP:
+            // Crossover: a wheel whose axes aren't chosen yet gets WHEEL SETUP by itself, once
+            if (state == STATE_MENU && !wheel_offered && input.wheel_needs_setup())
+                wheel_setup_begin();
             tick_ui();
             break;
 
@@ -413,6 +420,10 @@ void Menu::tick_ui()
     else if (state == STATE_REDEFINE_JOY)
     {
         redefine_joystick();
+    }
+    else if (state == STATE_WHEEL_SETUP)
+    {
+        wheel_setup();
     }
 
     // Show messages
@@ -650,7 +661,9 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_SCORES))        display_message(config.clear_scores() ? "SCORES CLEARED" : "NO SAVED SCORES FOUND!");
             else if (SELECTED(ENTRY_CONTROLS))
             {
-                display_message(input.gamepad ? "GAMEPAD FOUND" : "NO GAMEPAD FOUND!");
+                display_message(!input.gamepad ? "NO GAMEPAD FOUND!" :
+                                *input.profile_name() ? std::string(input.profile_name()) + " FOUND" :
+                                input.wheel_by_setup() ? "WHEEL FOUND" : "GAMEPAD FOUND");
                 populate_controls();
                 set_menu(&menu_controls);
             }
@@ -868,8 +881,15 @@ void Menu::tick_menu()
             {
                 config.controls.haptic ^= 1;
                 ffb::enable(config.controls.haptic != 0);
-                if (config.controls.haptic && !ffb::active())
-                    display_message("NO FORCE FEEDBACK DEVICE FOUND");
+                // no device: why, in a line, and the details in ffb-report.txt (ffb::enable wrote it)
+                if (config.controls.haptic && !ffb::device_open())
+                    display_message(menu_text_safe(std::string(ffb::status()) + " - SEE FFB-REPORT.TXT"));
+                else if (config.controls.haptic)
+                {
+                    std::string on = menu_text_safe(std::string("FFB ON ") + ffb::status());
+                    if (on.length() > 40) on.resize(40);
+                    display_message(on);
+                }
             }
             else if (SELECTED(ENTRY_FFB_STRENGTH))
             {
@@ -899,6 +919,16 @@ void Menu::tick_menu()
                 config.controls.rumble += 0.25f;
                 if (config.controls.rumble > 1.0f) config.controls.rumble = 0;
             }
+            else if (SELECTED(ENTRY_DEADZONE))
+            {
+                // of 128 for the whole range, in steps of 4 up to a quarter of it
+                config.controls.asettings[1] = config.controls.asettings[1] >= 32 ? 0 : (config.controls.asettings[1] / 4 + 1) * 4;
+                input.set_wheel_dead(config.controls.asettings[1]);
+            }
+            else if (SELECTED(ENTRY_WHEELSETUP))
+                wheel_setup_begin();
+            else if (SELECTED(ENTRY_DEVREPORT))
+                display_message(ffb::write_report().empty() ? "CANNOT WRITE FFB-REPORT.TXT" : "WROTE FFB-REPORT.TXT IN THE GAME FOLDER");
             else if (SELECTED(ENTRY_REDEFJOY))
             {
                 //display_message("PRESS MENU TO END AT ANY STAGE");
@@ -1099,6 +1129,7 @@ void Menu::refresh_menu()
         {
             if (SELECTED(ENTRY_ANALOG))             set_menu_text(ENTRY_ANALOG, ANALOG_LABELS[config.controls.analog]);
             else if (SELECTED(ENTRY_RUMBLE))        set_menu_text(ENTRY_RUMBLE, RUMBLE_LABELS[(int)(config.controls.rumble / 0.25f)]);
+            else if (SELECTED(ENTRY_DEADZONE))      set_menu_text(ENTRY_DEADZONE, Utils::to_string(config.controls.asettings[1]));
         }
         else if (menu_selected == &menu_engine || menu_selected == &menu_s_dips)
         {
@@ -1226,6 +1257,10 @@ void Menu::redefine_keyboard()
 
 void Menu::redefine_joystick()
 {
+    // crossover: a wheel's pedals are WHEEL SETUP's (it finds their direction too): buttons only here
+    if (redef_state < 2 && config.controls.analog == 1 && input.wheel_by_setup())
+        redef_state = 2;
+
     if (redef_state == 3 && config.controls.gear != config.controls.GEAR_SEPARATE) // Skip redefine of second gear press
         redef_state++;
 
@@ -1263,6 +1298,112 @@ void Menu::redefine_joystick()
             state = STATE_MENU;
             break;
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+// Crossover: WHEEL SETUP. The steering and pedal axes of a wheel, found by moving each, then the
+// START button by pressing it: no button or key is needed to get through it, so a wheel can be set
+// up with nothing bound yet. The axis that moves furthest from where it rested is taken, with its
+// direction (left must read low, a pressed pedal high: otherwise the axis is marked inverted).
+// MENU (or the keyboard's menu key) leaves it at any step.
+// ------------------------------------------------------------------------------------------------
+void Menu::wheel_setup_begin()
+{
+    wheel_offered = true;
+    if (!input.gamepad)              { display_message("NO JOYSTICK FOUND"); return; }
+    if (config.controls.analog == 0) { display_message("SET ANALOG TO ON FIRST"); return; }
+    state = STATE_WHEEL_SETUP;
+    wheel_step = 0;
+    wheel_wait = 3 * config.fps;    // three seconds to read the first line (and for the axes' values to arrive)
+    input.capture_begin();
+}
+
+void Menu::wheel_setup()
+{
+    // the steps: the three axes (config.controls.axis 0-2), then the START button
+    enum { STEER, ACCEL, BRAKE, START };
+    static const char* PROMPTS[] = { "TURN THE WHEEL A QUARTER TURN LEFT", "PRESS THE ACCELERATOR", "PRESS THE BRAKE",
+                                     "PRESS THE BUTTON TO USE AS START" };
+    // a quarter turn is 5,461 of 65,535 on a wheel set to 1080 degrees; a pedal is taken at a third of its travel
+    static const int TRAVEL[] = { 4500, 22000, 22000 };
+    // wheel only (analog 2): the pedals stay digital (REDEFINE GAMEPAD's buttons)
+    static const int ALL[] = { STEER, ACCEL, BRAKE, START }, WHEEL_ONLY[] = { STEER, START };
+    const int* order = config.controls.analog == 1 ? ALL : WHEEL_ONLY;
+    const int steps  = config.controls.analog == 1 ? 4 : 2;
+    const int between = config.fps * 2 / 3;     // two thirds of a second at rest between the steps
+
+    // (the START step takes any button, the one bound to MENU included: only the keyboard leaves it)
+    const bool at_start = wheel_wait == 0 && wheel_step < steps && order[wheel_step] == START;
+    if (!input.gamepad || (input.has_pressed(Input::MENU) && !(at_start && input.joy_button != -1)))
+    {
+        state = STATE_MENU;
+        display_message("WHEEL SETUP LEFT");
+        return;
+    }
+
+    // under the logo, above the prompt (draw_text's row)
+    const int row = 13 + ((ROWS - 13) >> 1) - 1;
+    ohud.blit_text_new(20 - 5, row - 4, "WHEEL SETUP", ohud.GREEN);
+    if (*input.pad_name())
+    {
+        std::string name = menu_text_safe(input.pad_name());
+        if (name.length() > 38) name.resize(38);
+        ohud.blit_text_new(20 - ((int) name.length() >> 1), row - 2, name.c_str(), ohud.GREY);
+    }
+
+    if (wheel_wait > 0)
+    {
+        // between steps: everything back at rest (and a moment for it to stay there)
+        // (a direct-drive wheel does not centre itself: the player is asked to)
+        draw_text(wheel_step == 0 ? "CENTRE THE WHEEL AND LIFT OFF THE PEDALS" :
+                  wheel_step >= steps ? "DONE" : order[wheel_step - 1] == STEER ? "NOW CENTRE THE WHEEL" : "NOW LET GO");
+        if (!input.capture_settled() && wheel_step > 0 && wheel_step < steps) { wheel_wait = between; return; }
+        if (--wheel_wait == 0)
+        {
+            if (wheel_step >= steps)
+            {
+                // a wheel has no slack in its centre: the dead zone (for worn sticks) goes; STEERING
+                // DEAD ZONE in this menu brings one back
+                config.controls.asettings[1] = 0;
+                input.set_wheel_dead(0);
+                config.save();
+                state = STATE_MENU;
+                display_message(*input.profile_name() ? "WHEEL SET UP - OTHER BUTTONS BY PROFILE"
+                                                       : "WHEEL SET UP - NOW REDEFINE GAMEPAD");
+                return;
+            }
+            // where every axis rests: the wheel centred, the pedals up
+            if (wheel_step == 0) input.capture_begin();
+            // a button pressed before its step is not the answer
+            input.joy_button = -1;
+        }
+        return;
+    }
+
+    const int step = order[wheel_step];
+    draw_text(PROMPTS[step]);
+
+    if (step == START)
+    {
+        if (input.joy_button == -1) return;
+        config.controls.padconfig[4] = input.joy_button;
+        input.joy_button = -1;
+    }
+    else
+    {
+        unsigned skip = 0;
+        for (int i = 0; i < step; i++)
+            if (config.controls.axis[i] >= 0) skip |= 1u << config.controls.axis[i];
+        int direction = 0;
+        const int found = input.capture_axis(TRAVEL[step], skip, direction);
+        if (found < 0) return;
+
+        config.controls.axis[step] = found;
+        // steering: left reads low; a pedal: pressed reads high
+        config.controls.invert[step] = step == STEER ? direction > 0 : direction < 0;
+    }
+    wheel_step++;
+    wheel_wait = between;
 }
 
 // Display a contextual message in the top left of the screen

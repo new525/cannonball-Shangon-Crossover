@@ -46,12 +46,124 @@ void Input::init(int pad_id, int* key_config, int* pad_config, int analog, int* 
     motor_limits[0] = motor_limits[1] = motor_limits[2] = 0;
 }
 
+// Crossover: built-in button defaults for wheels SDL has no game controller mapping for, by USB id.
+// Only entries still at -1 (not set in config.xml or the menu) take a default.
+//
+// Logitech PRO Racing Wheel (the direct-drive one; 046d:c272 Xbox/PC, 046d:c268 PlayStation/PC): the
+// button numbers are those of its HID report in order, as documented with hardware captures by the
+// Linux driver project github.com/mescon/logitech-rs50-linux-driver (docs/BUTTON_MAPPING.md, "sequential
+// indices that match Windows DirectInput"): 0 A, 1 X, 2 B, 3 Y, 4 right paddle, 5 left paddle, 6 RT,
+// 7 LT, 8 View, 9 Menu, 10 RSB, 11 LSB, 27 the G button; the d-pad is a hat. Not checked on the
+// hardware here. The axes are not in the profile: their order through SDL could not be established
+// without the wheel, so WHEEL SETUP finds them by asking the player to move each.
+struct WheelProfile
+{
+    int vendor, product;
+    const char* name;
+    int gear1, gear2, start, coin, menu, view;      // padconfig 2-7
+};
+
+static const WheelProfile WHEEL_PROFILES[] =
+{
+    //                                                      gear1 (down)  gear2 (up)   start    coin     menu   view
+    { 0x046d, 0xc272, "LOGITECH PRO RACING WHEEL",          5 /* L paddle */, 4 /* R paddle */, 9 /* Menu */, 8 /* View */, 2 /* B */, 3 /* Y */ },
+    { 0x046d, 0xc268, "LOGITECH PRO RACING WHEEL",          5, 4, 9, 8, 2, 3 },
+};
+
+// The joystick to use: config's pad_id, or with -1 the first that SDL calls a wheel, else the first
+int Input::choose_pad() const
+{
+    const int count = SDL_NumJoysticks();
+    if (pad_id >= 0) return pad_id < count ? pad_id : -1;
+    for (int i = 0; i < count; i++)
+        if (SDL_JoystickGetDeviceType(i) == SDL_JOYSTICK_TYPE_WHEEL) return i;
+    return count > 0 ? 0 : -1;
+}
+
+void Input::apply_profile()
+{
+    profile = "";
+    if (controller != NULL) return;     // SDL's own mapping gives the defaults
+    for (const WheelProfile& p : WHEEL_PROFILES)
+    {
+        if (p.vendor != pad_vid || p.product != pad_pid) continue;
+        profile = p.name;
+        const int defaults[6] = { p.gear1, p.gear2, p.start, p.coin, p.menu, p.view };
+        for (int i = 0; i < 6; i++)
+            if (pad_config[2 + i] == -1) pad_config[2 + i] = defaults[i];
+        return;
+    }
+}
+
+bool Input::wheel_needs_setup() const
+{
+    return gamepad && wheel_device && controller == NULL && analog != 0 &&
+           (axis[0] == -1 || (analog == 1 && (axis[1] == -1 || axis[2] == -1)));
+}
+
+void Input::capture_begin()
+{
+    for (int a = 0; a < CAPTURE_AXES; a++)
+        capture_rest[a] = stick != NULL && a < SDL_JoystickNumAxes(stick) ? SDL_JoystickGetAxis(stick, a) : 0;
+}
+
+int Input::capture_axis(int travel, unsigned skip, int& direction)
+{
+    if (stick == NULL) return -1;
+    int best = -1, best_move = 0;
+    for (int a = 0; a < CAPTURE_AXES && a < SDL_JoystickNumAxes(stick); a++)
+    {
+        if (skip & (1u << a)) continue;
+        const int move = SDL_JoystickGetAxis(stick, a) - capture_rest[a];
+        if (std::abs(move) >= travel && std::abs(move) > std::abs(best_move)) { best = a; best_move = move; }
+    }
+    direction = best_move < 0 ? -1 : 1;
+    return best;
+}
+
+bool Input::capture_settled()
+{
+    if (stick == NULL) return true;
+    for (int a = 0; a < CAPTURE_AXES && a < SDL_JoystickNumAxes(stick); a++)
+        if (std::abs(SDL_JoystickGetAxis(stick, a) - capture_rest[a]) > 0x1000) return false;
+    return true;
+}
+
+void Input::close_rumble()
+{
+    if (haptic != NULL)
+    {
+        SDL_HapticClose(haptic);
+        haptic = NULL;
+    }
+    rumble_supported = false;
+}
+
 void Input::open_joy()
 {
-    gamepad = SDL_NumJoysticks() > pad_id;
+    // Crossover: the joystick is chosen (pad_id -1: a wheel if there is one) and described, and a
+    // joystick already open is closed first (this runs again for every device SDL announces)
+    close_joy();
+    pad_open = choose_pad();
+    gamepad = pad_open >= 0;
+    wheel_device = false;
+    pad_vid = pad_pid = 0;
+    pad_name_text.clear();
+    profile = "";
     if (gamepad)
     {
+        const int pad_id = pad_open;
         stick = SDL_JoystickOpen(pad_id);
+        if (stick == NULL) { gamepad = false; pad_open = -1; }
+    }
+    if (gamepad)
+    {
+        const int pad_id = pad_open;
+        wheel_device = SDL_JoystickGetDeviceType(pad_id) == SDL_JOYSTICK_TYPE_WHEEL;
+        pad_vid = SDL_JoystickGetDeviceVendor(pad_id);
+        pad_pid = SDL_JoystickGetDeviceProduct(pad_id);
+        const char* n = SDL_JoystickNameForIndex(pad_id);
+        pad_name_text = n ? n : "";
 
         // If this is a recognized Game Controller, let's pull some useful default information
         if (SDL_IsGameController(pad_id))
@@ -75,11 +187,16 @@ void Input::open_joy()
             bind_button(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, 11);
         }
 
-        haptic = SDL_HapticOpen(pad_id);
+        apply_profile();
+
+        // The simple rumble, on this joystick's own haptic interface (it was SDL's haptic device of
+        // the same number, which need not be this joystick). Not on a wheel: its motor is force
+        // feedback's (ffb/), and a second handle on it here only got in that one's way.
+        rumble_supported = false;
+        if (!wheel_device && stick != NULL && SDL_JoystickIsHaptic(stick) == 1)
+            haptic = SDL_HapticOpenFromJoystick(stick);
         if (haptic)
         {
-            rumble_supported = false;
-
             if (SDL_HapticRumbleSupported(haptic))
                 rumble_supported = SDL_HapticRumbleInit(haptic) != -1;
         }
@@ -215,17 +332,19 @@ void Input::handle_key(const int key, const bool is_pressed)
 
 void Input::handle_joy_axis(SDL_JoyAxisEvent* evt)
 {
-    if (controller != NULL) return;
+    if (controller != NULL || !ours(evt->which)) return;
     handle_axis(evt->axis, evt->value);
 }
 
 void Input::handle_controller_axis(SDL_ControllerAxisEvent* evt)
 {
+    if (!ours(evt->which)) return;
     handle_axis(evt->axis, evt->value);
 }
 
-void Input::handle_axis(const uint8_t ax, const int16_t value)
+void Input::handle_axis(const uint8_t ax, const int16_t value_in)
 {
+    const int16_t value = value_in;
     // Analog Controls
     if (analog)
     {
@@ -237,6 +356,9 @@ void Input::handle_axis(const uint8_t ax, const int16_t value)
         // OutRun requires values between 0x48 and 0xb8.
         if (ax == axis[0])
         {
+            // Crossover: a wheel that reads left as positive (WHEEL SETUP sets invert[0])
+            // (mirrored about 0, so that the centre stays the centre)
+            const int value = !invert[0] ? (int) value_in : value_in == -32768 ? 32767 : -(int) value_in;
             wheel = ((value + 0x8000) / 0x100); // Back up this value for cab diagnostics only
 
             int percentage_adjust = ((wheel_zone) << 8) / 100;
@@ -343,7 +465,7 @@ void Input::reset_axis_config()
 
 void Input::handle_joy_down(SDL_JoyButtonEvent* evt)
 {
-    if (controller != NULL) return;
+    if (controller != NULL || !ours(evt->which)) return;
     // Latch joystick button presses for redefines
     joy_button = evt->button;
     handle_joy(evt->button, true);
@@ -351,18 +473,20 @@ void Input::handle_joy_down(SDL_JoyButtonEvent* evt)
 
 void Input::handle_joy_up(SDL_JoyButtonEvent* evt)
 {
-    if (controller != NULL) return;
+    if (controller != NULL || !ours(evt->which)) return;
     handle_joy(evt->button, false);
 }
 
 void Input::handle_controller_down(SDL_ControllerButtonEvent* evt)
 {
+    if (!ours(evt->which)) return;
     joy_button = evt->button;
     handle_joy(evt->button, true);
 }
 
 void Input::handle_controller_up(SDL_ControllerButtonEvent* evt)
 {
+    if (!ours(evt->which)) return;
     handle_joy(evt->button, false);
 }
 
@@ -389,7 +513,7 @@ void Input::handle_joy(const uint8_t button, const bool is_pressed)
 
 void Input::handle_joy_hat(SDL_JoyHatEvent* evt)
 {
-    if (controller != NULL) return;
+    if (controller != NULL || !ours(evt->which)) return;
 
     set_key_state(UP,    evt->value == SDL_HAT_UP);
     set_key_state(DOWN,  evt->value == SDL_HAT_DOWN);

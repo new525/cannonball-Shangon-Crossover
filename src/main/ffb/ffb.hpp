@@ -30,6 +30,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 namespace ffb
 {
@@ -64,6 +65,13 @@ namespace ffb
     void close();
     bool active();                  // enabled in the config and a device (or the log double) is there
     void enable(bool on);           // the menu's FORCE FEEDBACK entry
+    bool device_open();             // a device was found and opened (whatever the window's focus)
+    const char* status();           // one line: the device in use, or why there is none
+    void device_changed();          // a joystick was plugged in or removed: look for the device again
+    // Writes what SDL reports about every joystick and its force feedback, and what opening the device
+    // did, to ffb-report.txt in the program's folder (config's save path); the path, or "" if the
+    // file could not be written
+    std::string write_report();
     void apply_settings();          // after the menu changed the strength or the spring
 
     void tick(const State& s);      // one 30 Hz tick with the vehicle's state

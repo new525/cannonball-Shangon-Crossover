@@ -20,13 +20,23 @@
 ***************************************************************************/
 #pragma once
 
+#include <string>
+
 namespace ffbdev
 {
     // Open a device. Order: a joystick whose vendor:product matches FF_TARGET_VIDPID (environment,
     // "046d:c24f" or "0x046d:0xc24f"), then the joystick the program reads its controls from
     // (pad_id), then any joystick SDL reports as a wheel, then any joystick, each only if it has
-    // a haptic interface with a constant-force effect. Returns false when none is found.
+    // a haptic interface with a constant-force effect; last, SDL's own list of haptic devices (a
+    // device whose joystick side SDL reads through a driver without force feedback). Returns
+    // false when none is found; status() then says why in a line.
     bool init(int pad_id);
+    // One line on the last init(): the device in use, or why none was opened
+    const char* status();
+    // Everything SDL reports about the joysticks and their force feedback, and what each step of
+    // init() did, as text: for a wheel that isn't found (the menu's DEVICE REPORT writes it to
+    // ffb-report.txt). Opens and closes devices to ask them; the one in use stays open.
+    std::string report();
     void close();
     bool is_supported();
     // the SDL joystick instance id of the device, or -1: the gamepad rumble path leaves that one alone

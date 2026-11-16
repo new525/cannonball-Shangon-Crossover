@@ -18,8 +18,13 @@ direction otherwise, as DX does): a constant force (signed, -100..100 %), a spri
 (0..100 % of the full coefficient, the device's own autocenter switched off) and a sine vibration
 (magnitude and period). The master strength scales the three. Device choice, in order: the
 joystick whose vendor:product matches `FF_TARGET_VIDPID` in the environment (`046d:c24f`), the
-`pad_id` joystick the program reads its controls from, any joystick of the wheel type, any
-joystick; each only if it has a haptic interface with a constant-force effect. The gamepad rumble
+joystick the program reads its controls from (`Input::pad_index`), any joystick of the wheel type,
+any joystick, then any device in SDL's own haptic list (one SDL lists as haptic without tying it to
+a joystick); each only if it has a constant-force effect. A wheel whose driver refuses a constant
+force along the steering axis gets one in a cartesian direction instead. The joystick's simple
+rumble handle (`Input`) is not opened on a wheel and is closed when force feedback takes the same
+joystick, so only one handle drives the motor. A wheel plugged in later is picked up
+(`ffb::device_changed` on SDL's joystick added/removed events). The gamepad rumble
 path (`Input::set_rumble`) is untouched; with force feedback on, `OOutputs` runs in its force
 feedback mode, so the rumble output is never set (as in Cannonball).
 
@@ -28,6 +33,49 @@ Testing double: `CB_FFB_LOG=<file>` appends every backend call with the engine f
 as present without hardware; `CB_FFB_LOG_STATE=1` adds the vehicle state given to the effects
 each tick. Without a device and without the switch every call returns at once; with
 `haptic enabled` 0 nothing is opened and nothing runs.
+
+### When no device is found
+
+Every attempt records why each candidate failed (cannot be opened; no force feedback interface,
+with SDL's error; no constant force, with the effects it has; effect refused). The menu shows the
+short reason when FORCE FEEDBACK is turned on (`NO JOYSTICK FOUND`, `NO FFB ON DEVICE`, `FFB
+EFFECT REFUSED`), and `ffb-report.txt` is written to the save path (`data.savepath`, the program's
+folder by default): SDL's version and platform, the controls in use, every joystick SDL lists
+(name, vendor:product, type, game controller mapping, GUID, axes/buttons/hats with their current
+values and the buttons held, whether it has a force feedback interface and which effects), SDL's
+haptic list and the attempt's steps. CONTROLS > CONFIGURE GAMEPAD > DEVICE REPORT writes the same
+file at any time.
+
+On Windows, SDL 2.30 gives haptics only to joysticks it reads through DirectInput; a wheel whose
+DirectInput driver offers no force feedback interface (Logitech's wheels need G HUB's driver for
+it) shows `force feedback interface: no` in the report.
+
+### Wheels without a game controller mapping (`sdl2/input`)
+
+SDL maps game pads, not wheels, so a wheel arrives as a plain joystick: Cannonball gave it no
+default buttons and no steering axis. Now:
+- `controls.pad_id` -1 (the new default) uses the first joystick SDL calls a wheel, else the first
+  joystick. A number picks one as before.
+- Built-in button defaults by USB id (`WHEEL_PROFILES` in `sdl2/input.cpp`), applied to padconfig
+  entries still at -1. The Logitech PRO Racing Wheel (`046d:c272` Xbox/PC, `046d:c268` PS/PC):
+  left paddle gear 1 (low), right paddle gear 2 (high), Menu START, View COIN, B MENU, Y VIEW; the
+  d-pad (a hat) moves through the menus. Button numbers from the Linux driver project
+  github.com/mescon/logitech-rs50-linux-driver (`docs/BUTTON_MAPPING.md`, "sequential indices that
+  match Windows DirectInput"); not checked on the hardware here.
+- WHEEL SETUP (CONTROLS > CONFIGURE GAMEPAD; it runs by itself from the main menu once when a
+  wheel's axes are unset) finds the axes by asking for each to be moved: centre the wheel and lift
+  off the pedals, a quarter turn left, the accelerator, the brake; then a button to use as START.
+  The axis that moved furthest from rest is taken with its direction (`invert` on the wheel axis,
+  new, and on the pedals), the steering dead zone is set to 0 and the config is saved. The axes
+  are not in the profile because their order through SDL could not be established without the
+  wheel. MENU or the keyboard's menu key leaves it.
+- STEERING DEAD ZONE (CONFIGURE GAMEPAD; `controls.analog.wheel.dead`, 0-32 of 128 in steps of 4)
+  for a wheel or stick with a loose centre.
+- REDEFINE GAMEPAD on a wheel asks for buttons only (the pedals are WHEEL SETUP's).
+- Events from other open joysticks are ignored (force feedback may hold one open).
+
+The harness can attach an SDL virtual wheel (`vwheel`, `vaxis`, `vbutton`, `vhat`, `vdetach`; see
+`crossover/harness.cpp`), so the profile, WHEEL SETUP and driving with a wheel are tested headless.
 
 ## 2. The effects (`ffb/ffb`)
 
@@ -133,7 +181,8 @@ Hang-On's and Hang-On's courses.
 
 ## 5. Not testable here: a wheel
 
-No haptic device exists on the test machine. What a user with a wheel should check first:
+No haptic device exists on the test machine. If no device is found, `ffb-report.txt` says what SDL
+sees. What a user with a wheel should check first:
 1. the program prints `Force feedback: <device> (wheel), spring yes, periodic yes` at start with
    `haptic enabled` 1 (else which device SDL picked: use `FF_TARGET_VIDPID`);
 2. in the menu the wheel centres gently (SPRING 80 x 40 %); with FFB STRENGTH stepped the force

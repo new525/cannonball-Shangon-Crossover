@@ -187,8 +187,9 @@
     -->
     <gear>0</gear>
     
-    <!-- Use the N'th joystick on the system. -->
-    <pad_id>0</pad_id>
+    <!-- Use the N'th joystick on the system (0 = the first). -1 = choose: a steering wheel if one is
+         connected, else the first joystick. -->
+    <pad_id>-1</pad_id>
     
     <!-- Use simple rumble effect if supported on controller (not to be confused with force feedback) 
          This is a value between 0 and 1.0 [0 = off, 1 = full]
@@ -242,9 +243,13 @@
 		<!-- Select axis for analog controls             
              Set the axis to -1 to attempt to auto-detect the axis on first boot.
              Set invert to "1" when off and on and reversed (shouldn't be needed on gamepads).
+             A steering wheel that SDL reads as a plain joystick has no automatic axes: the menu's
+             WHEEL SETUP (SETTINGS > CONTROLS > CONFIGURE GAMEPAD; it runs by itself the first time)
+             finds the three axes and their directions by asking for the wheel and each pedal to be
+             moved, and writes them here.
           -->
 		<axis>
-			<wheel>-1</wheel>
+			<wheel invert="0">-1</wheel>
 			<accel invert="0">-1</accel>
 			<brake invert="0">-1</brake>
 		</axis>
@@ -257,14 +262,18 @@
             <zone>0</zone>
             <!-- Dead Zone In Centre Of Wheel. Total Wheel Range = 128
                  A Dead zone is useful if the centre accuracy of your wheel is poor.
-                 A good Logitech Racing wheel should not need this -->
+                 A good Logitech Racing wheel should not need this (WHEEL SETUP sets it to 0;
+                 the menu's STEERING DEAD ZONE changes it) -->
             <dead>16</dead>
         </wheel>
         
         <!-- Force Feedback for steering wheels (SDL2 haptics, Windows and Linux; for gamepads use the
              simple rumble support instead). The device: the joystick named by FF_TARGET_VIDPID in the
-             environment (e.g. 046d:c24f), else the pad_id joystick, else any wheel, else any joystick
-             with a constant-force effect. Menu: CONTROLS > FORCE FEEDBACK, FFB STRENGTH, SPRING.
+             environment (e.g. 046d:c24f), else the joystick the controls use, else any wheel, else
+             any joystick with a constant-force effect, else a device from SDL's own haptic list.
+             Menu: CONTROLS > FORCE FEEDBACK, FFB STRENGTH, SPRING. When no device is found the
+             reason is shown and ffb-report.txt (next to config.xml's save path) lists what SDL
+             reports about every joystick; CONFIGURE GAMEPAD > DEVICE REPORT writes it at any time.
              Set CB_FFB_LOG=<file> in the environment to log every force sent (with no device the
              effects then run against the log alone, for tests).
 

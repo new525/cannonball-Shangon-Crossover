@@ -49,6 +49,11 @@ private:
     bool steer_on = false, steer_abs = false, steer_road = false;
     int  steer_target = 0;
 
+    // a virtual joystick ("vwheel"): the real input path (SDL's events, the joystick's profile, the
+    // menu's WHEEL SETUP) under test, so the scripted keys above are left alone while it is attached
+    void* vjoy = nullptr;       // SDL_Joystick*
+    int   vjoy_index = -1;
+
     void apply(const Cmd& c);
     void write_ppm(const std::string& path, const uint16_t* pixels, int w, int h);
 };

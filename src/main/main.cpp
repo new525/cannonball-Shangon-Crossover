@@ -131,10 +131,13 @@ static void process_events(void)
 
             case SDL_JOYDEVICEADDED:
                 input.open_joy();
+                ffb::device_changed();      // crossover: a wheel plugged in later gets its force feedback
                 break;
 
             case SDL_JOYDEVICEREMOVED:
-                input.close_joy();
+                // crossover: the joystick is chosen again from those left (it was closed whichever went)
+                input.open_joy();
+                ffb::device_changed();
                 break;
 
             case SDL_WINDOWEVENT:
@@ -500,6 +503,9 @@ int main(int argc, char* argv[])
                config.controls.keyconfig, config.controls.padconfig, 
                config.controls.analog,    config.controls.axis, config.controls.invert, config.controls.asettings);
 
+    // crossover: the joystick is opened now (SDL has listed them; its "added" events come later, in
+    // the main loop), so force feedback is looked for on the joystick in use
+    input.open_joy();
     ffb::init();    // crossover: force feedback, when controls.haptic is set
 
     // Populate menus

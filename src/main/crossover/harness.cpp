@@ -19,6 +19,13 @@
       <frame> autopilot on|off       the bike steers itself (Super Hang-On's attract-mode rider)
       <frame> trace <file>           write engine variables per frame to the file
       <frame> exit                   quit
+      <frame> vwheel [vid pid [axes buttons]]   attach a virtual wheel (default 046d c272, 7 axes, 30 buttons,
+                                     1 hat): SDL reports it as a joystick of type wheel, and the game reads it
+                                     through its ordinary input code. The scripted keys stop while it is attached.
+      <frame> vaxis <n> <value>      its axis n (-32768..32767)
+      <frame> vbutton <n> <0|1>      its button n
+      <frame> vhat <value>           its hat (1 up, 2 right, 4 down, 8 left, 0 centred)
+      <frame> vdetach                unplug it
     <frame> counts engine ticks from 1. Commands run before that tick.
 ***************************************************************************/
 #include "crossover/harness.hpp"
@@ -30,6 +37,7 @@
 #include <sstream>
 #include <algorithm>
 
+#include <SDL.h>
 #include "main.hpp"
 #include "sdl2/input.hpp"
 #include "video.hpp"
@@ -143,6 +151,34 @@ void Harness::apply(const Cmd& c)
         if (!c.args.empty()) trace = fopen(c.args[0].c_str(), "w");
         if (trace) fprintf(trace, "frame state road_pos road_width road_ctrl split car_x car_kmh wheels bike_kmh bike_x bike_off crash_ctr crash_state coll1 ingame_eng spin1\n");
     }
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+    else if (c.op == "vwheel")
+    {
+        SDL_VirtualJoystickDesc d;
+        SDL_zero(d);
+        d.version    = SDL_VIRTUAL_JOYSTICK_DESC_VERSION;
+        d.type       = SDL_JOYSTICK_TYPE_WHEEL;
+        d.vendor_id  = (Uint16) (c.args.size() > 1 ? strtol(c.args[0].c_str(), nullptr, 16) : 0x046d);
+        d.product_id = (Uint16) (c.args.size() > 1 ? strtol(c.args[1].c_str(), nullptr, 16) : 0xc272);
+        d.naxes      = (Uint16) (c.args.size() > 3 ? num(2) : 7);
+        d.nbuttons   = (Uint16) (c.args.size() > 3 ? num(3) : 30);
+        d.nhats      = 1;
+        d.name       = "Harness Virtual Wheel";
+        vjoy_index = SDL_JoystickAttachVirtualEx(&d);
+        vjoy = vjoy_index >= 0 ? SDL_JoystickOpen(vjoy_index) : nullptr;
+        if (!vjoy) std::cerr << "harness: no virtual wheel: " << SDL_GetError() << std::endl;
+    }
+    else if (c.op == "vaxis"   && vjoy) SDL_JoystickSetVirtualAxis((SDL_Joystick*) vjoy, num(0), (Sint16) num(1));
+    else if (c.op == "vbutton" && vjoy) SDL_JoystickSetVirtualButton((SDL_Joystick*) vjoy, num(0), (Uint8) num(1));
+    else if (c.op == "vhat"    && vjoy) SDL_JoystickSetVirtualHat((SDL_Joystick*) vjoy, 0, (Uint8) num(0));
+    else if (c.op == "vdetach" && vjoy)
+    {
+        SDL_JoystickClose((SDL_Joystick*) vjoy);
+        SDL_JoystickDetachVirtual(vjoy_index);
+        vjoy = nullptr;
+        vjoy_index = -1;
+    }
+#endif
     else if (c.op == "exit")    cannonball::state = cannonball::STATE_QUIT;
     else std::cerr << "harness: unknown command '" << c.op << "' at frame " << c.frame << std::endl;
 }
@@ -153,8 +189,8 @@ void Harness::before_tick()
     while (next < cmds.size() && cmds[next].frame <= frame)
         apply(cmds[next++]);
 
-    // digital keys
-    for (int k = 0; k < 11; k++) input.keys[k] = false;
+    // digital keys (not with a virtual wheel: its buttons arrive as SDL's events, and stay)
+    for (int k = 0; k < 11 && !vjoy; k++) input.keys[k] = false;
     for (auto it = held_keys.begin(); it != held_keys.end();)
     {
         if (frame >= it->until) { it = held_keys.erase(it); continue; }

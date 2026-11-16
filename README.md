@@ -455,7 +455,12 @@ Keys can be changed under **SETTINGS > CONTROLS > REDEFINE KEYS**. Gamepads and 
 work as in Cannonball. Force feedback: **CONTROLS > FORCE FEEDBACK**, **FFB STRENGTH** and **SPRING**;
 the per-effect strengths are in `config.xml` under `controls/analog/haptic` (`effects`, `spring`,
 0-100, DX's defaults; `invert` for a wheel that pulls the wrong way). The device is the controls'
-joystick, else any wheel; `FF_TARGET_VIDPID` (e.g. `046d:c24f`) picks one. Other settings added:
+joystick, else any wheel; `FF_TARGET_VIDPID` (e.g. `046d:c24f`) picks one. When none is found the
+reason is shown and `ffb-report.txt` lists what SDL sees (also **CONFIGURE GAMEPAD > DEVICE
+REPORT**). Steering wheels: `pad_id` -1 (the default) uses a wheel if one is connected; **WHEEL
+SETUP** (CONFIGURE GAMEPAD, offered by itself the first time) finds the steering and pedal axes and
+a START button by asking for each to be moved or pressed; the Logitech PRO Racing Wheel has button
+defaults (paddles gears, Menu START, View COIN, B MENU, Y VIEW). Other settings added:
 `sound.playback_device` (an SDL output device by name, empty = default), `video.display` (the display
 the window opens on, 0 = first), `scores.digital_entry`, `engine.fixes.*` (the bug fixes one by one
 under `fix_bugs`).
