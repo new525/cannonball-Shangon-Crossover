@@ -2,12 +2,13 @@
     The sound board of Sega's System Multi 32 (OutRunners). See orsound.hpp.
 ***************************************************************************/
 #include "crossover/orsound.hpp"
+#include "crossover/units.hpp"
 #include "crossover/ymfm/ymfm_opn.h"
 
 #include <cstring>
 #include <algorithm>
 
-static const uint32_t PCM_CLOCK = 10000000;     // MULTI32_CLOCK / 4
+static const uint32_t PCM_CLOCK = (uint32_t)(ORSound::MULTI32_CLOCK / 4);     // 10 MHz
 enum { SOUND_IRQ_YM3438 = 0, SOUND_IRQ_V60 = 1 };
 
 struct ORSound::Iface : public ymfm::ymfm_interface
@@ -243,8 +244,8 @@ void ORSound::timers()
 // the slice's start. The slices here end at the YM3438's timers and at each 1/60 s.
 int64_t ORSound::slice_end() const
 {
-    int64_t e = ((cyc * 60) / CLOCK + 1) * CLOCK / 60;
-    while (e <= cyc) e = ((e * 60) / CLOCK + 1) * CLOCK / 60 + 1;
+    int64_t e = ((cyc * units::BOARD_FPS) / CLOCK + 1) * CLOCK / units::BOARD_FPS;
+    while (e <= cyc) e = ((e * units::BOARD_FPS) / CLOCK + 1) * CLOCK / units::BOARD_FPS + 1;
     for (int k = 0; k < 2; k++) if (timer_end[k] > cyc && timer_end[k] < e) e = timer_end[k];
     return e;
 }

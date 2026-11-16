@@ -15,6 +15,7 @@
 #include "crossover/balance_pace.hpp"
 #include "crossover/balance_push.hpp"
 #include "crossover/balance.hpp"
+#include "crossover/units.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -43,20 +44,17 @@ CrossoverMadPower madpower;
 static orcar::Record rec_prev;          // the car record the sprite object draws (the last tick's)
 
 // ------------------------------------------------------------------------------------------------
-// Conversions (docs/CROSSOVER-OUTRUNNERS.md 9.2)
+// Conversions (docs/CROSSOVER-OUTRUNNERS.md 9.2; the values and their sources are in crossover/units.hpp)
 // ------------------------------------------------------------------------------------------------
-// Lateral: OutRun X (+ = left; the Ferrari's half-width 24) x -11/6 = OutRunners' lateral (+ = right;
-// MAD POWER's half-width 44), the conversion of section 7 the other way
-static const int LAT_OR = 11, LAT_OUT = 6;
-// Speed: OutRunners' speed (its advance per 30 Hz tick, $8000 a segment) = km/h x 136; OutRun's
-// car_increment is 16.16 km/h
-static const int SPEED_PER_KMH = 136;
-// Distance: one OutRunners segment = 303/272 OutRun path positions (OutRun 303 per km/h per tick in its
-// 16.16 road position, OutRunners 136 per km/h per tick in $8000 a segment)
-static const double POS_PER_SEG = 303.0 / 272.0;
-// OutRun's single-road asphalt half-width around a road centre (OFerrari::check_wheels: one wheel off
-// beyond w + $D4, both beyond w + $104; the edge at w + $EC), as for the bike
-static const int16_t OR_ROAD_HALF = 0xEC;
+// Lateral: OutRun X (+ = left) x -11/6 = OutRunners' lateral (+ = right), the conversion of section 7
+// the other way
+static const int LAT_OR = units::LAT_OUTRUNNERS, LAT_OUT = units::LAT_OUTRUN;
+// Speed: OutRunners' speed = km/h x 136; OutRun's car_increment is 16.16 km/h
+static const int SPEED_PER_KMH = units::OUTRUNNERS_SPEED_PER_KMH;
+// Distance: one OutRunners segment = 303/272 OutRun path positions
+static const double POS_PER_SEG = units::OUTRUN_POS_PER_SEGMENT;
+// OutRun's single-road asphalt half-width around a road centre, as for the bike
+static const int16_t OR_ROAD_HALF = units::OUTRUN_ROAD_EDGE;
 // The ring the handling reads: the car's segment and those after it
 static const int NSEG = 16;
 // OutRunners' sprite list offset and the car's projected point on its start line (R16 = -12 below the
@@ -65,8 +63,8 @@ static const int ORIGIN_X = 160, ORIGIN_Y = 222, POINT_Y = -12;
 // The camera's pitch for $7B3F's hill index h (0 up, 1 level, 2.. down), with the road level:
 // (pitch - $B0) x 16 / $300 = h
 static inline uint16_t pitch_for_hill(int h) { return (uint16_t)(0xB0 + h * 0x30 + 0x18); }
-// Sound: as crossover/ormode (MAME's left speaker, the race level x 0.17)
-static const float YM_ROUTE = 0.40f, PCM_ROUTE = 1.0f, GAIN_OR = 0.17f;
+// Sound: as crossover/ormode (MAME's left speaker, the race level x 0.17: crossover/orsound.hpp)
+static const float YM_ROUTE = ORSound::YM_ROUTE, PCM_ROUTE = ORSound::PCM_ROUTE, GAIN_OR = ORSound::RACE_GAIN;
 static const uint32_t SH_ENGINE = 0x0710, SH_CTRL = 0x0712, SH_CAR = 0x0713, SH_BOX = 0x0714, SH_TYRE = 0x0718, SH_CMD = 0x0700;
 // The slope (docs/CROSSOVER-OUTRUNNERS.md 9.10). A road at a slope seen from its camera moves the far road
 // by (focal length x tan) pixels; a hill that looks as steep in both games moves it as far:
@@ -548,7 +546,7 @@ void CrossoverMadPower::tick()
     int crossed = (uint16_t)(s.seg_count - seg_before);
     int ks = std::min(crossed, NSEG - 2);
     double dh = wrap12((double) road.seg[ks].heading - road.seg[ks + 1].heading) * 2.0 * M_PI / 4096.0;
-    double len = 0x8000 + std::sin(dh) * 16384.0 * s.lateral / 64.0;
+    double len = units::OUTRUNNERS_SEGMENT + std::sin(dh) * 16384.0 * s.lateral / 64.0;
     double f = len > 0 ? std::min(0.999999, std::max(0.0, (double) s.pos / len)) : 0;
     double dseg = crossed + f - seg_frac;
     seg_frac = f;
@@ -749,7 +747,7 @@ void CrossoverMadPower::mix(int32_t* out, int samples_n, int fps)
     // (on Super Hang-On's and Hang-On's courses the vehicle's code switches the engine off when the race ends)
     if (!enabled || !(board_path || (outrun.game_state >= GS_START1 && outrun.game_state <= GS_BONUS))) { writes.clear(); cmds.clear(); }
     if (fps <= 0) fps = 60;
-    const int64_t frame60 = ORSound::CLOCK / 60;
+    const int64_t frame60 = ORSound::CLOCK / units::BOARD_FPS;
     double cyc = (double) ORSound::CLOCK / fps + frame_frac;
     int64_t n = (int64_t) cyc;
     frame_frac = cyc - (double) n;

@@ -23,12 +23,14 @@
 #include "crossover/orvehicle.hpp"
 #include "crossover/balance_push.hpp"
 #include "crossover/balance.hpp"
+#include "crossover/units.hpp"
+#include "crossover/oraddr.hpp"
 #include "ffb/ffb.hpp"
 
 ORMode ormode;
 
 // Work RAM addresses (player 1), docs/OUTRUNNERS-RE.md
-static const uint32_t A_STATE    = 0x208080;    // game state: 2 credit, 6 game
+static const uint32_t A_STATE    = oraddr::A_STATE;  // game state: 2 credit, 6 game
 static const uint32_t A_SUBSTATE = 0x208082;    // game substate: 3 car select, 5 race setup, 6 start
 static const uint32_t A_CAR      = 0x201080;    // player 1's car (name-table index), set as the race starts
 static const uint32_t A_CAR_SEL  = 0x209060;    // the car select's cursor (set 6 frames into substate 3)
@@ -37,11 +39,9 @@ static const uint32_t A_ROUTE    = 0x2080A0;    // route node / stage bytes $208
 static const uint32_t A_ENTRY_P1 = 0x20FB1A, A_ENTRY_P2 = 0x20FC1A;  // entry countdowns (16-bit, 1/30 s)
 static const uint32_t A_GOAL     = 0x209181;    // $FF: the car has reached the goal ($CB51)
 
-// Sound: MAME's routing of the left speaker (YM3438 output 1 x 0.40, MultiPCM output 1 x 1.0) and
-// the program's level for a race on OutRunners' board: x 0.17 brings a race (music and the car's
-// sounds, RMS 4,500 at x 0.26 on Kenya, 16-bit) to OutRun's own races in the program (about 3,000).
-// A design decision, as for the music player (crossover/ormusic.cpp).
-static const float YM_ROUTE = 0.40f, PCM_ROUTE = 1.0f, GAIN_OR = 0.17f;
+// Sound: MAME's routing of the left speaker and the program's level for a race on OutRunners' board
+// (crossover/orsound.hpp)
+static const float YM_ROUTE = ORSound::YM_ROUTE, PCM_ROUTE = ORSound::PCM_ROUTE, GAIN_OR = ORSound::RACE_GAIN;
 
 // Kenya alone: the checkpoint bookkeeping of normal play on reaching Kenya by the West and the lower
 // branches (tools/ortrace, e15 at frame 16420 against the start), written when the car reaches the
@@ -306,7 +306,7 @@ void ORMode::tick()
 {
     if (!active) return;
     set_inputs();
-    acc += 60;
+    acc += units::BOARD_FPS;
     int frames = acc / config.fps;
     acc -= frames * config.fps;
     for (int i = 0; i < frames; i++)
@@ -323,7 +323,7 @@ void ORMode::tick()
         static FILE* motor_log = getenv("CB_OR_MOTOR_LOG") ? fopen(getenv("CB_OR_MOTOR_LOG"), "w") : nullptr;
         if (motor_log)
             fprintf(motor_log, "%llu %02x %02x %d %d %d\n", (unsigned long long) board->frame(), board->lamps_d[0], board->read8(0x20E0D0),
-                    board->read8(0x20040C), board->read8(0x20907C), board->read8(0x209140));
+                    board->read8(oraddr::OBJ_CAR + oraddr::O_STATE), board->read8(0x20907C), board->read8(0x209140));
         // testing: the cars' sounds alone (the music stopped, $1F, at this board frame)
         static const int stop_music = getenv("CB_OR_STOP_MUSIC") ? atoi(getenv("CB_OR_STOP_MUSIC")) : 0;
         if (stop_music && board->frame() == (uint64_t) stop_music) board->write8(0x700700, 0x1F);
@@ -360,25 +360,25 @@ void ORMode::ffb_tick()
     const ORBoard& b = *board;
     auto r8  = [&](uint32_t a) { return (int) b.read8(a); };
     auto r16 = [&](uint32_t a) { return (int)(int16_t)(b.read8(a) | b.read8(a + 1) << 8); };
-    const int cs = r8(0x20040C);
+    const int cs = r8(oraddr::OBJ_CAR + oraddr::O_STATE);
     ffb::State s;
-    s.speed = (int)(uint16_t) r16(0x209074) / 136;
+    s.speed = (int)(uint16_t) r16(oraddr::A_SPEED) / units::OUTRUNNERS_SPEED_PER_KMH;
     s.motor_bit = (b.lamps_d[0] >> 4) & 1;
     if (r8(A_STATE) == 6 && cs >= 2 && cs <= 5)
     {
         s.phase    = ffb::RACE;
         const int sides = r8(0x209140) & 3, shift_smoke = r8(0x209144);
         s.wheels   = !r8(0x20907C) ? ffb::ON : sides == 2 ? ffb::LEFT_OFF : sides == 1 ? ffb::RIGHT_OFF : ffb::OFF;
-        s.side     = r16(0x209038) <= 0 ? 1 : -1;      // OutRunners' lateral is + right
-        s.slipping = (r8(0x209067) || r8(0x209065) || shift_smoke) && s.wheels == ffb::ON;
+        s.side     = r16(oraddr::A_LAT) <= 0 ? 1 : -1;      // OutRunners' lateral is + right
+        s.slipping = (r8(oraddr::A_SLIDING) || r8(0x209065) || shift_smoke) && s.wheels == ffb::ON;
         s.rough    = s.wheels == ffb::ON && sides && !shift_smoke;
         if (cs == 5)
         {
-            const int push = r16(0x2004CE);
+            const int push = r16(oraddr::OBJ_CAR + oraddr::O_PUSH);
             if (ffb_crash_ticks == 0)
             {
                 ffb_crash_dir = push > 0 ? -1 : (push < 0 ? 1 : s.side);
-                ffb_hit_kind = (uint8_t) r8(0x20046E);
+                ffb_hit_kind = (uint8_t) r8(oraddr::OBJ_CAR + oraddr::O_KIND);
             }
             ffb_crash_ticks++;
             if (ffb_hit_kind == 2)

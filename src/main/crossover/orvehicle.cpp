@@ -10,6 +10,8 @@
 #include "crossover/balance_pace.hpp"
 #include "crossover/balance_push.hpp"
 #include "crossover/balance.hpp"
+#include "crossover/units.hpp"
+#include "crossover/oraddr.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -43,20 +45,16 @@ extern "C" {
 ORVehicle orvehicle;
 
 // ------------------------------------------------------------------------------------------------
-// OutRunners addresses (player 1; docs/OUTRUNNERS-RE.md)
+// OutRunners addresses (player 1; docs/OUTRUNNERS-RE.md); those other files read too are in crossover/oraddr.hpp
 // ------------------------------------------------------------------------------------------------
+using oraddr::A_STATE; using oraddr::A_STAGE; using oraddr::OBJ_CAR; using oraddr::O_STATE; using oraddr::O_LATVEL;
+using oraddr::O_ARG; using oraddr::O_KIND; using oraddr::O_PUSH; using oraddr::O_HILL; using oraddr::A_SEGPOS;
+using oraddr::A_LAT; using oraddr::A_SEGCNT; using oraddr::A_SPEED; using oraddr::A_COUNTDOWN; using oraddr::CARS;
 static const uint32_t P1_BASE = 0x208000;               // R25 in player 1's task
-static const uint32_t A_STATE = 0x208080;               // game state: 6 game
-static const uint32_t A_STAGE = 0x2080A2;               // stage number from the course script's header
 static const uint32_t A_LISTPTR = 0x2080C0;             // the sprite list pointer (the last entry written)
 static const uint32_t A_CARNUM = 0x208001;              // the player's car number (0 for player 1 alone)
-static const uint32_t OBJ_CAR = 0x200400;               // the car object: flags (bit 2 collision), state +$0C
-static const uint32_t O_STATE = 0x0C, O_LATVEL = 0x2E, O_KIND = 0x6E, O_ARG = 0x68, O_PUSH = 0xCE, O_HILL = 0xD9,
-    O_SPRBD = 0xBD;
-static const uint32_t A_SEGCNT = 0x209042, A_SEGPOS = 0x209034, A_SEGOFF = 0x209040, A_LAT = 0x209038,
-    A_SPEED = 0x209074, A_RINGEND = 0x2090AA;
-static const uint32_t A_COUNTDOWN = 0x20FB6A;           // the race countdown (1/30 s), master copy
-static const uint32_t CARS = 0x20FC00;                  // the race's car array, $80 per car
+static const uint32_t O_SPRBD = 0xBD;                   // a field of the car object (with oraddr's)
+static const uint32_t A_SEGOFF = 0x209040, A_RINGEND = 0x2090AA;
 static const uint32_t RING = 0x20A000;                  // the segment ring: 128 records of $20
 static const uint32_t SEG_HEADING = 0x00, SEG_HALFWIDTH = 0x12;
 static const uint32_t SND_ENGINE = 0x700710;            // shared RAM: player 1's engine pitch, $700712 on/off
@@ -91,36 +89,29 @@ static const uint32_t BOX_LEFT = 0x0E, BOX_RIGHT = 0x10;    // the entry's later
 static const int REG_R0 = 0, REG_R3 = 3, REG_R10 = 10, REG_R18 = 18, REG_R19 = 19, REG_R20 = 20, REG_R21 = 21, REG_R25 = 25, REG_PC = 32;
 
 // ------------------------------------------------------------------------------------------------
-// Conversions (docs/CROSSOVER-OUTRUNNERS.md 7.2)
+// Conversions (docs/CROSSOVER-OUTRUNNERS.md 7.2; the values and their sources are in crossover/units.hpp)
 // ------------------------------------------------------------------------------------------------
-// Speed: OutRunners' speed is its advance per 30 Hz tick in course units (a segment is $8000 long on
-// the centre line); its HUD shows speed / 136 as km/h ($C2E9). The vehicle's km/h x 136 (the bike's speed is
-// in the same units as OutRun's: 16.16 km/h with the same distance per unit, docs/CROSSOVER-OUTRUNNERS.md 8).
-static const int SPEED_PER_KMH = 136;
-// Lateral: OutRunners' world units (the road's half-width is the segment's +$12, 440 for width code 5;
-// MAD POWER's half-width 44, parameter +$1A and its collision box $12928) against OutRun's X (the
-// Ferrari's half-width 24: OFerrari::check_wheels puts one wheel off 24 inside the road's edge and both
-// 24 outside it). X x 44/24 = X x 11/6, with OutRun's X + = left and OutRunners' + = right. Super Hang-On's X
-// is in OutRun's units (crossover/bike.hpp), so the bike's takes the same conversion.
-static const int LAT_OR = 11, LAT_OUT = 6;
+// Speed: the vehicle's km/h x 136 (the bike's speed is in the same units as OutRun's: 16.16 km/h with the
+// same distance per unit, docs/CROSSOVER-OUTRUNNERS.md 8)
+static const int SPEED_PER_KMH = units::OUTRUNNERS_SPEED_PER_KMH;
+// Lateral: OutRunners' lateral = -X x 11/6, with OutRun's X + = left and OutRunners' + = right. Super
+// Hang-On's X is in OutRun's units (crossover/bike.hpp), so the bike's takes the same conversion.
+static const int LAT_OR = units::LAT_OUTRUNNERS, LAT_OUT = units::LAT_OUTRUN;
 // OutRunners keeps its car within the segment's half-width + $60 ($A77C-$A79A)
 static const int WORLD_MARGIN = 0x60;
-// OutRun's road edge for a single road of road_width w: wheels off from w + $D4 to w + $104, the edge
-// at w + $EC (OFerrari::check_wheels, ROAD_BOTH with w <= $FF)
-static const int OUT_EDGE = 0xEC;
-// Distance: OutRun advances CAR_BASE_INC = 303 per km/h per tick in its road position (16.16, the
-// integer part indexing its path), OutRunners 136 per km/h per tick in $8000 per segment. At the same
-// km/h one OutRun path position is 272/303 of a segment.
-static const double SEG_PER_POS = 136.0 * 65536.0 / (303.0 * 32768.0);
+// OutRun's road edge for a single road of road_width w: w + $EC (ROAD_BOTH with w <= $FF)
+static const int OUT_EDGE = units::OUTRUN_ROAD_EDGE;
+// Distance: at the same km/h one OutRun path position is 272/303 of a segment
+static const double SEG_PER_POS = units::OUTRUNNERS_SEGMENT_PER_POS;
 static const int PATH_N = 72;                           // OutRun's builder reads 68 positions
 // MAD POWER's hill frame index on a level road ($7B3F: $2004D9 = 1 on the pre-stage's level start)
 static const int HILL_LEVEL = 1;
 // OutRun's flat road heights (as crossover/hovehicle): $2400 per entry
-static const int32_t FLAT_STEP = 0x2400;
+static const int32_t FLAT_STEP = units::OUTRUN_FLAT_STEP;
 // OutRun's collision gate after a scenery hit (OLevelObjs::COLLISION_RESET, ticks)
 static const int16_t COLLISION_RESET = 4;
-// The rivals are cars: OutRun's spin chance for its cars (traffic property +5: 1 cars, 3 lorries)
-static const uint16_t CAR_COLLISION_MASK = 1;
+// The rivals are cars: OutRun's spin chance for its cars
+static const uint16_t CAR_COLLISION_MASK = units::OUTRUN_CAR_COLLISION_MASK;
 // OutRun's Ferrari: bottom anchor of its sprite at screen y 221 (OFerrari::setup_ferrari_sprite), x 0 =
 // the middle of OutRun's 320-pixel screen
 static const int FERRARI_REF_X = 160, FERRARI_REF_Y = 221;
@@ -130,7 +121,7 @@ static const int BIKE_REF_X = 160, BIKE_REF_Y = 222;
 // The bike's contact sound: Super Hang-On's $89 when a contact starts ($7540)
 static const uint8_t SH_CONTACT_SOUND = 0x89;
 // OutRunners' answer to a minor contact lasts 15 of its ticks ($7FAA); two Super Hang-On frames a tick
-static const int MINOR_TICKS = 15, SH_FRAMES_PER_TICK = 2;
+static const int MINOR_TICKS = 15, SH_FRAMES_PER_TICK = units::FRAMES_PER_TICK;
 
 static bool dbg() { static int d = getenv("CB_ORF_DEBUG") ? 1 : 0; return d; }
 
@@ -290,7 +281,7 @@ void ORVehicle::on_pc(uint32_t pc)
     if (pc == PC_SPRITES_DONE)
     {
         // player 1's own car (R19 = its entry in the car array), not drawn as another player's car
-        uint32_t own = CARS + 0x80u * RB(A_CARNUM);
+        uint32_t own = CARS + oraddr::CAR_SIZE * RB(A_CARNUM);
         uint32_t r20 = board->main_reg(REG_R20);
         if ((board->main_reg(REG_R19) & 0xFFFFFF) == own && RB(r20 + O_SPRBD) == 0)
         {
@@ -442,9 +433,9 @@ void ORVehicle::collision()
             break;
         case 2:                                             // another car of the race ($200468 = its number)
         {
-            uint32_t rec = CARS + 0x80u * RB(OBJ_CAR + O_ARG);
-            int other = (int16_t) RW(rec + 0x44);
-            int kmh = RW(rec + 0x4C) / SPEED_PER_KMH;
+            uint32_t rec = CARS + oraddr::CAR_SIZE * RB(OBJ_CAR + O_ARG);
+            int other = (int16_t) RW(rec + oraddr::CAR_LAT);
+            int kmh = RW(rec + oraddr::CAR_SPEED) / SPEED_PER_KMH;
             if (n_hits < 8) hits[n_hits++] = { 2, other < own ? -1 : 1, kmh, 2u << 24 | RB(OBJ_CAR + O_ARG) };
             break;
         }
@@ -479,8 +470,8 @@ void ORVehicle::world_to_outrun()
     oferrari.road_width_old = (int16_t) w;
     // OutRun's road position: the distance from the course's start in OutRun positions (its first
     // positions limit the steering on its first stage, OFerrari::set_ferrari_x)
-    uint64_t units = (uint64_t) RW(A_SEGCNT) * 0x8000u + std::min<uint32_t>(RL(A_SEGPOS), 0x7FFF);
-    oroad.road_pos = (uint32_t)(units * 2 * 303 / 272);
+    uint64_t course = (uint64_t) RW(A_SEGCNT) * units::OUTRUNNERS_SEGMENT + std::min<uint32_t>(RL(A_SEGPOS), units::OUTRUNNERS_SEGMENT - 1);
+    oroad.road_pos = (uint32_t)(course * 2 * units::OUTRUN_POS_PER_KMH / (2 * SPEED_PER_KMH));
     // the bike's own road builder reads the path from its road position (path_word)
     path_base = vehicle == SH_BIKE ? oroad.road_pos >> 16 : 0;
     ostats.cur_stage = RB(A_STAGE);
@@ -728,7 +719,7 @@ void ORVehicle::build_road()
     // heading (12-bit, + = turning right; OutRun's path angle atan2(x, y) grows in its right curves)
     // at that distance ahead, the heading interpolated along each segment as OutRunners does at the car
     // ($A842-$A893)
-    double f = std::min<uint32_t>(RL(A_SEGPOS), 0x8000) / 32768.0;
+    double f = std::min<uint32_t>(RL(A_SEGPOS), units::OUTRUNNERS_SEGMENT) / (double) units::OUTRUNNERS_SEGMENT;
     for (int p = 0; p < PATH_N; p++)
     {
         double s = f + p * SEG_PER_POS;

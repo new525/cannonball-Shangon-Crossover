@@ -1,6 +1,6 @@
 /***************************************************************************
-    BALANCE, curve push (see balance.hpp and docs/balance-push.md): where each visiting vehicle's
-    curve push is scaled, and the measurement log.
+    BALANCE, curve push (see balance.hpp and docs/CROSSOVER-BALANCE.md, Curve push): where each visiting
+    vehicle's curve push is scaled, and the measurement log.
 
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
@@ -28,7 +28,7 @@ namespace balance
     void ferrari_curve_adjust();
 
     // Measurement (CB_PUSH_LOG=<file>): one line per tick of each vehicle's push, see
-    // docs/balance-push.md. Null when the switch is off.
+    // docs/CROSSOVER-BALANCE.md (Curve push 2). Null when the switch is off.
     FILE* push_log();
     int log_pos();                          // the course position the log uses for this course
     // per board frame, from the modes: the course's own vehicle (Super Hang-On's bike, Hang-On's bike,

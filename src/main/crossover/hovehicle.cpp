@@ -39,26 +39,28 @@
 extern "C" {
 #include "crossover/shophys/sho_road.h"
 }
+#include "crossover/units.hpp"
+#include "crossover/hoaddr.hpp"
 
 HOVehicle hovehicle;
 
 // ------------------------------------------------------------------------------------------------
-// Hang-On addresses (main CPU view), see docs/CROSSOVER-HANGON.md
+// Hang-On addresses (main CPU view), see docs/CROSSOVER-HANGON.md; those other files use too are in
+// crossover/hoaddr.hpp
 // ------------------------------------------------------------------------------------------------
-static const uint32_t V_STAGE = 0xC7E010, V_POS = 0xC7E030, V_X = 0xC7E050, V_SPR_LEAN = 0xC7E056,
-    V_SPR_X = 0xC7E058, V_SPR_Y = 0xC7E05A, V_DIST = 0xC7E074, V_SPEED = 0xC7E078,
-    V_CRASH_COUNT = 0xC7E084, V_KNOCK = 0xC7E088, V_ODO_STEP = 0xC7E08C, V_ODO = 0xC7E090,
-    V_CRASH = 0xC7E094, V_OFFROAD = 0xC7E098, V_CURVE_NEXT = 0xC7E0A4, V_CURVE_NEXT_R = 0xC7E0A8,
-    V_CURVE = 0xC7E0AC, V_CURVE_R = 0xC7E0B0, V_CHECK = 0xC7E0E2, V_GOAL = 0xC7E0EA,
+using hoaddr::V_BASE; using hoaddr::V_POS; using hoaddr::V_X; using hoaddr::V_SPEED; using hoaddr::V_KNOCK;
+using hoaddr::V_CRASH; using hoaddr::V_OFFROAD; using hoaddr::V_CURVE; using hoaddr::V_CURVE_R;
+using hoaddr::W_INGAME; using hoaddr::W_MODE; using hoaddr::W_TIMER; using hoaddr::SLOT_CENTRIFUGAL; using hoaddr::SLOT_BIKE;
+static const uint32_t V_STAGE = 0xC7E010, V_SPR_LEAN = 0xC7E056, V_SPR_X = 0xC7E058, V_SPR_Y = 0xC7E05A,
+    V_DIST = 0xC7E074, V_CRASH_COUNT = 0xC7E084, V_ODO_STEP = 0xC7E08C, V_ODO = 0xC7E090,
+    V_CURVE_NEXT = 0xC7E0A4, V_CURVE_NEXT_R = 0xC7E0A8, V_CHECK = 0xC7E0E2, V_GOAL = 0xC7E0EA,
     V_RETIRE = 0xC7E0EC, V_EXIT_DONE = 0xC7E0EE, V_DRAW_COUNT = 0xC7E500, V_DRAW_LIST = 0xC7E502,
     V_PATH = 0xC7F0F0;
-static const uint32_t W_INGAME = 0x20C408, W_MODE = 0x20C420, W_DIP = 0x20C450, W_TIMER = 0x20C500,
-    W_PKT = 0x20C640, W_SPRITES = 0x20D400;
+static const uint32_t W_DIP = 0x20C450, W_PKT = 0x20C640, W_SPRITES = 0x20D400;
 
 // object slots ($20C800 + 64 * n) and the tasks expected in them
 static const uint32_t SLOT_BASE = 0x20C800;
-static const uint32_t SLOT_SOUND = 0x20C880, SLOT_SPEED = 0x20CA40, SLOT_CENTRIFUGAL = 0x20CA80,
-    SLOT_BIKE = 0x20D080;
+static const uint32_t SLOT_SOUND = 0x20C880, SLOT_SPEED = 0x20CA40;
 static const uint32_t SLOT_CRASH[4] = { 0x20C900, 0x20C940, 0x20C980, 0x20C9C0 };
 static const uint32_t TASK_SOUND = 0x8140, TASK_SPEED = 0x8566, TASK_CENTRIFUGAL = 0x879A, TASK_BIKE = 0xAF10;
 
@@ -82,8 +84,8 @@ static const uint32_t ROM_SPR_LEAN = 0xB45C;             // the bike's lean fram
 static const uint32_t ROM_RIVAL_SPEED = 0x10FA4;         // rivals' speeds by difficulty and stage
 static const uint32_t ROM_RIVAL_DIV = 0x10F72;
 
-// OutRun: the rivals are bikes, so they get the spin chance of OutRun's cars (see shferrari.cpp)
-static const uint16_t RIVAL_COLLISION_MASK = 1;
+// OutRun: the rivals are bikes, so they get the spin chance of OutRun's cars
+// (units::OUTRUN_CAR_COLLISION_MASK), as on Super Hang-On's courses (shferrari.cpp)
 
 // OutRun single road of half-width $18: OFerrari::check_wheels puts one wheel off at |x| > $18 + $D4 and
 // both off at |x| > $18 + $104, i.e. the edge midpoint at $104 = 260, Hang-On's own road edge (sub_0B57C:
@@ -91,18 +93,15 @@ static const uint16_t RIVAL_COLLISION_MASK = 1;
 static const int32_t ROAD_WIDTH = 0x18;
 
 // Hang-On's bike: draw-list depth (and screen line) of the vehicle, its screen position
-static const int BIKE_DEPTH = 0xE0, BIKE_SX = 0x160, BIKE_SY = 0xDF;
-
-// OutRun's flat road heights (ORoad::set_y_2044 with OutRun's flat horizon: $2400 per entry, measured on
-// its first stage): the car's incline frames, its crash and smoke stand on these
-static const int32_t FLAT_STEP = 0x2400;
+static const int BIKE_DEPTH = 0xE0;
+using hoaddr::BIKE_SX; using hoaddr::BIKE_SY;
 
 // ------------------------------------------------------------------------------------------------
 static inline uint8_t* loc(uint32_t a)
 {
     a &= 0xFFFFFF;
-    if (a >= 0xC7C000 && a < 0xC80000) return hoboard.subram + (a - 0xC7C000);
-    if (a >= 0x20C000 && a < 0x210000) return hoboard.workram + (a - 0x20C000);
+    if (a >= hoaddr::SUB && a < hoaddr::SUB + hoaddr::RAM_SIZE) return hoboard.subram + (a - hoaddr::SUB);
+    if (a >= hoaddr::WORK && a < hoaddr::WORK + hoaddr::RAM_SIZE) return hoboard.workram + (a - hoaddr::WORK);
     static uint8_t dummy[4];
     return dummy;
 }
@@ -121,7 +120,11 @@ static inline uint32_t ROML(uint32_t a) { return (uint32_t) ROMW(a) << 16 | ROMW
 
 // The car's X as Hang-On's program and road see it: within Hang-On's own limit for its bike ($10F64 = 500,
 // sub_0B556), a little inside OutRun's bound for this road ($18 + $1F4 = 524)
-static inline uint16_t ho_x() { return (uint16_t) std::max(-500, std::min((int) oinitengine.car_x_pos, 500)); }
+static inline uint16_t ho_x()
+{
+    const int lim = hoaddr::X_LIMIT;
+    return (uint16_t) std::max(-lim, std::min((int) oinitengine.car_x_pos, lim));
+}
 
 static int16_t ho_path_word(void*, uint32_t off)
 {
@@ -133,9 +136,9 @@ static int16_t ho_path_word(void*, uint32_t off)
 
 static bool dbg() { static int d = getenv("CB_HOVEHICLE_DEBUG") ? 1 : 0; return d; }
 
-// MAD POWER (docs/CROSSOVER-OUTRUNNERS.md section 10): lateral units OutRun's (Hang-On's) x 11/6; Hang-On's road
-// edge for its bike (sub_0B57C: off the road at |X| > 260)
-static const int LAT_OR = 11, LAT_OUT = 6, SPEED_PER_KMH = 136, HO_EDGE = 260;
+// MAD POWER (docs/CROSSOVER-OUTRUNNERS.md section 10): lateral units OutRun's (Hang-On's) x 11/6 and speed
+// km/h x 136 (crossover/units.hpp); Hang-On's road edge for its bike (sub_0B57C: off the road at |X| > 260)
+static const int HO_EDGE = 260;
 
 // ------------------------------------------------------------------------------------------------
 // Start and end
@@ -452,7 +455,7 @@ void HOVehicle::publish(uint32_t a5)
         // Super Hang-On's state at the same offsets ($2600xx): off-road, knock, crash, and for the dust
         // task (35, the counterpart of Super Hang-On's): hard brake, lean frame and flags, sprite position, squeal
         for (uint32_t o : { 0x54u, 0x56u, 0x58u, 0x5Au, 0x88u, 0x94u, 0x98u, 0xE6u })
-            WW(0xC7E000 + o, bike.sh_word(o));
+            WW(V_BASE + o, bike.sh_word(o));
     }
     else
     {
@@ -577,7 +580,7 @@ void HOVehicle::tick()
         if (config.engine.bumper) d0 /= 3;
         d0 += ocrash.skid_counter;
         if (d0 <= OCrash::SKID_MAX && d0 >= -OCrash::SKID_MAX) ocrash.skid_counter = d0;
-        otraffic.collision_mask = RIVAL_COLLISION_MASK;
+        otraffic.collision_mask = units::OUTRUN_CAR_COLLISION_MASK;
         if (outrun.game_state == GS_INGAME)
         {
             int s = std::max(0, hits[i].speed - 80);
@@ -637,8 +640,9 @@ void HOVehicle::tick_madpower()
     // the same units and centre as X, + = right as OutRunners' lateral; its change a frame x 2 for the 30 Hz
     // tick), its speed
     for (int i = 0; i < n_hits; i++)
-        madpower.rival_hit((int16_t)(hits[i].lat * LAT_OR / LAT_OUT), (int16_t)(hits[i].latvel * 2 * LAT_OR / LAT_OUT),
-                           (uint16_t) std::max(0, std::min(0xFFFF, hits[i].speed * SPEED_PER_KMH)));
+        madpower.rival_hit((int16_t)(hits[i].lat * units::LAT_OUTRUNNERS / units::LAT_OUTRUN),
+                           (int16_t)(hits[i].latvel * units::FRAMES_PER_TICK * units::LAT_OUTRUNNERS / units::LAT_OUTRUN),
+                           (uint16_t) std::max(0, std::min(0xFFFF, hits[i].speed * units::OUTRUNNERS_SPEED_PER_KMH)));
     n_hits = 0;
     madpower.accel_cut = ostats.time_counter == 0;               // time over: no accelerator, as the Ferrari
     madpower.hold = RW(V_RETIRE) != 0;                            // past the goal line: stopped, as the Ferrari
@@ -681,7 +685,7 @@ void HOVehicle::fill_road_heights()
     int32_t h = 0;
     for (int k = 0x1FF; k >= 0; k--)
     {
-        h += FLAT_STEP;
+        h += units::OUTRUN_FLAT_STEP;
         ry[k] = (int16_t)((h << 4) >> 16);
     }
     // OutRun's list of hill crests from +$280 (OSprites::do_sprite): empty, a flat road
@@ -695,7 +699,7 @@ void HOVehicle::rival_contact(uint32_t a5)
 {
     for (int i = 0; i < n_hits; i++) if (hits[i].slot == a5) return;     // once per OutRun tick
     if (n_hits >= 8) return;
-    int16_t x = (int16_t)(RW(a5 + 0x0A) - 0x160);                  // screen x from the centre (+ = right)
+    int16_t x = (int16_t)(RW(a5 + 0x0A) - BIKE_SX);                // screen x from the centre (+ = right)
     int16_t lat = (int16_t) RW(a5 + 0x34), v = 0;
     for (const RivalLat& r : rival_lat) if (r.slot == a5) v = r.latvel;
     hits[n_hits++] = { a5, x < 0 ? -1 : 1, rival_speed(a5), lat, v };

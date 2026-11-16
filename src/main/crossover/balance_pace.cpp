@@ -1,5 +1,5 @@
 /***************************************************************************
-    BALANCE, pace: see balance_pace.hpp, balance.hpp and docs/balance-pace.md.
+    BALANCE, pace: see balance_pace.hpp, balance.hpp and docs/CROSSOVER-BALANCE.md (Pace).
 
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
@@ -20,16 +20,20 @@
 #include "crossover/hoboard.hpp"
 #include "crossover/orboard.hpp"
 #include "crossover/ormode.hpp"
+#include "crossover/units.hpp"
+#include "crossover/shaddr.hpp"
+#include "crossover/hoaddr.hpp"
+#include "crossover/oraddr.hpp"
 
 namespace balance
 {
     // ------------------------------------------------------------------------------------------------
-    // The full factors (docs/balance-pace.md): the course's own vehicle's distance per second at its top
+    // The full factors (the doc's part Pace): the course's own vehicle's distance per second at its top
     // speed on its course, over the visiting vehicle's at its top speed on that course before BALANCE, both
     // in the course's own distance units, at the centre line on a level straight.
     // ------------------------------------------------------------------------------------------------
     //
-    // Paces at top speed (harness runs at BALANCE OFF, CB_PACE_TRACE, docs/balance-pace.md section 2), per second:
+    // Paces at top speed (harness runs at BALANCE OFF, CB_PACE_TRACE, the doc's Pace 2 and 3), per second:
     //   OutRun, path positions:  Ferrari 40.6398 (293.115 km/h: 303 x 293 per 30 Hz tick, CAR_BASE_INC $12F)
     //                            Super Hang-On's bike 33.3170 (241.0-242.0 km/h: 151 x 241 per 60 Hz frame, $85AE)
     //                            MAD POWER 62.5713 (451.169 km/h level, automatic: 0.138687 per km/h a second)
@@ -149,31 +153,34 @@ namespace balance
                 break;
             case cannonball::STATE_SHANGON:
             {
-                const uint8_t* r = shboard.cpu1ram;
-                double pos = (be16(r + 0x30) << 16 | be16(r + 0x32)) / 65536.0;
-                double spd = (be16(r + 0x78) << 16 | be16(r + 0x7A)) / 65536.0;
-                fprintf(f, "%d 1 %.6f %.4f %.4f %d %d %d\n", frame, pos, spd, joined ? own_slot : spd, (int16_t) be16(r + 0x22),
-                        (int16_t) be16(r + 0xAC), (int16_t) be16(r + 0xB0));
+                using namespace shaddr;
+                auto at = [&](uint32_t a) { return be16(shboard.cpu1ram + (a - SHARED)); };
+                double pos = (at(V_POS) << 16 | at(V_POS + 2)) / 65536.0;
+                double spd = (at(V_SPEED) << 16 | at(V_SPEED + 2)) / 65536.0;
+                fprintf(f, "%d 1 %.6f %.4f %.4f %d %d %d\n", frame, pos, spd, joined ? own_slot : spd, (int16_t) at(V_X),
+                        (int16_t) at(V_CURVE), (int16_t) at(V_CURVE_R));
                 break;
             }
             case cannonball::STATE_HANGON:
             {
-                const uint8_t* r = hoboard.subram + 0x2000;              // $C7E000
-                double pos = (be16(r + 0x30) << 16 | be16(r + 0x32)) / 65536.0;
-                double spd = (be16(r + 0x78) << 16 | be16(r + 0x7A)) / 65536.0;
-                fprintf(f, "%d 2 %.6f %.4f %.4f %d %d %d\n", frame, pos, spd, joined ? own_slot : spd, (int16_t) be16(r + 0x50),
-                        (int16_t) be16(r + 0xAC), (int16_t) be16(r + 0xB0));
+                using namespace hoaddr;
+                auto at = [&](uint32_t a) { return be16(hoboard.subram + (a - SUB)); };
+                double pos = (at(V_POS) << 16 | at(V_POS + 2)) / 65536.0;
+                double spd = (at(V_SPEED) << 16 | at(V_SPEED + 2)) / 65536.0;
+                fprintf(f, "%d 2 %.6f %.4f %.4f %d %d %d\n", frame, pos, spd, joined ? own_slot : spd, (int16_t) at(V_X),
+                        (int16_t) at(V_CURVE), (int16_t) at(V_CURVE_R));
                 break;
             }
             case cannonball::STATE_OUTRUNNERS:
             {
+                using namespace oraddr;
                 const ORBoard* b = ormode.board_for_tests();
                 if (!b) break;
                 auto r16 = [&](uint32_t a) { return (uint32_t)(b->read8(a) | b->read8(a + 1) << 8); };
-                uint32_t seg = r16(0x209042), in = r16(0x209034) | r16(0x209036) << 16;
-                double spd = r16(0x209074) / 136.0;
-                fprintf(f, "%d 3 %.6f %.4f %.4f %d %d %d\n", frame, seg + in / 32768.0, spd, joined ? own_slot : spd,
-                        b->read8(0x2004D9), b->read8(0x2080A2), r16(0x208F50));   // hill frame index (1 level), stage, km/h shown
+                uint32_t seg = r16(A_SEGCNT), in = r16(A_SEGPOS) | r16(A_SEGPOS + 2) << 16;
+                double spd = r16(A_SPEED) / (double) units::OUTRUNNERS_SPEED_PER_KMH;
+                fprintf(f, "%d 3 %.6f %.4f %.4f %d %d %d\n", frame, seg + in / (double) units::OUTRUNNERS_SEGMENT, spd, joined ? own_slot : spd,
+                        b->read8(OBJ_CAR + O_HILL), b->read8(A_STAGE), r16(0x208F50));   // hill frame index (1 level), stage, km/h shown
                 break;
             }
             default:

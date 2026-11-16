@@ -5,6 +5,8 @@
 #include "crossover/romset.hpp"
 #include "crossover/harness.hpp"
 #include "crossover/balance.hpp"
+#include "crossover/units.hpp"
+#include "crossover/shaddr.hpp"
 #include <cstdlib>
 
 // testing switches, read once
@@ -48,12 +50,14 @@ extern "C" {
 
 CrossoverBike bike;
 
-// Super Hang-On addresses used here (see shophys sources / FINDINGS)
-static const uint32_t V_MODE = 0x260000, V_EVENTS = 0x260002, V_EVENT_OFF = 0x260006, V_STAGE_DONE = 0x260010,
-    V_COURSE = 0x260012, V_X = 0x260022, V_POS = 0x260030, V_STEER = 0x260068, V_SPEED = 0x260078, V_KNOCK = 0x260088,
-    V_CRASH = 0x260094, V_OFFROAD = 0x260098, V_CURVE_NEXT = 0x2600A4, V_CURVE_NEXT_R = 0x2600A8, V_CURVE = 0x2600AC,
-    V_CURVE_R = 0x2600B0, V_ROADBUF = 0x2607FE;
-static const uint32_t W_SC_BUTTON = 0x060051, W_RNG = 0x060402, W_INGAME = 0x060408, W_TIMER = 0x060500;
+// Super Hang-On addresses used here (see shophys sources / FINDINGS); those other files use too are in
+// crossover/shaddr.hpp
+using shaddr::V_MODE; using shaddr::V_STAGE_DONE; using shaddr::V_COURSE; using shaddr::V_X; using shaddr::V_POS;
+using shaddr::V_SPEED; using shaddr::V_KNOCK; using shaddr::V_CRASH; using shaddr::V_OFFROAD; using shaddr::V_CURVE_NEXT;
+using shaddr::V_CURVE_NEXT_R; using shaddr::V_CURVE; using shaddr::V_CURVE_R; using shaddr::V_ROADBUF;
+using shaddr::V_ROADTAB; using shaddr::V_ROADY; using shaddr::W_INGAME; using shaddr::W_SC_ACTIVE; using shaddr::W_TIMER;
+static const uint32_t V_EVENTS = 0x260002, V_EVENT_OFF = 0x260006, V_STEER = 0x260068;
+static const uint32_t W_SC_BUTTON = 0x060051, W_RNG = 0x060402;
 static const uint32_t ROM_EVENT_END = 0x16308;   // a 32767 terminator (end of Africa stage 1 list at $162F0)
 static const uint32_t ROM_BIKE_PALS = 0xD54E;    // 6 x 16 colours, sprite palettes 0-5 of the bike
 static const uint32_t ROM_SPR_TABLES[3][2] = { {0xCA4E, 10}, {0xCA76, 8}, {0xCA96, 8} };  // lean, knockback, skid
@@ -67,15 +71,13 @@ static const uint32_t CRASH_TAG = 0xC0000000;    // oentry::addr of a crash obje
 static const int BIKE_BANK = 4;
 static const int CRASH_BANK0 = 5, CRASH_BANKS = 3;
 
-// OutRun's single-road asphalt half-width around a road centre, in car_x_pos units: OFerrari::check_wheels
-// puts one wheel off at |x| > 0xD4 and all wheels off at |x| > 0x104; with a symmetric track that gives
-// the edge at the midpoint 0xEC (and a half-track of 0x18).
-static const int16_t OR_ROAD_HALF = 0xEC;
+// OutRun's single-road asphalt half-width around a road centre, in car_x_pos units ($EC: crossover/units.hpp)
+static const int16_t OR_ROAD_HALF = units::OUTRUN_ROAD_EDGE;
 
 static inline uint8_t* loc(uint8_t* work, uint8_t* shared, uint32_t a)
 {
-    if (a >= 0x260000) return shared + (a - 0x260000);
-    return work + (a - 0x060000);
+    if (a >= shaddr::SHARED) return shared + (a - shaddr::SHARED);
+    return work + (a - shaddr::WORK);
 }
 
 #define WW(a, v) do { uint8_t* p_ = loc(work, shared, a); uint16_t v_ = (uint16_t)(v); p_[0] = v_ >> 8; p_[1] = (uint8_t)v_; } while (0)
@@ -396,7 +398,7 @@ void CrossoverBike::tick()
     int elapsed = cannonball::frame - last_frame;
     if (last_frame < 0 || elapsed <= 0 || elapsed > 4 * per_tick) elapsed = per_tick;   // first call / resumed
     last_frame = cannonball::frame;
-    sh_frame_acc += elapsed * 60;
+    sh_frame_acc += elapsed * units::BOARD_FPS;
     int steps = sh_frame_acc / config.fps;
     sh_frame_acc -= steps * config.fps;
     if (BIKE_STEPS) { static int calls = 0, total = 0; calls++; total += steps;
@@ -439,7 +441,7 @@ void CrossoverBike::tick()
         if (BIKE_DEBUG && ((int32_t)(RL(V_POS) - dbg_pos) > 0x20000 || (int32_t)RL(V_SPEED) < (int32_t)dbg_spd - 0x50000))
             fprintf(stderr, "bike step: pos %08x -> %08x  speed %08x -> %08x  X(abs) %d  curve %d radius %d  throttle %d brake %d\n",
                     dbg_pos, RL(V_POS), dbg_spd, RL(V_SPEED), car_x, (int16_t) RW(V_CURVE), (int16_t) RW(V_CURVE_R),
-                    RW(0x26006C), RW(0x260070));
+                    RW(shaddr::V_THROTTLE), RW(0x260070));
         if (BIKE_DEBUG && (int32_t)RL(V_SPEED) < 0)
         {
             FILE* f = fopen("bike_state_before.bin", "wb");
@@ -462,15 +464,15 @@ void CrossoverBike::tick()
             int push = balance::push_scaled(balance::SH_BIKE, raw);
             if (push != raw)
             {
-                lat_x1 = std::abs(lat_x0 + push) <= 500 ? (int16_t)(lat_x0 + push) : lat_x0;
+                lat_x1 = std::abs(lat_x0 + push) <= shaddr::X_LIMIT ? (int16_t)(lat_x0 + push) : lat_x0;
                 WW(V_X, lat_x1);
             }
             if (FILE* log = balance::push_log())
             {
-                uint32_t a0 = 0x260800 + (int16_t) RW(0x2607FE);
-                int16_t dx = (int16_t)(RW(a0 + (RB(0x060412) ? 0x8C : 0xA6)) - RW(a0 + 0x1B8));
+                uint32_t a0 = V_ROADTAB + (int16_t) RW(V_ROADBUF);
+                int16_t dx = (int16_t)(RW(a0 + (RB(W_SC_ACTIVE) ? 0x8C : 0xA6)) - RW(a0 + 0x1B8));
                 fprintf(log, "B %d %d %d %d %d %d %d %d %d %d\n", harness.frame, (int) balance::host(), balance::log_pos(), (int16_t) RW(V_SPEED),
-                        lat_x0, dx, raw, lat_x1 - lat_x0, (int16_t) RW(SHO_A5_BIKE + 0x34), RB(0x060412));
+                        lat_x0, dx, raw, lat_x1 - lat_x0, (int16_t) RW(SHO_A5_BIKE + 0x34), RB(W_SC_ACTIVE));
             }
         }
         sho_throttle_task(&mem, raw_thr);
@@ -501,7 +503,7 @@ void CrossoverBike::tick()
         if (lat_trace)
             fprintf(lat_trace, "%d %d %u %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", harness.frame, step, RL(V_POS) >> 16,
                     oroad.road_ctrl, oinitengine.rd_split_state, (int16_t)(oroad.road_width >> 16), road_center,
-                    lat_x0, lat_x1 - lat_x0, (int16_t) RW(V_X), (int16_t)(RW(V_SPEED)), RB(0x060412), offroad(),
+                    lat_x0, lat_x1 - lat_x0, (int16_t) RW(V_X), (int16_t)(RW(V_SPEED)), RB(W_SC_ACTIVE), offroad(),
                     (int16_t) RW(SHO_A5_BIKE + 0x34), or_push, oinitengine.road_type, oinitengine.road_curve);
         car_x = (int16_t)(road_center + (int16_t) RW(V_X));
     }
@@ -574,8 +576,8 @@ void CrossoverBike::setup_sprite(oentry* spr)
     }
     // Bike slot: +0 bit0 = leaning left (mirror), +$A/+$C screen x/y (wobble), +$16 palette, +$1A definition
     uint32_t a5 = SHO_A5_BIKE;
-    int16_t x = (int16_t) RW(a5 + 0xA) - 0x160;
-    int16_t y = (int16_t) RW(a5 + 0xC) - 0xDF;
+    int16_t x = (int16_t) RW(a5 + 0xA) - shaddr::BIKE_SX;
+    int16_t y = (int16_t) RW(a5 + 0xC) - shaddr::BIKE_SY;
     spr->x = x;
     spr->y = 222 + y;
     spr->zoom = 0x7F;
@@ -686,7 +688,7 @@ void CrossoverBike::crash_frame()
             uint32_t a5 = CRASH_SLOTS[i];
             fprintf(stderr, "f%d crash obj %d vis %d depth %02x x %03x y %03x z %02x h %04x tbl %d | e:", harness.frame, i, crash_vis[i],
                     RW(a5 + 0x14) - 0x80, RW(a5 + 0xA), RW(a5 + 0xC), RW(a5 + 0xE), RW(a5 + 0x24),
-                    (int16_t) RW(0x261200 + 2 * ((RW(a5 + 0x14) - 0x80) & 0xFF)) >> 4);
+                    (int16_t) RW(V_ROADY + 2 * ((RW(a5 + 0x14) - 0x80) & 0xFF)) >> 4);
             for (int b = 0; b < 12; b++) fprintf(stderr, " %02x", crash_entry[i][b]);
             fprintf(stderr, "\n");
         }
@@ -755,7 +757,7 @@ void CrossoverBike::draw_crash_objects(oentry* rider, oentry* rider_shadow, oent
 // ------------------------------------------------------------------------------------------------
 int CrossoverBike::size_percent() const
 {
-    if (sh_course || full_size) return 100;
+    if (full_size) return 100;
     int pct = config.crossover.bike_scale;
     return (pct < 50 || pct > 100) ? 100 : pct;
 }

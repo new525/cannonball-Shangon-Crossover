@@ -49,7 +49,19 @@ public:
     ORSound();
     ~ORSound();
 
-    static const int64_t CLOCK = 8053975;          // Z80 and YM3438: 32,215,900 / 4
+    // The board's crystals, Hz (MAME's segas32.cpp: MASTER_CLOCK, MULTI32_CLOCK); the main board's clocks
+    // (crossover/orboard.cpp) are taken from these too
+    static constexpr int64_t MASTER_CLOCK = 32215900, MULTI32_CLOCK = 40000000;
+    static const int64_t CLOCK = MASTER_CLOCK / 4;  // Z80 and YM3438: 8,053,975 Hz
+
+    // MAME's routing of the left speaker (player 1's side, above): the YM3438's output 1 x 0.40, the
+    // MultiPCM's output 1 x 1.0, in MAME's float scale (+-1.0 full scale)
+    static constexpr float YM_ROUTE = 0.40f, PCM_ROUTE = 1.0f;
+    // The program's level for a race with this board's sound, to 16-bit (OutRunners' courses,
+    // crossover/ormode, and MAD POWER on the other games' courses, crossover/madpower): x 0.17 brings a
+    // race (music and the car's sounds, RMS 4,500 at x 0.26 on Kenya, 16-bit) to OutRun's own races in
+    // the program (about 3,000). A design decision. The music player has its own level (crossover/ormusic.cpp).
+    static constexpr float RACE_GAIN = 0.17f;
 
     // soundcpu: epr-15550 (512 KB); pcm: the MultiPCM region (4 MB)
     bool init(const std::vector<uint8_t>& soundcpu, const std::vector<uint8_t>& pcm);

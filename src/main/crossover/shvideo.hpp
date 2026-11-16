@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <vector>
+#include "globals.hpp"
 
 class SHBoard;
 class RomSet;
@@ -23,7 +24,7 @@ class RomSet;
 class SHVideo
 {
 public:
-    static const int W = 320, H = 224, MAXW = 398;     // MAXW: Cannonball's widescreen width
+    static const int W = 320, H = 224, MAXW = S16_WIDTH_WIDE;   // MAXW: Cannonball's widescreen width (398)
 
     // Widescreen (as Cannonball widens OutRun): the game's 320-pixel screen stays in the middle;
     // road, tilemaps and sprites extend into the extra width, the text layer does not.

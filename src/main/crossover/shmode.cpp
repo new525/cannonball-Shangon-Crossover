@@ -8,6 +8,8 @@
 #include "crossover/xaudio.hpp"
 #include "crossover/shferrari.hpp"
 #include "crossover/balance_push.hpp"
+#include "crossover/units.hpp"
+#include "crossover/shaddr.hpp"
 #include "main.hpp"
 
 #include <algorithm>
@@ -25,6 +27,13 @@
 #include "ffb/ffb.hpp"
 
 SHMode shmode;
+
+// A game is being played ($060408, a word, nonzero)
+static bool sh_ingame()
+{
+    const uint8_t* p = shboard.workram + (shaddr::W_INGAME - shaddr::WORK);
+    return p[0] || p[1];
+}
 
 bool SHMode::init()
 {
@@ -185,7 +194,7 @@ void SHMode::tick()
 {
     if (!active) return;
     set_inputs();
-    acc += 60;
+    acc += units::BOARD_FPS;
     int frames = acc / config.fps;
     acc -= frames * config.fps;
     for (int i = 0; i < frames; i++)
@@ -205,7 +214,7 @@ void SHMode::tick()
                     packet[0] = 0x80; omusic.play_music(other_music); break;
                 }
         if (feeding) xaudio.sh_raw_frame(packet);
-        bool ingame = shboard.workram[0x408] || shboard.workram[0x409];
+        bool ingame = sh_ingame();
         if (was_ingame && !ingame) finished = true;
         was_ingame = ingame;
     }
@@ -221,19 +230,19 @@ void SHMode::tick()
 void SHMode::ffb_tick()
 {
     if (!ffb::active()) return;
-    const uint8_t* r = shboard.cpu1ram;
-    auto w = [&](uint32_t off) { return (int16_t)(r[off] << 8 | r[off + 1]); };
-    const bool ingame = shboard.workram[0x408] || shboard.workram[0x409];
-    const int mode = w(0x00);
+    using namespace shaddr;
+    auto w = [&](uint32_t a) { const uint8_t* p = shboard.cpu1ram + (a - SHARED); return (int16_t)(p[0] << 8 | p[1]); };
+    const bool ingame = sh_ingame();
+    const int mode = w(V_MODE);
     ffb::State s;
-    s.speed = w(0x78);
+    s.speed = w(V_SPEED);
     if (ingame && mode == 2)
     {
         s.phase  = ffb::RACE;
-        s.wheels = (r[0x98] || r[0x99]) ? ffb::OFF : ffb::ON;
-        s.side   = w(0x22) >= 0 ? 1 : -1;
-        s.skid   = w(0x88) > 0 ? 1 : (w(0x88) < 0 ? -1 : 0);
-        if (r[0x94] || r[0x95])
+        s.wheels = w(V_OFFROAD) ? ffb::OFF : ffb::ON;
+        s.side   = w(V_X) >= 0 ? 1 : -1;
+        s.skid   = w(V_KNOCK) > 0 ? 1 : (w(V_KNOCK) < 0 ? -1 : 0);
+        if (w(V_CRASH))
         {
             if (ffb_crash_ticks == 0) ffb_crash_dir = s.side;
             ffb_crash_ticks++;
@@ -245,7 +254,7 @@ void SHMode::ffb_tick()
     else if (ingame && mode == 1)
     {
         s.phase = ffb::START;
-        s.start_pedal = std::min(255, 2 * (int) w(0x6C));
+        s.start_pedal = std::min(255, 2 * (int) w(V_THROTTLE));
         ffb_crash_ticks = 0;
     }
     else

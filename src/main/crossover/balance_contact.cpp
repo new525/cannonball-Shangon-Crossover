@@ -24,11 +24,16 @@
 #include "crossover/ormode.hpp"
 #include "crossover/orboard.hpp"
 #include "crossover/orvehicle.hpp"
+#include "crossover/units.hpp"
+#include "crossover/shaddr.hpp"
+#include "crossover/hoaddr.hpp"
+#include "crossover/oraddr.hpp"
 
 namespace balance
 {
     // --------------------------------------------------------------------------------------------
-    // The rule (docs/balance-contact.md). Each game answers a contact with another vehicle by taking a
+    // The rule (docs/CROSSOVER-BALANCE.md, Contact).
+    // Each game answers a contact with another vehicle by taking a
     // share of its speed off; how much, it decides by its own rule, written here as the speed it keeps:
     //
     //   OutRun, the Ferrari ($50DE, OTraffic::check_collision): the speed is set to the other's speed - 80
@@ -53,7 +58,10 @@ namespace balance
 
     // Top speeds, km/h in each vehicle's own unit (measured with the accelerator held on a level road:
     // the Ferrari 293.1 on OutRun's first stage, the bike 242.0 on Super Hang-On's course, Hang-On's bike
-    // 276.6 on its course, MAD POWER 451.2 with its automatic box on Hang-On's level road)
+    // 276.6 on its course, MAD POWER 451.2 with its automatic box on Hang-On's level road).
+    // The only top speeds in the code: the pace factors (balance_pace.cpp) are ratios of distances per second,
+    // whose runs gave 293.115, 241.0-242.0, 278.984 and 451.169 (the doc's Pace 3). The two sets are kept as
+    // measured; the contact factors were verified with these.
     static const double TOP[4] = { 293.0, 242.0, 276.6, 451.2 };
 
     // The knockback's speed loss at top speed on its own board, km/h (measured, rails runs, offsets 0-40
@@ -122,7 +130,7 @@ namespace balance
     // elephants 152-227, 203 on average in the rails runs (their speed word +$2C << 8, as $805B reads it)
     static const double TYPICAL_OTHER[4] = { 200.0, 136.0, 190.0, 203.0 };
 
-    // The full factor of a typical contact at top speed (the table in docs/balance-contact.md)
+    // The full factor of a typical contact at top speed (the table of the doc's Contact 5)
     double contact(Vehicle v, Host h)
     {
         return full_factor(v, h, TOP[v], TYPICAL_OTHER[h]);
@@ -228,15 +236,19 @@ namespace balance
         if (shmode.active && !shferrari.enabled)
         {   // Super Hang-On's bike at home: speed $260078 (16.16 km/h), knock $260088, X $260022
             const uint8_t* m = shboard.cpu1ram;
-            fprintf(f, "F %d %.3f K %d X %d\n", harness.frame, (int32_t) rl(m + 0x78) / 65536.0, (int16_t)(m[0x88] << 8 | m[0x89]),
-                    (int16_t)(m[0x22] << 8 | m[0x23]));
+            const uint32_t speed = shaddr::V_SPEED - shaddr::SHARED, knock = shaddr::V_KNOCK - shaddr::SHARED,
+                           x = shaddr::V_X - shaddr::SHARED;
+            fprintf(f, "F %d %.3f K %d X %d\n", harness.frame, (int32_t) rl(m + speed) / 65536.0, (int16_t)(m[knock] << 8 | m[knock + 1]),
+                    (int16_t)(m[x] << 8 | m[x + 1]));
             return;
         }
         if (homode.active && !hovehicle.enabled)
         {   // Hang-On's bike at home: speed $C7E078 (16.16 km/h), knock $C7E088, X $C7E050
-            const uint8_t* m = hoboard.subram + 0x2000;
-            fprintf(f, "F %d %.3f K %d X %d\n", harness.frame, (int32_t) rl(m + 0x78) / 65536.0, (int16_t)(m[0x88] << 8 | m[0x89]),
-                    (int16_t)(m[0x50] << 8 | m[0x51]));
+            const uint8_t* m = hoboard.subram;
+            const uint32_t speed = hoaddr::V_SPEED - hoaddr::SUB, knock = hoaddr::V_KNOCK - hoaddr::SUB,
+                           x = hoaddr::V_X - hoaddr::SUB;
+            fprintf(f, "F %d %.3f K %d X %d\n", harness.frame, (int32_t) rl(m + speed) / 65536.0, (int16_t)(m[knock] << 8 | m[knock + 1]),
+                    (int16_t)(m[x] << 8 | m[x + 1]));
             return;
         }
         fprintf(f, "F %d %.3f X %d R %d C %d\n", harness.frame, (int32_t) oinitengine.car_increment / 65536.0, oinitengine.car_x_pos,
@@ -252,15 +264,17 @@ namespace balance
         test_or_board = &b;
         FILE* f = trace_file();
         if (!f || !own_car) return;
+        using namespace oraddr;
+        const int per_kmh = units::OUTRUNNERS_SPEED_PER_KMH;
         auto r16 = [&](uint32_t a) { return (uint16_t)(b.read8(a) | b.read8(a + 1) << 8); };
         static int state_prev = -1;
-        int state = r16(0x20040C);
-        double kmh = r16(0x209074) / 136.0;
+        int state = r16(OBJ_CAR + O_STATE);
+        double kmh = r16(A_SPEED) / (double) per_kmh;
         if (state == 5 && state_prev != 5)
         {
-            int kind = b.read8(0x20046E), other = -1;
-            if (kind == 2) other = r16(0x20FC00 + 0x80 * b.read8(0x200468) + 0x4C) / 136;
-            if (kind == 1) other = (int)(((uint32_t) r16((0x200000 | r16(0x200468)) + 0x2C) << 8) / 136);
+            int kind = b.read8(OBJ_CAR + O_KIND), other = -1;
+            if (kind == 2) other = r16(CARS + CAR_SIZE * b.read8(OBJ_CAR + O_ARG) + CAR_SPEED) / per_kmh;
+            if (kind == 1) other = (int)(((uint32_t) r16((0x200000 | r16(OBJ_CAR + O_ARG)) + 0x2C) << 8) / per_kmh);
             fprintf(f, "H %d kind%d %d %.3f %.3f\n", harness.frame, kind, other, kmh, kmh);
         }
         state_prev = state;
@@ -284,18 +298,18 @@ namespace balance
             static int32_t hist[8] = {0};
             static int hi = 0, quiet_or = 0;
             const bool own = !orvehicle.enabled;
-            const int32_t now = own ? (b->read8(0x209074) | b->read8(0x209075) << 8) : oinitengine.car_increment;
+            const int32_t now = own ? (b->read8(oraddr::A_SPEED) | b->read8(oraddr::A_SPEED + 1) << 8) : oinitengine.car_increment;
             const int32_t then = hist[hi & 7];
             hist[hi++ & 7] = now;
-            const bool busy = own ? b->read8(0x20040C) == 5
+            const bool busy = own ? b->read8(oraddr::OBJ_CAR + oraddr::O_STATE) == 5
                                   : (ocrash.skid_counter != 0 || ocrash.spin_control1 != 0 || ocrash.crash_counter != 0);
             quiet_or = (now < then || busy) ? 0 : quiet_or + 1;
             if (quiet_or > 0)
             {
                 if (own)
                 {
-                    int16_t lat = (int16_t)(-atoi(env) * 11 / 6);
-                    b->write8(0x209038, (uint8_t) lat); b->write8(0x209039, (uint8_t)(lat >> 8));
+                    int16_t lat = (int16_t)(-atoi(env) * units::LAT_OUTRUNNERS / units::LAT_OUTRUN);
+                    b->write8(oraddr::A_LAT, (uint8_t) lat); b->write8(oraddr::A_LAT + 1, (uint8_t)(lat >> 8));
                 }
                 else oinitengine.car_x_pos = (int16_t) atoi(env);
             }
@@ -315,18 +329,25 @@ namespace balance
         int dfield, dlo, dhi;
         const bool guest = (shmode.active && shferrari.enabled) || (homode.active && hovehicle.enabled);
         if (shmode.active)
-        { ram = shboard.workram; v = shboard.cpu1ram; task = 0x74B6; from = 0x3000; to = 0x8000; dfield = 0x14; dlo = 0x40; dhi = 0xA0; xoff = 0x22; }
+        { ram = shboard.workram; v = shboard.cpu1ram; task = shaddr::TASK_RIVAL; from = 0x3000; to = 0x8000; dfield = 0x14; dlo = 0x40; dhi = 0xA0;
+          xoff = shaddr::V_X - shaddr::SHARED; }
         else if (homode.active)
-        { ram = hoboard.workram; v = hoboard.subram + 0x2000; task = 0xA8D0; from = 0x800; to = 0x4000; dfield = 0x0C; dlo = 0x60; dhi = 0xD0; xoff = 0x50; }
+        { ram = hoboard.workram; v = hoboard.subram + (hoaddr::V_BASE - hoaddr::SUB); task = hoaddr::TASK_RIVAL; from = 0x800; to = 0x4000;
+          dfield = 0x0C; dlo = 0x60; dhi = 0xD0; xoff = hoaddr::V_X - hoaddr::V_BASE; }
         else return;
+        // the timer, the knock and the crash are at the same offsets on both boards
+        const uint32_t timer = shaddr::W_TIMER - shaddr::WORK, knock = shaddr::V_KNOCK - shaddr::SHARED,
+                       crash = shaddr::V_CRASH - shaddr::SHARED;
+        static_assert(timer == hoaddr::W_TIMER - hoaddr::WORK && knock == hoaddr::V_KNOCK - hoaddr::V_BASE &&
+                      crash == hoaddr::V_CRASH - hoaddr::V_BASE, "Hang-On's offsets differ from Super Hang-On's");
         auto rw = [](const uint8_t* p) { return (int)(int16_t)(p[0] << 8 | p[1]); };
         auto ww = [](uint8_t* p, int x) { p[0] = (uint8_t)(x >> 8); p[1] = (uint8_t) x; };
-        ram[0x500] = 0x50;                                          // the timer
+        ram[timer] = 0x50;                                          // the timer
         static int quiet = 0;
         const int lane = atoi(env);
         if (!guest)
         {
-            quiet = (rw(v + 0x88) != 0 || rw(v + 0x94) != 0) ? 0 : quiet + 1;     // knock, crash
+            quiet = (rw(v + knock) != 0 || rw(v + crash) != 0) ? 0 : quiet + 1;     // knock, crash
             if (quiet > 0) ww(v + xoff, lane);                      // X ($260022 / $C7E050)
         }
         else

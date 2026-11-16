@@ -3,6 +3,7 @@
 ***************************************************************************/
 #include "crossover/ormusic.hpp"
 #include "crossover/romset.hpp"
+#include "crossover/units.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -15,10 +16,11 @@ static const double   FADE_TIME = 1.0;                    // the stop's fade is 
 // Level: MAME's mix (+-1.0 full scale) to 16-bit, times 0.26: the covers of Magical Sound
 // Shower, Passing Breeze and Splash Wave then match OutRun's own three tracks as the program
 // plays them, on average (RMS 2,494 against 4,800 measured at x 0.5, 16-bit scale, at the radio
-// screen). A design decision, as for Cool Riders' track (crmusic.cpp).
+// screen). A design decision, as for Cool Riders' track (crmusic.cpp). (The music player's level only: a
+// race on this board has its own, ORSound::RACE_GAIN.)
 static const float GAIN_OR = 0.26f;
-// MAME's left speaker: the YM3438's output 1 x 0.40, the MultiPCM's output 1 x 1.0
-static const float YM_ROUTE = 0.40f, PCM_ROUTE = 1.0f;
+// MAME's left speaker (crossover/orsound.hpp)
+static const float YM_ROUTE = ORSound::YM_ROUTE, PCM_ROUTE = ORSound::PCM_ROUTE;
 
 bool OutRunnersMusic::init(int rate)
 {
@@ -35,7 +37,7 @@ bool OutRunnersMusic::init(int rate)
 void OutRunnersMusic::queue(uint32_t off, uint8_t data)
 {
     // now, or one frame after the last queued command if that has not been written yet
-    int64_t t = cmds.empty() ? board->now() : cmds.back().t + ORSound::CLOCK / 60;
+    int64_t t = cmds.empty() ? board->now() : cmds.back().t + ORSound::CLOCK / units::BOARD_FPS;
     if (t < board->now()) t = board->now();
     cmds.push_back({ t, off, data });
 }

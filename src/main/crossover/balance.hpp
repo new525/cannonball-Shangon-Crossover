@@ -18,6 +18,9 @@
       push     the curve push the vehicle feels from the course's curves
       contact  the speed it loses to other vehicles
 
+    The method, the measurements and the checks of each: docs/CROSSOVER-BALANCE.md (Pace, Curve push,
+    Contact).
+
     Part of the OutRun / Super Hang-On / Hang-On crossover built on Cannonball.
 ***************************************************************************/
 #pragma once

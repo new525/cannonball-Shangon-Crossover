@@ -30,6 +30,7 @@
 extern "C" {
 #include "crossover/shophys/shophys.h"
 }
+#include "crossover/shaddr.hpp"
 
 struct oentry;
 class osprite;
@@ -82,8 +83,9 @@ public:
     // sub_07F30, answers yes), whatever its X
     void force_offroad(int frames) { host_offroad = frames; }
     // The host moves the bike (a scripted goal run): its speed, 16.16 km/h ($260078)
-    void set_speed(uint32_t inc) { shared[0x78] = (uint8_t)(inc >> 24); shared[0x79] = (uint8_t)(inc >> 16);
-                                   shared[0x7A] = (uint8_t)(inc >> 8);  shared[0x7B] = (uint8_t) inc; }
+    void set_speed(uint32_t inc) { uint8_t* p = shared + (shaddr::V_SPEED - shaddr::SHARED);
+                                   p[0] = (uint8_t)(inc >> 24); p[1] = (uint8_t)(inc >> 16);
+                                   p[2] = (uint8_t)(inc >> 8);  p[3] = (uint8_t) inc; }
 
     // Palette expansion entries added for the bike (index base set at init)
     static const int NUM_PALS = 6;
@@ -96,8 +98,7 @@ private:
 
     int16_t road_center = 0;    // centre of the bike's current road (OutRun car_x_pos units)
     int16_t road_half = 0;      // asphalt half-width around that centre
-    bool    sh_course = false;  // racing a Super Hang-On course: drawn full size whatever BIKE SIZE says
-    bool    full_size = false;  // another game's course (set_course): the same
+    bool    full_size = false;  // another game's course (set_course): drawn full size whatever BIKE SIZE says
     PathFn  path_fn = nullptr;
     int16_t host_road_half = 0;     // set_road_edge
     int     host_offroad = 0;       // force_offroad: Super Hang-On frames left
