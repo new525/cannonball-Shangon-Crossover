@@ -299,7 +299,7 @@
                 <!-- the vehicle's own arcade motor output: OutRun's deluxe cabinet motor commands as a constant
                      force (linear in the motor's speed); motor_vibration (the menu's VIBRATION): the wheel
                      vibration motors, one bit each (OutRun's upright cabinets, see vibration_cabinet;
-                     OutRunners': off-road, a contact), as a vibration whose strength is the share of the last
+                     Super Hang-On's: a buzz by speed band through the race; OutRunners': off-road, a contact), as a vibration whose strength is the share of the last
                      eight ticks the bit was on -->
                 <motor>100</motor>
                 <motor_vibration>50</motor_vibration>

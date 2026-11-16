@@ -114,6 +114,8 @@ private:
     // force feedback (ffb/ffb): the bike's state to the effects, once per tick
     void    ffb_tick();
     int     ffb_crash_ticks = 0;  // ticks since the crash began
+    uint16_t vib_counter = 0;     // the vibration routine's frame counter ($60414)
+    int     vib_on = 0, vib_frames = 0;   // the vibration motor this tick: frames on, frames run
     int     ffb_crash_dir = 1;    // its side
 
     // crash

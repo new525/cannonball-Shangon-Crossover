@@ -55,6 +55,7 @@ public:
     uint16_t latched_page[4] = {}, latched_yscroll[4] = {}, latched_xscroll[4] = {};
 
     // ---- hardware RAM (68000 byte order) ----
+    uint8_t vibration = 0;          // the output port's bit 3, the cabinet's vibration motor (the game's routine $1CBE)
     uint8_t workram[0x8000];
     uint8_t cpu1ram[0x8000];                // shared: main via the mapper, second CPU at $60000
     uint8_t roadram[0x1000];

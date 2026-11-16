@@ -39,6 +39,7 @@ static const bool BIKE_DEBUG = env_flag("CB_BIKE_DEBUG"), CRASH_DEBUG = env_flag
 #include "engine/olevelobjs.hpp"
 #include "engine/oentry.hpp"
 #include "ffb/ffb.hpp"
+#include "crossover/shvibration.hpp"
 
 extern "C" {
 #include "crossover/shophys/sho_road.h"
@@ -401,10 +402,16 @@ void CrossoverBike::tick()
     sh_frame_acc += elapsed * units::BOARD_FPS;
     int steps = sh_frame_acc / config.fps;
     sh_frame_acc -= steps * config.fps;
+    vib_on = vib_frames = 0;
     if (BIKE_STEPS) { static int calls = 0, total = 0; calls++; total += steps;
         if (calls % 60 == 0) fprintf(stderr, "f%d bike.tick calls %d steps %d tick_fps %d fps %d\n", harness.frame, calls, total, config.tick_fps, config.fps); }
     for (int step = 0; step < steps; step++)
     {
+        // the cabinet's vibration motor (the vertical blank's routine $1CBE, on the speed as the frame
+        // begins): while a race runs, the start line included. Super Hang-On also keeps it through the
+        // coast after time over and stops it after the goal; here it follows OutRun's race
+        vib_on += (ingame || countdown) ? shvibration::frame((uint16_t)(RL(V_SPEED) >> 16), vib_counter) : 0;
+        vib_frames++;
         WL(V_POS, oroad.road_pos);
         compute_road_frame(car_x);
         set_curve_inputs(car_x);
@@ -522,8 +529,8 @@ void CrossoverBike::tick()
     ffb_tick();
 }
 
-// Force feedback: the bike's own state to the effects (ffb/ffb). Super Hang-On's cabinet has no motor, so
-// there is no arcade base: the effects are the speed spring, off-road (the whole bike: Super Hang-On's
+// Force feedback: the bike's own state to the effects (ffb/ffb). The arcade base is the cabinet's vibration
+// motor, as Super Hang-On's routine drives it (crossover/shvibration.hpp); the others are the speed spring, off-road (the whole bike: Super Hang-On's
 // off-road flag $260098), a traffic knockback ($260088, + = pushed left) as the skid, a scenery crash
 // ($260094) as a tumble from the side of the road the bike is on, the rough surface from OutRun's scenery,
 // and the throttle's rev shake on the start line. Not read: the bike's lean and its rear-wheel skid.
@@ -532,6 +539,8 @@ void CrossoverBike::ffb_tick()
     if (!ffb::active()) return;
     ffb::State s;
     s.speed = speed_kmh();
+    s.motor_bit = vib_on;
+    s.motor_frames = vib_frames;
     if (outrun.game_state == GS_INGAME)
     {
         s.phase  = ffb::RACE;

@@ -11,8 +11,9 @@
         does OutRunners' cabinet (one bit of its I/O chip's port D, MAME's Steering_Wheel_motor). A
         one-bit motor plays as a vibration whose strength is the share of the last eight ticks the
         bit was on (the routines pulse it in patterns of eight ticks or fewer), like the motor's mass
-        spinning up and down, so a steady pattern is a steady vibration. Super Hang-On's and
-        Hang-On's bikes: no base yet.
+        spinning up and down, so a steady pattern is a steady vibration. Super Hang-On's cabinet has
+        one too (bit 3 of its output port, the game's routine $1CBE: a pattern per speed band;
+        crossover/shvibration.hpp). Hang-On's bike: no motor, no base.
       - CannonBall-DX's synthesised effects, each an option with its own strength: a loose
         surface's rattle, tyre slip, off-road pull, the gear shift's kick, the traffic contact's
         yank, the scenery crash's impacts and loads, the start line's steering load and rev shake,
@@ -62,7 +63,9 @@ namespace ffb
         int  start_pedal = -1;      // the start line's countdown: the accelerator 0-255 (-1: none)
         int  revs = -1;             // engine revs for the engine shake, 0-0x130 (OFerrari::revs >> 16; -1: none)
         int  motor = -1;            // the arcade motor command, OutRun's 0-15 (8 centre, 0 off; -1: none)
-        int  motor_bit = -1;        // a one-bit wheel vibration motor (OutRun's upright cabinets, OutRunners'): 0/1 (-1: none)
+        int  motor_bit = -1;        // a one-bit wheel vibration motor (OutRun's upright cabinets, OutRunners', Super Hang-On's):
+                                    // the arcade frames it was on this tick, of motor_frames (-1: none)
+        int  motor_frames = 1;      // the arcade frames this tick covers (Super Hang-On's routine runs at 60 Hz: 2)
     };
 
     void init();                    // after SDL and the controls: opens the device if controls.haptic is on

@@ -460,7 +460,8 @@ is OutRunners' START: the next song, as >> (nothing in Mega Radio Station).
 Keys can be changed under **SETTINGS > CONTROLS > REDEFINE KEYS**. Gamepads and analog wheels
 work as in Cannonball. Force feedback: **CONTROLS > FORCE FEEDBACK**, **FFB STRENGTH**, **SPRING** and
 **VIBRATION** (the cabinets' wheel vibration motors: OutRun's upright cabinet routine, `vibration_cabinet`
-1 upright or 2 mini, on top of the deluxe motor, and OutRunners');
+1 upright or 2 mini, on top of the deluxe motor; Super Hang-On's, by speed band, on every course; and
+OutRunners');
 the per-effect strengths are in `config.xml` under `controls/analog/haptic` (`effects`, `spring`,
 0-100, DX's defaults; `invert` for a wheel that pulls the wrong way). The device is the controls'
 joystick, else any wheel; `FF_TARGET_VIDPID` (e.g. `046d:c24f`) picks one. When none is found the

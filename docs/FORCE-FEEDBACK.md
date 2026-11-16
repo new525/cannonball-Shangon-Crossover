@@ -109,15 +109,24 @@ menu's FFB STRENGTH). All of DX's cadences are on ticks (1/30 s) instead of mill
   road, the car's `$B970` value off it or in a minor contact, `$10` in a crash), which a board run
   with `CB_OR_MOTOR_LOG=<file>` shows to be exactly what the game writes to that bit (one frame
   later, the latch's write).
-- A one-bit vibration motor (both of the above) plays as a sine at `effects.motor_vibration` (the
-  menu's VIBRATION) times the share of the last eight ticks the bit was on: the routines pulse it in
-  patterns of up to eight ticks to set how hard the motor shakes, and a real motor's mass spins up
+- A one-bit vibration motor (each of the above) plays as a sine at `effects.motor_vibration` (the
+  menu's VIBRATION) times the share of the last eight ticks' arcade frames the bit was on: the
+  routines pulse it in patterns of up to eight ticks (16 frames for Super Hang-On's) to set how hard the motor shakes, and a real motor's mass spins up
   and down over them; a steady pattern is a steady vibration rather than a sine started and stopped
   every tick. A playing sine takes a new strength in place (`ffbdev::set_periodic` no longer starts
   it again on every change).
-- Super Hang-On's bike: its cabinet's vibration motor (bit 3 of its output port, MAME's "Vibration
-  motor"; the game's routine `$1CBE`, a 16-frame pattern per 16 km/h band) is not driven yet.
-  Hang-On's: MAME's driver has no motor output; no base.
+- Super Hang-On's bike: its cabinet's vibration motor, bit 3 of the main CPU's output port
+  (`$140001`; MAME's segaorun.cpp: "Vibration motor"). The game's routine `$1CBE`, every frame from
+  the vertical blank, picks a 16-frame on/off pattern by 16 km/h band (`$1D1A`, read through the
+  FD1089B's data decryption: `0x92A4` up to 191 km/h, then steadier patterns up to `0xEEEE` at
+  272-287; past 287 the game reads the code that follows, kept as such) while a game runs (`$6040A`),
+  the mode is not 0 (the start line and the race, and the coast after time over) and the goal has
+  not been passed (`$2600EC`). On its own course it is the emulated board's own output bit; on the
+  other courses `crossover/shvibration.hpp` runs the routine on the reconstructed bike's speed
+  each frame, from the start line to the end of OutRun's race. The transcription gives the board's
+  bit in all 4,606 frames of a logged race (start line, 0-227 km/h, the coast after time over).
+  Being a 60 Hz routine, a tick's share is of the frames it covered.
+- Hang-On's bike: MAME's driver has no motor output; no base.
 
 **DX's effects**, each with its strength under `haptic/effects` (0 = off), DX's defaults:
 `sand` (a loose surface's taps, from `OLevelObjs::rough_surface`: a sand or stone strip at the car's

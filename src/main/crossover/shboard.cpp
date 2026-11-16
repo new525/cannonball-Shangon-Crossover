@@ -258,6 +258,7 @@ void SHBoard::miscio_write(uint32_t a, uint16_t data, uint16_t mask)
             {
                 adc_select = (data >> 6) & 3;
                 display_enable = (data >> 5) & 1;
+                vibration = (data >> 3) & 1;    // the cabinet's vibration motor (MAME's segaorun.cpp: D3)
             }
             break;
         case 0x0020:

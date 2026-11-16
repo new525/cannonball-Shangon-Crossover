@@ -27,6 +27,12 @@ Changes since 0.11.0
   it on, instead of a vibration started and stopped every tick.
   Cannonball's mini upright routine (also used for SmartyPi cabinets) was
   wrong and never switched the motor on: it is rewritten from the ROM.
+- Force feedback: Super Hang-On's vibration motor. Its cabinet buzzes
+  through the whole race, start line included, in a pattern set by the
+  speed (16 km/h bands, steadier above 190 km/h). Super Hang-On's bike now
+  has it on every course: from the emulated board on its own course, from
+  the game's routine (checked against the board frame by frame) on the
+  others. VIBRATION sets its strength too.
 - Steering wheels: a wheel that SDL reads as a plain joystick (most of
   them) had no steering axis and no buttons until set by hand.
   - pad_id -1, the new default, uses a wheel if one is connected.

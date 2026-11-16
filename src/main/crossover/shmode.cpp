@@ -201,6 +201,8 @@ void SHMode::tick()
     {
         packet.clear();
         shboard.run_frame();
+        vib_on += shboard.vibration;        // the cabinet's vibration motor this frame (force feedback)
+        vib_frames++;
         balance::push_frame_sh();           // measurement (CB_PUSH_LOG)
         // The game stops its music (sound command $00, FM_RESET in the OutRun family's sound
         // programs: at the end of a game, before its ranking music $83): the track playing in place of
@@ -218,15 +220,20 @@ void SHMode::tick()
         if (was_ingame && !ingame) finished = true;
         was_ingame = ingame;
     }
-    if (config.controls.haptic && cannonball::tick_frame && !shferrari.enabled) ffb_tick();
+    if (cannonball::tick_frame)
+    {
+        if (config.controls.haptic && !shferrari.enabled) ffb_tick();
+        vib_on = vib_frames = 0;
+    }
     show_frame();
 }
 
 // Force feedback (ffb/ffb): Super Hang-On's own bike from its RAM ($260000 + offset, the second CPU's RAM:
 // the addresses in crossover/bike.cpp), once per 30 Hz tick: mode $260000 (1 start line, 2 race), speed
 // $260078 (16.16 km/h), X $260022 (+ left), the traffic knockback $260088 (+ pushed left), the crash flag
-// $260094, off-road $260098, the throttle $26006C (0-127). Super Hang-On's cabinet has no motor (no
-// arcade base). Not read: the bike's lean and rear-wheel skid.
+// $260094, off-road $260098, the throttle $26006C (0-127); the cabinet's vibration motor, the board's own
+// output bit (its frames on since the last tick: crossover/shvibration.hpp). Not read: the bike's lean and
+// rear-wheel skid.
 void SHMode::ffb_tick()
 {
     if (!ffb::active()) return;
@@ -236,6 +243,8 @@ void SHMode::ffb_tick()
     const int mode = w(V_MODE);
     ffb::State s;
     s.speed = w(V_SPEED);
+    s.motor_bit = vib_on;
+    s.motor_frames = vib_frames;
     if (ingame && mode == 2)
     {
         s.phase  = ffb::RACE;

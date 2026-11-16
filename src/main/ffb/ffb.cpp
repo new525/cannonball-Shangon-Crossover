@@ -30,7 +30,8 @@ namespace ffb
     static int  offroad_counter = 0;                // the rumble pattern's phase for vehicles without a motor command
     static int  crash_last_state = -1, crash_last_spin = -1, landing = 0;
     static int  rattle_phase = 0;
-    static uint8_t vib_bits = 0;                    // a one-bit vibration motor's last eight ticks (bit 0 the latest)
+    static uint8_t vib_on[8], vib_frames[8];       // a one-bit vibration motor: its last eight ticks (on frames, frames)
+    static int  vib_slot = 0;
     static int  slip_hold = 0;                      // ticks the slip stays on after the state drops it
 
     static int clamp(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -168,18 +169,23 @@ namespace ffb
         slip_hold = 0;
         crash_last_state = crash_last_spin = -1;
         landing = 0;
-        vib_bits = 0;
+        for (int i = 0; i < 8; i++) vib_on[i] = vib_frames[i] = 0;
     }
 
-    // a one-bit vibration motor: the share of the last eight ticks it was on, as a percentage of its strength
-    // (the arcade routines pulse the bit in patterns of eight ticks or fewer; a steady pattern gives a steady
-    // level, so the vibration is not restarted every tick)
-    static int vibration_level(int bit)
+    // a one-bit vibration motor: the share of the last eight ticks' arcade frames it was on, as a percentage
+    // of its strength (the arcade routines pulse the bit in patterns of eight ticks or 16 frames or fewer; a
+    // steady pattern gives a steady level, so the vibration is not restarted every tick)
+    static int vibration_level(int on, int frames)
     {
-        vib_bits = bit < 0 ? 0 : (uint8_t)((vib_bits << 1) | (bit > 0 ? 1 : 0));
-        int on = 0;
-        for (int b = vib_bits; b; b >>= 1) on += b & 1;
-        return pct(cfg().motor_vibration, on * 100 / 8);
+        vib_slot = (vib_slot + 1) & 7;
+        vib_on[vib_slot]     = (uint8_t) (on < 0 ? 0 : on);
+        vib_frames[vib_slot] = (uint8_t) (on < 0 ? 0 : frames);
+        int sum_on = 0, sum_frames = 0;
+        for (int i = 0; i < 8; i++) { sum_on += vib_on[i]; sum_frames += vib_frames[i]; }
+        if (sum_on == 0) return 0;
+        // a full window: eight ticks of the source's frames (a window still filling counts its missing ticks as off)
+        const int full = 8 * (frames > 0 ? frames : 1);
+        return pct(cfg().motor_vibration, sum_on * 100 / (sum_frames > full ? sum_frames : full));
     }
 
     // a spring level: a percentage of the SPRING setting
@@ -350,7 +356,7 @@ namespace ffb
         const int motor_base = motor_level(s.motor, c.motor);
         int level = 0;
         int spring = spring_level(c.low_speed);
-        int periodic = vibration_level(s.motor_bit), period = 45;    // a one-bit vibration motor (see vibration_level)
+        int periodic = vibration_level(s.motor_bit, s.motor_frames), period = 45;    // a one-bit vibration motor (see vibration_level)
 
         if (s.phase == START)
         {
