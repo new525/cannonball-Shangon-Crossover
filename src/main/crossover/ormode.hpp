@@ -78,6 +78,9 @@ private:
     uint8_t ffb_gear = 0, ffb_hit_kind = 0;
     void take_sound();
     void show_frame();
+    bool panel = false, panel_wanted = false;   // the radio panel: shown now; OUTRUNNERS RADIO is the music choice
+    int  panel_wait = 0;                        // board frames until it is shown
+    void radio_panel();
 
     std::vector<uint16_t> pixels;           // the left screen as indices into colours[]
     std::vector<uint32_t> colours;

@@ -1078,7 +1078,18 @@ original tick by tick (11.8).
   start countdown, the branch's flag `$208F0F`; `orradio::Race`: the car and the cars introduced).
   The ROM's tables are transcribed with their addresses (songs, titles, the first song by car, the
   stations by node, the voices and their script lengths, the runs of remarks); `tools/orradiotest`
-  uses them against the ROM's own code.
+  uses them against the ROM's own code. It also holds what the radio puts on the radio panel's LCD
+  (`Radio::lcd`, the rest of `$18C45`: the DJ's face with its mouth, a new title scrolled through
+  the other 14 characters); the voices' scripts, which move the mouth, are read from the program ROM
+  when the program has it (`Radio::rom`).
+- `crossover/orradiogfx.*` (`orradio::Gfx`): the radio's graphics, read from OutRunners' ROM files
+  the first time the radio starts: the title's font (128 characters of 8 x 8 from four of the sprite
+  ROMs), its eight palettes (the data ROM), the LCD's eight characters of the game's own and the
+  program ROM for the voices' scripts. About 9.3 MB of files are read (8 MB of them the sprite ROMs,
+  one at a time) and about 260 KB kept. It needs the whole orunnersj set (`or_roms.full`); with the three
+  sound ROMs alone the radio plays as before, in OutRun's lettering and without the panel.
+- `crossover/orlcd.hpp` (`OrLcd`): the receiving end of the radio panel's display, in the emulated
+  board (`ORBoard::lcd`): what the port G writes put on it (`docs/OUTRUNNERS-RE.md` 14.8).
 - `crossover/radio.*` (`XRadio`, `xradio`): the radio on OutRun's, Super Hang-On's and Hang-On's
   courses: the d-pad into the presses, one radio tick per 30 Hz tick of the program, the commands to
   OutRunners' sound board, the title drawn over the frame.
@@ -1108,8 +1119,26 @@ tick as OutRunners takes them at its 30 Hz player tick:
 | right (analogue steering) | >> (bit 10) | as down | as down |
 | left with right or down, same tick | << and >> | Jingle Bell (`$0D`, no `$1F`, the song index kept) | `$1F`, back to the song |
 
-OutRunners' START (bit 6: the next song in music mode, nothing in Mega Radio Station) is not
-mapped: START has other uses in the program, and down already is >>.
+START is OutRunners' START (`$208118` bit 6: the next song in music mode as >>, nothing in Mega
+Radio Station, `$192F7`), while the d-pad is the radio's. In a race START has no other use on these
+courses:
+
+- **OutRun's** (Cannonball's code): in `GS_INGAME` START is read in one place, `OPalette::setup_sky_change`
+  (a stage change: held, it shows OutRun's hidden text). That is unchanged: START held across a
+  stage change changes the song and shows the text. The other reads are in other game states (the
+  free-play credit in the attract mode, `OMusic::check_start` on the radio screen, the best
+  outrunners' and the time trial's end).
+- **Super Hang-On's**: its program reads the button port (`$141002`) in eleven places (Read): the
+  coin, test and service switches (`$15D0`, `$19D2`, `$33B4`), the test mode's menus (`$409A`, for
+  START through `$4090` from `$2CE2`, `$3604`, `$3C60`), the selection screens before a race
+  (`$4488`, `$44FE`, `$47DE`, `$486E`), the ranking and the name entry (`$8BFA`, `$8E82`, `$9082`:
+  START with a credit starts a new game, `$1082`). None is in the race. Its board still sees START,
+  as before (`SHMode::set_inputs`).
+- **Hang-On's**: the same (`$E01000` in eight places: `$10E2` the wait for START before a game,
+  `$12BE`, `$3944`, `$48D4`, the test menus `$550A`, the ranking `$5CAA`, `$5FA4`, `$6000`).
+
+Checked: with another music choice, START pressed twice in a race changes neither the sound nor the
+picture on the three (11.8).
 
 "Back to the song" is the song that was playing (`$209014`), from its start. The d-pad is the
 radio's only while the player drives (OutRun's game state `GS_INGAME`; Super
@@ -1145,26 +1174,55 @@ command `$00` of Super Hang-On's and Hang-On's boards, leaving the mode).
 The DJ's remarks are chosen with OutRunners' random generator (`$120B1`); in OutRunners five other
 parts of the game draw from it too, so a remark's timing in the program follows the generator alone.
 
-### 11.5 The title (design decision)
+### 11.5 The title and the radio panel
 
-OutRunners draws the title as sprites in its own 8x8 font, cycling eight colours, at y = 200
-(`docs/OUTRUNNERS-RE.md` 14.6). The program keeps OutRunners' motion exactly (the title objects are
+**The title** is OutRunners' own (`docs/OUTRUNNERS-RE.md` 14.6): its motion (the title objects are
 the transcription's: in from the right over 20 ticks, held 60, out to the left over 20; a new title
 sends the old one off at 40 pixels a tick; x as OutRunners computes it on its 320-pixel screen,
-centred with the record's offset) and draws it in OutRun's own lettering for song titles, the radio
-screen's (`OHud::blit_text_big`: 8x16 letters, text tiles `$A0` + 2n over `$A1` + 2n; the 16x16 note,
-tiles `$7A`-`$7D`, in place of OutRunners' 8-pixel note and the space after it, the same width), in
-OutRun's text palette 5 (its colours from the ROM at `$16ED8`, as `OTiles::setup_palette_hud` loads
-them; the radio screen uses that palette for its titles), lower case as upper case, 16 pixels high
-centred on OutRunners' row (y = 196). No colour cycling.
+centred with the record's offset), its row (y = 200), its 8 x 8 font and its colours: the whole
+title in one of the eight palettes of `$197CD`, the first for one tick and then two ticks each (16
+ticks round), each letter outlined (entry 5) and shaded down its rows (entries 1-4). The font and
+the palettes are read from OutRunners' ROM files (`crossover/orradiogfx`), the palette entries
+converted as its board's video converts them (`crossover/s32video`: palette RAM's 5 bits a channel,
+<< 3). Against the board's own frames: 11.8.
 
-It is drawn over the finished frame (`Video::prepare_frame`, `XRadio::draw`), not into OutRun's text
-RAM, so it cannot change the host's HUD: OutRun's own HUD is untouched underneath and reappears as the
-title moves. It is clipped to the 320-pixel screen centred in the frame (in widescreen the original
-4:3 area, as OutRun's text layer and the other boards' text layers are), doubled in hi-res. Its eight colours have their
-own frame-buffer values after MAD POWER's (`RADIO_COLOURS`, `globals.hpp`), so they are the same on
-OutRun's screen and on the other boards'. It is drawn while a race is on screen (OutRun's states from
-the car driving in to the bonus count; Super Hang-On's and Hang-On's modes), not in the menus or on
+Until 0.11.0 it was drawn in OutRun's radio-screen lettering (`OHud::blit_text_big`: 8x16 letters,
+text tiles `$A0` + 2n over `$A1` + 2n; the 16x16 note, tiles `$7A`-`$7D`; OutRun's text palette 5 from
+the ROM at `$16ED8`; upper case; 16 pixels high centred on OutRunners' row, y = 196), in one colour.
+That is still what is drawn when only OutRunners' three sound ROMs are there, since the font and
+the palettes are in the sprite and data ROMs.
+
+**The radio panel** (design decisions marked). The cabinet's radio panel has an LCD of 16 characters
+(`docs/OUTRUNNERS-RE.md` 14.8). When a title starts, the radio clears the 14 characters after the
+DJ's face and scrolls the title through them, a character every 5 ticks, in and out again (133 ticks
+for "` Splash Wave", 4.4 s); the face's mouth moves with the DJ's voice. `orradio` holds this
+(`Radio::lcd`), and while it lasts (`Radio::lcd_title`, OutRunners' `$208F44`) the program shows the
+LCD as a panel. Between titles OutRunners' LCD shows the race (the time, the order, the speed, from
+another object): the program has no such display and shows no panel, so the screen is as before
+except for a few seconds after the radio changes.
+
+- What is on it is the transcription's, proven against the board's buffer and the board's display
+  (11.8): the two characters of the face (the game's own characters 1-6), the note (7), the title.
+- The game's own characters are drawn dot for dot (5 x 8, from the program ROM's `$18DBA`).
+- Design decision: the display's own letters are not in OutRunners' ROMs (they are in the display's
+  controller), so the title's letters are drawn as the fill of OutRunners' title font (its pixels
+  1-4, up to 6 x 6 dots), a stand-in of the same game.
+- Design decisions: the look. Cells of 7 x 8 pixels (the real display's are 5 dots and a gap: the
+  stand-in letters need 6, so the two halves of the face are 2 pixels apart instead of 1), a
+  margin of 2 and a border of 1: 117 x 14 pixels, centred, at y = 209-222, under the title's row
+  and clear of the hosts' HUDs. Its colours (border `101810`, background `90A870`, dots `202818`)
+  are the program's: the cabinet's are not in the ROMs.
+- It needs the whole OutRunners set (the font and the game's characters); with the sound ROMs alone
+  there is no panel.
+
+Both are drawn over the finished frame (`Video::prepare_frame`, `XRadio::draw`), not into OutRun's
+text RAM, so they cannot change the host's HUD: what is underneath reappears as the title moves.
+They are clipped to the 320-pixel screen centred in the frame (in widescreen the original 4:3 area,
+as OutRun's text layer and the other boards' text layers are), doubled in hi-res. Their colours have
+their own frame-buffer values after MAD POWER's (`RADIO_COLOURS`, `globals.hpp`: the eight title
+palettes, the panel's three colours, OutRun's text palette 5), so they are the same on OutRun's
+screen and on the other boards'. They are drawn while a race is on screen (OutRun's states from the
+car driving in to the bonus count; Super Hang-On's and Hang-On's modes), not in the menus or on
 OutRun's radio screen.
 
 ### 11.6 Timing
@@ -1185,6 +1243,19 @@ OutRunners; with another music choice OutRunners' own radio still plays, as befo
 and its race sounds share one sound board and one command queue, and replacing its music with another
 board's would need its music commands filtered from the car's, which was not done.
 
+START now reaches the board in a race too (`ORMode::set_inputs`: `SERVICE12_A` bit 4, held while
+START is held; until 0.11.0 only the run-up pressed it), so OutRunners' radio takes it as >>
+(`$192F7`). The game's other uses of START are its own (the entry of a game, which the run-up does).
+
+The radio panel is shown here too when OUTRUNNERS RADIO is the music choice (a design decision: the
+board's radio plays whatever the choice, but with another choice the picture stays as it was). The
+title on the screen is the board's own. The panel shows the board's display, as the game's port G
+writes leave it on the emulated controller (`ORBoard::lcd`), drawn as on the other courses with the
+character generator RAM the game loaded. It is shown while the display scrolls a title of the
+radio's (`ORMode::radio_panel`): from the first tick of a title object of the radio's (18[`$201000`])
+while `$208F44` is in the radio's titles or counts the spaces after one. The LCD's other displays
+(the time, the order, the speed, CHECK POINT) are not shown.
+
 ### 11.8 Checked
 
 - **The transcription against OutRunners** (`tools/orradiotest`, `run_all.sh`; `docs/OUTRUNNERS-RE.md`
@@ -1198,10 +1269,47 @@ board's would need its music commands filtered from the car's, which was not don
   command it queued and every `$700918` write at each tick; all 347 commands written to `$700700`
   (180 the radio's, the rest the car's and the race's, which the model's queue was given) identical in
   value and frame; 1,786 title-object ticks (state, colour count, timer, speed, x, offset) and the voice
-  clock `$208F30`/`$208F34` at every tick. 335 of the 336 instructions of the transcribed routines
+  clock `$208F30`/`$208F34` at every tick. 374 of the 375 instructions of the transcribed routines
   executed (not: `$19478`, skipping an empty place in the cars introduced). The random state was never
   changed by the game's other callers in these runs; the game's own voices (4 or 5 a run) were given to
   the model's voice clock.
+- **The LCD against OutRunners** (the same runs): the LCD's buffer `$208F10`-`$208F1F` and the
+  scroll's state after `$18C45` at 13,536 ticks, 2,941 of them with a title scrolling and 8,637 with
+  a voice's script moving the mouth: 0 differences (the game's own displays between titles, written by
+  the object `$18E1E`, were given to the model). The display the port G writes drive
+  (`ORBoard::lcd`) held the buffer of that frame or of the frame before at all 27,072 VBLANKs of the
+  races, and its character generator RAM equals the ROM's `$18DBA`.
+- **The title against OutRunners' screen** (the same runs, `-screen`): 3,116 frames with a title of
+  the radio's, each compared with the model's titles drawn from the ROM files (the font, the tick's
+  palette, the position): 1,987,638 of 2,065,686 title pixels as drawn by the board, 2,194 frames
+  exact. With one title held in the centre, 1,564 of 1,608 frames exact; in the other 44 the board's
+  speedometer covers the end of the title (x 245-254). Frames by palette of
+  `$197CD`: 404, 428, 392, 388, 388, 382, 374, 344 (all eight). 16 frames, where a title starts, is
+  replaced or leaves, match none of the model's last ticks. `tools/ortrace` e18 shows the palette words of each
+  tick and the board's screenshots (`docs/OUTRUNNERS-RE.md` 14.6).
+- **The title in the program** (the harness, OUTRUNNERS RADIO, snapshots checked pixel by pixel with
+  the font and palettes read from the ROM files, x + 39 in the 398-pixel widescreen frame): ">>
+  Picture the Rivers" at frame 940 sliding in, in palette `$A0` (the tick's: D = 20), every one of
+  its 718 pixels; held at 1000 in `$C0` on OutRun's stage 1 with the Ferrari and with MAD POWER, on
+  Super Hang-On's Africa, on Hang-On's course with the Ferrari and with Hang-On's bike, in 4:3 (x +
+  0) and in hi-res (every other pixel): all exact; "` Blow Your Cool" at 1560 in `$F0` and "Mega
+  Radio Station" at 2230 in `$80`, exact. The panel in the same snapshots shows the face, the note
+  and the title scrolling (`CB_RADIO_LOG` prints the LCD: from the title's first tick `12             7`,
+  a character every 10 program frames, at 387 `12Splash Wave   ` (the start at 237), blank at 497,
+  until the next title).
+- **START** (the harness: down at 900, START at 1500, up at 2100, START at 2400 (in Mega Radio
+  Station), down at 2700, left at 3000): OutRun's stage 1 with the Ferrari, with MAD POWER, in hi-res
+  and in 4:3, Africa with the Ferrari and with Super Hang-On's bike, Hang-On's course with the Ferrari
+  and with Hang-On's bike: the same commands on all, START at 1501 `$1F`, 1503 `$05` (as >>), START
+  at 2401 nothing (Mega Radio Station), down 2701 `$1F`, `$05` (back to the song), left 3001 `$1F`,
+  `$04`. OutRunners' Kenya (MAD POWER, `CB_OR_DEBUG`): START at program frame 1500 -> song 4 at board
+  frame 2661. With another music choice, START pressed twice in a race (4 and 6 frames) on OutRun's
+  stage 1, Africa and Hang-On's course: the WAV and the four snapshots identical to the same run
+  without START.
+- **The panel on OutRunners' courses** (Kenya, MAD POWER, `CB_OR_DEBUG` prints the
+  display while the panel is shown): from the board frame after a title's first tick (`12
+  7`) to the frame where the title has left (`12              `), then nothing until the next title;
+  the board's `Time:` display is not shown.
 - **The same presses on the board** (`tools/ortrace` e16, `$700700` with the writing PC; frame:
   value): the race's first song 2870 `$03`; >> at 3300: 3302 `$1F`, 3304 `$04`; >> at 3500: 3502 `$1F`,
   3504 `$05`; << at 3700: 3702 `$1F`, 3704 `$04`; DJ/MUSIC at 3900 (in the slow-down): 3902 `$1F`,
@@ -1243,16 +1351,28 @@ board's would need its music commands filtered from the car's, which was not don
   `tools/s32vtest` replays: 214 of 214 screens exact; `tools/orcartest` `run_all.sh`: 26 runs, 0
   differences (83,811 / 83,784 car and gear-box ticks re-synced, 76,099 / 76,072 free-running, 166,114
   sprite-object draws).
+- **Unchanged by the title, the panel and START** (against 0.11.0, the harness: d-pad down at 900, up
+  at 1500, down at 2100, four snapshots and the WAV, 2,400 frames): with MAGICAL SOUND SHOWER chosen
+  on OutRun's stage 1, Africa, Hang-On's course, and on Kenya with MAD POWER and with the Ferrari:
+  byte-identical. With OUTRUNNERS RADIO on OutRun's stage 1 (the Ferrari, MAD POWER), Africa,
+  Hang-On's course and Kenya (MAD POWER, the Ferrari): the WAV byte-identical; the snapshots differ
+  only at y 196-222 (the old title's rows 196-211, the new title's 200-207, the panel's 209-222: 1,638
+  pixels, the panel alone, on Kenya and where the title has gone). `tools/orbtest` session 1 (8,000
+  frames, with the display decoder in the board): RAM identical to MAME's at every frame, 2,015,481
+  I/O accesses identical, 16 of 16 snapshots.
 - The Windows build compiles.
 
 ### 11.9 Not done / known issues
 
-- The title is in OutRun's lettering and one palette: OutRunners' own 8x8 font and its eight cycling
-  colours (sprites of OutRunners' sprite ROM) are not used.
-- OutRunners' radio panel (its LCD: the title, the DJ's mouth, digits) and its lamps are not shown.
+- The title is over the whole frame; on OutRunners' board it is a sprite among the others (its
+  speedometer covers a title's end). With the sound ROMs alone it is in OutRun's lettering, in one
+  colour.
+- The radio panel's letters are a stand-in (11.5): the display's own are not in OutRunners' ROMs.
+  Its race displays (the time, the order, the speed) and the two lamps (lit throughout a race) are
+  not shown.
 - Mega Radio Station plays the pre-stage's station throughout on the other games' courses (11.4); the
   branch's announcements, transcribed and proven on the board, never happen there.
-- OutRunners' START (next song) is not mapped; with digital steering there is no <<.
+- With digital steering there is no <<.
 - On OutRunners' own courses another music choice is still not played (11.7).
 - The remarks' random numbers follow the radio alone (11.4); in OutRunners other parts of the game
   draw from the same generator.

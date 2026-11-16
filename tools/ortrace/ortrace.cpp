@@ -19,6 +19,10 @@
 //   p8|p16|p32|s8|s16|s32 addr [addr...]   print unsigned / signed values: "f <frame> <addr>=<value> ..."
 //   mem addr len               hex dump
 //   snap file.png [screen]     the last drawn frame of screen 0 (left, monitor A) or 1
+//   pal screen first count     palette RAM words of screen 0 or 1 (xBBBBBGGGGGRRRRR): "f <frame> pal <index>: ..."
+//   lcd [player]               the radio panel's display as the port G writes leave it (crossover/orlcd.hpp):
+//                              "f <frame> lcd <16 codes> |<text>|" (codes 0-15 as '0'-'7', others below $20 or
+//                              above $7E as '?'); "lcd cg": the character generator RAM (8 x 8 rows)
 //   dump file                  work RAM (128 KB, address order)
 //   dumpapp file               work RAM appended to file (one 128 KB record per call)
 //   watch addr len [max]       report every change of these bytes with the PC of the instruction
@@ -361,6 +365,42 @@ int do_run(int argc, char** argv)
             {
                 int s = a.size() >= 3 ? atoi(a[2].c_str()) : 0;
                 write_png(a[1], b.screen_pixels(s), b.screen_width(s), 224, S32Video::SCREEN_W_MAX);
+            }
+            else if (k == "pal" && a.size() >= 4)
+            {
+                int s = atoi(a[1].c_str()) & 1;
+                uint32_t first = num(a[2]), n = num(a[3]);
+                for (uint32_t i = 0; i < n; i += 16)
+                {
+                    fprintf(out, "f %d pal %04x:", f, first + i);
+                    for (uint32_t j = i; j < std::min(n, i + 16); j++) fprintf(out, " %04x", b.video().m_paletteram[s][(first + j) & 0x3fff]);
+                    fprintf(out, "\n");
+                }
+            }
+            else if (k == "lcd")
+            {
+                if (a.size() >= 2 && a[1] == "cg")
+                {
+                    for (int p = 0; p < 2; p++)
+                    {
+                        fprintf(out, "f %d lcd%d cgram:", f, p);
+                        for (int i = 0; i < 64; i++) fprintf(out, "%s%02x", i % 8 ? " " : "  ", b.lcd[p].cgram[i]);
+                        fprintf(out, "\n");
+                    }
+                }
+                else
+                {
+                    const OrLcd& l = b.lcd[a.size() >= 2 ? atoi(a[1].c_str()) & 1 : 0];
+                    fprintf(out, "f %d lcd", f);
+                    for (int i = 0; i < OrLcd::CHARS; i++) fprintf(out, " %02x", l.ddram[i]);
+                    fprintf(out, " |");
+                    for (int i = 0; i < OrLcd::CHARS; i++)
+                    {
+                        uint8_t c = l.ddram[i];
+                        fputc(c < 0x10 ? '0' + (c & 7) : (c < 0x20 || c > 0x7E) ? '?' : c, out);
+                    }
+                    fprintf(out, "| on %d bytes %u\n", l.display_on, l.bytes);
+                }
             }
             else if ((k == "dump" || k == "dumpapp") && a.size() >= 2)
             {

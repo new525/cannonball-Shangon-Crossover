@@ -102,7 +102,8 @@ in list order with `R20` = the object. Player 1's list in a race (frame 3201, e1
 | `$202300`, `$201100`.. | `$12C17` | roadside objects (Read: they write sprites through `$FE04`) |
 | `$202F00`, `$203200`, `$203300` | `$12DF0` | roadside objects (Read) |
 | `$201000` | `$1924C` | the radio (section 14); its title objects run `$1958E` |
-| others | `$12A5A` (`$200800`), `$12968`, `$139D8`, `$18E1E`, `$CE2C`, `$14374`, `$14460`, `$13228`, `$12AE8` | not identified (`$200800`, `$202300`, `$202F00` disabled: no visible change at that moment) |
+| | `$18E1E` | the radio panel's LCD between titles: the time, the order, the speed (section 14.8) |
+| others | `$12A5A` (`$200800`), `$12968`, `$139D8`, `$CE2C`, `$14374`, `$14460`, `$13228`, `$12AE8` | not identified (`$200800`, `$202300`, `$202F00` disabled: no visible change at that moment) |
 
 ### The player car's tick (`$715C`, state `C[$200400]`) (Read; the variables are confirmed in section 2)
 
@@ -609,8 +610,9 @@ What the experiments support:
 - `ortrace run <romdir> <script> [-eeprom f] [-draw mask] [-o out]`: runs the board from power-on with a
   script of commands per frame: inputs, RAM writes (also at an instruction: `pcw16 pc addr value`),
   prints, screenshots, RAM dumps (also at an instruction), write watches with the writing PC (work RAM;
-  `vwatch` for video and sprite RAM), breakpoints with registers, executed-instruction coverage,
-  instruction traces, call counts. The commands are listed in `ortrace.cpp`.
+  `vwatch` for video and sprite RAM and the I/O chips), breakpoints with registers, executed-instruction
+  coverage, instruction traces, call counts, palette RAM (`pal`), the radio panel's display as the port
+  writes leave it (`lcd`). The commands are listed in `ortrace.cpp`.
 - `ortrace dasm <romdir> <start> <end>`: disassembly of the program ROM.
 - `ortrace list <romdir> <cov> [lo hi]`: listing of the executed instructions of a coverage file with
   call targets and counts.
@@ -983,7 +985,7 @@ gear-box ticks, mode b 76,099 and 76,072, 0 differences; the sprite object 83,05
 ## 14. The radio (crossover/orradio)
 
 What the radio buttons do in a race, read from the code and checked on the board (`tools/ortrace`
-e16, e17), then transcribed (`crossover/orradio`) and proven identical to the original tick by tick
+e16-e19), then transcribed (`crossover/orradio`) and proven identical to the original tick by tick
 (`tools/orradiotest`, 14.9). Player 1's addresses. Used by `docs/CROSSOVER-OUTRUNNERS.md` section 11.
 
 ### 14.1 The buttons and the radio object (Confirmed: e16)
@@ -1188,7 +1190,7 @@ between the radio's). Nothing else of the radio reaches the sound board but `$70
 `$3F`, `$7F`; player 2's is `$70F118`, Read). The race setup writes `$1F` to `$700700` directly
 (`$12277`, frame 2571) before the radio starts.
 
-### 14.6 The title (Confirmed: e16 screenshots, orradiotest)
+### 14.6 The title (Confirmed: e16 and e18 screenshots, orradiotest)
 
 `$19551` / `$19561` create a title object (`$11FAF` appends it to the object list, so it runs in the
 same tick, after the radio) with the record and 10[obj] := 60, and set the previous title's 10[obj]
@@ -1196,7 +1198,7 @@ to 0. The title object (`$1958E`, C[obj]):
 
 | C | Code | What |
 |---|---|---|
-| 0 | `$195B0` | x offset 30[obj] := the record's; x := 210 (20[obj], low half; y = 200 in the high half); speed 12[obj] := 20 |
+| 0 | `$195B0` | x offset 30[obj] := the record's; the text to the LCD (`$208F40`, 14.8); x := 210 (20[obj], low half; y = 200 in the high half); speed 12[obj] := 20 |
 | 1 | `$195D5` | slides in: x -= speed, speed -= 1, until x = 0 (20 ticks: 20 + 19 + .. + 1 = 210) |
 | 2 | `$195F6` | held: 10[obj] - 1 each tick (60 ticks, 2 s); 0: C 3; below 0 (replaced): C 4 |
 | 3 | `$19600` | slides out: speed + 1, x -= speed, gone at x <= -210 (20 ticks) |
@@ -1207,18 +1209,135 @@ colours `$197CD[(D[obj] >> 1) & 7]` (eight palettes, a step every 2 ticks). e16 
 `e16_3320.png` (sliding in), `e16_3400.png` (held, centred), `e16_3920.png` ("Mega Radio Station"
 sliding in). Other titles (not the radio's) use the same object: `$3482`, `$5307`, `$CBF8`.
 
+**The sprites.** `$11C66` (R18 = the text, R3 = y << 16 | x, R5 = the palette word) writes one sprite
+a character into the sprite list, x + 8 a character, from the header at `$122B5C` (the words of a
+sprite entry as `crossover/s32video` `draw_one_sprite` reads them):
+
+| Word | Value | |
+|---|---|---|
+| 0 | `$000A` | 16 colours, pixel 0 transparent; x and y are the top left corner |
+| 1 | `$0802` | the source: 8 rows of one 32-bit word (8 pixels) |
+| 2 | `$D008` | bits 16-19 of the address: `$D`; 8 rows on the screen |
+| 3 | `$0008` \| 1A[R25] | 8 pixels on the screen; the player's word (`$0800` for player 2: monitor B's layer) |
+| 4, 5 | y, x | |
+| 6 | `$A861` + 8c | the character c: the sprite ROM's 32-bit words `$DA861` + 8c to + 8c + 7, bank 0 |
+| 7 | the palette word | `$197CD[(D >> 1) & 7]`, D counted first (`$1964B`): `$80` for the first tick, then 2 ticks each |
+
+**The font** is in the sprite ROMs (bank 0: `mpr-15540`, `15542`, `15544`, `15546`): the character c
+(`$20`-`$7F`) is 8 rows of one 32-bit word, the leftmost pixel in the word's top four bits. Pixel 0 is
+transparent, and 15 in a row's first and last pixel (the sprite hardware's end marker). The letters
+use five colours: 5 the outline, and the fill 1, 2, 3, 4 down the letter's first four rows (4 below
+them). `` ` `` (`$60`) is the note. The whole title has one palette a tick.
+
+**The palettes.** `$197CD` (eight 16-bit words): `$80`, `$C0`, `$A0`, `$B0`, `$D0`, `$90`, `$E0`,
+`$F0`, the sprite palettes `$80`-`$FF` of palette RAM. They are loaded at power-on (frame 17,
+`$11881`) from the data ROM's record at `$153904` (palette RAM `$8000` onwards, the half of palette
+RAM written as xBGRBBBBGGGGRRRR; `$1400` bytes from `$153908`: the entry i of palette p at
+`$153908` + 2 (p + i)) and were the same at frame 3340 of a race (e18). As palette RAM holds them
+(xBBBBBGGGGGRRRRR) and as the video output shows them (5 bits << 3):
+
+| Step | Palette | ROM | Entries 1-5 | RGB |
+|---|---|---|---|---|
+| 0 | `$80` | `$153A08` | `$35B1` `$4A58` `$5EFB` `$6F7F` `$0000` | 886868 C09090 D8B8B8 F8D8D8 000000 |
+| 1 | `$C0` | `$153A88` | `$001A` `$253C` `$4A5E` `$6F7F` `$0000` | D00000 E04848 F09090 F8D8D8 000000 |
+| 2 | `$A0` | `$153A48` | `$660C` `$726F` `$7B13` `$7FBD` `$0000` | 6080C8 7898E0 98C0F0 E8E8F8 000000 |
+| 3 | `$B0` | `$153A68` | `$16D6` `$3B5A` `$53BD` `$67DE` `$0000` | B0B028 D0D070 E8E8A0 F0F0C8 000000 |
+| 4 | `$D0` | `$153AA8` | `$1A66` `$3AEE` `$5775` `$73FC` `$0000` | 309830 70B870 A8D8A8 E0F8E0 000000 |
+| 5 | `$90` | `$153A28` | `$4210` `$5294` `$6318` `$77BD` `$0000` | 808080 A0A0A0 C0C0C0 E8E8E8 000000 |
+| 6 | `$E0` | `$153AC8` | `$51DE` `$627E` `$6AFE` `$7BDD` `$0000` | F070A0 F098C0 F0B8D0 E8F0F0 000000 |
+| 7 | `$F0` | `$153AE8` | `$0199` `$01DD` `$02FF` `$4FBF` `$0000` | C86000 E87000 F8B800 F8E898 000000 |
+
+So the title goes through dull rose, red, blue, yellow, green, grey, pink and orange every 16 ticks
+(0.53 s), each letter shaded from the palette's darkest at the top to its lightest, outlined black.
+
+e18 (>> at 3300, the title object from 3301): R5 at `$11C66` = `$80` at 3301, `$C0` at 3303 and
+3305, `$A0`, `$A0`, `$B0`, ..; the screenshots, each compared pixel by pixel with the font and the
+palettes read from the ROM files: 3320 the title at x = 66 + 80 in palette `$D0` (the tick of 3317:
+the screen shows a tick's sprites 3 or 4 frames later; 621 of the 718 pixels, the rest under other
+sprites), 3331 at 21 + 80 in `$F0` (692), 3334 at 10 + 80 in `$80` (704), 3400 held at 80 in `$80`:
+every one of its 718 pixels. `tools/orradiotest -screen` does this on every frame of its scenarios
+(14.9), against the model's last tick or the one before: a title held in the centre is exact on
+every frame but where the speedometer, a sprite later in the list, covers the end of a long title
+(x 245-254); of the frames with titles sliding about 40 % are exact, the others have pixels under
+other sprites or two titles at once (not examined one by one).
+
 ### 14.7 The goal and GAME OVER (Read; the path executed in orradiotest)
 
 With `$209181` or `$209182` set the radio takes no more presses and no more voices (14.2), but its
 state machine runs on (a station keeps playing, a song keeps playing); the game's own sounds at the
 goal and GAME OVER are queued by other code.
 
-### 14.8 Not transcribed
+### 14.8 The radio panel: the LCD and the lamps (Confirmed: e19, orradiotest; the object `$18E1E` and the lamps Read)
 
-The radio panel's LCD (MAME: "interleaved with the dj and << >> buttons is the data that drives the
-lcd display"): `$208F10`-`$208F1F` (the DJ's mouth from `$18D54`; digits written by `$18F05`),
-`$208F40`/`$208F44`/`$208F48` (the title written to it by `$18C9F`-`$18D52`), `$208F20`; the
-DJ/MUSIC and << >> lamps. They change nothing the radio does.
+MAME's driver names the panel's outputs (`orunners_sw2_output`: port G of each player's I/O chip,
+bit 0 the DJ/MUSIC lamp, bit 1 the << >> lamp, "the remaining bits are for the game's lcd display")
+and decodes the LCD no further; MAME 0.264 has no layout file for the set. What follows is from the
+game's code and the port writes on the emulated board.
+
+**The port.** `$C0000C` (player 1), `$C8000C` (player 2): bits 4-7 a data nibble, bit 3 a strobe, bit
+2 command (1) or data (0), all three written inverted; bits 0-1 the lamps (`$20E094`, `$20E095`).
+A nibble is written with bit 3 = 0, then again with bit 3 = 1 after a delay loop (`$18A2D`,
+`$18A64`, `$18B83`-`$18BA9`).
+
+**The protocol** is that of an HD44780-type character display controller on a 4-bit bus:
+
+- Power-on (`$18968`, frame 17): the nibbles 3, 3, 3 with delays (8-bit bus, the controller's reset
+  sequence), 2 (4-bit bus), then the bytes `$0C` (display on, no cursor), `$40` (character generator
+  address 0) and 64 data bytes from `$18DBA`: eight characters of the game's own, 5 x 8 dots (a row
+  a byte, bit 4 the leftmost dot). No function-set byte follows the 2, which leaves the controller at
+  one line. Port writes at frame 17 (e19): `$C4`, `$CC` (3) three times, `$D4`, `$DC` (2), `$F4`,
+  `$FC`, `$34`, `$3C` (`$0C`), `$B4`, `$BC`, `$F4`, `$FC` (`$40`), then the data with bit 2 = 0.
+- Every frame (`$18ACF`, in the VBLANK interrupt): the players' buffers `$208F10`-`$208F1F` and
+  `$218F10`-`$218F1F` are copied to `$20E3C0` and `$20E3D0`, and the timer interrupt (`$18B2A`, 34 a
+  frame) sends one nibble each time: `$80` (display address 0) and the 16 characters, 34 nibbles.
+- Once a minute (`$20E3F0` counts 3,600 frames) the first six nibbles again, through the table
+  `$18D8D` (3, 3, 3, 2, 0, C).
+
+So the display is one line of 16 characters, showing the buffer `$208F10`-`$208F1F` a frame later.
+`crossover/orlcd.hpp` (`OrLcd`) is the receiving end, in the emulated board (`ORBoard::lcd`); read
+this way the port writes give "SEGA Enterprises" at frame 30 (the power-on text, `$18DFC`), the
+texts below in a race, and a character generator RAM equal to the ROM's `$18DBA` (e19; orradiotest
+compares the display with the buffer at every frame, 14.9).
+
+**The characters.** The game's own (`$18DBA`): 0 blank; 1 and 2 the DJ's face, left and right
+halves (eyes and a mouth across the two cells), 3 and 4 the same with the mouth half open, 5 and 6
+with the mouth open; 7 a note. The display's own characters are not in the game's ROMs: the texts
+are ASCII, with `$7E` or `$7F` three times on either side of CHECK POINT (`$CE04`, `$CE18`, chosen
+by `$2090C9`), the bytes `$A6`-`$DF` after the attract mode's "Insert Coin(s)" (`$1AC34`) and `$FF`
+in the countdown's bar (`$19128`). That fits the Japanese standard character set of the HD44780 as
+its data sheet is remembered (arrows, half-width katakana, a full block); no source for it was at
+hand, so the controller's type and its dot patterns are not established, only the protocol and the
+character codes.
+
+**What it shows in a race** (`$208F35` = `$FF`, set by `$18E12`):
+
+- Characters 0-1: the DJ's face. `$18C45` (every tick, after the objects, 14.4) writes the pair
+  `$18D54[b]` for the voice script's byte b when it takes one (every 3 ticks): 0 the mouth shut
+  (1, 2), 1 half open (3, 4), 2 open (5, 6); the scripts' bytes are 0-2. Shut when no voice is
+  being said. Every voice moves it, the race's own too.
+- Characters 2-15, when a title object starts (14.6: `$208F40` := its text): `$18C9F`-`$18D52`
+  clears them, then scrolls the text in from the right, a character every 5 ticks (`$208F49`
+  counts, `$208F48` is the state, `$208F44` the next character; `` ` `` becomes the character 7, the
+  note), then 14 spaces after it, the first 4 ticks after the last character, until the text has
+  left on the left (`$208F44` then counts the spaces). A title of n characters keeps `$208F44` set
+  for 5 (n + 14) - 2 ticks: 133 for "` Splash Wave" (4.4 s), 158 for "Mega Radio Station". e19: >> at 3300, the display at
+  3303 `12             7` (1, 2 and 7 the game's characters), 3318 `12            7 `, 3324
+  `12           7 P`, .., 3460 `12Picture the Ri`, 3580 `12Rivers        `; DJ/MUSIC at 3600:
+  `34             M` at 3610 (the DJ speaking), `56         Mega ` at 3645.
+- Characters 2-15 otherwise (the object `$18E1E`, which stands still while `$208F44` is not 0;
+  Read, with e19's displays): during the start countdown a bar of `$FF` growing around the seconds
+  left (three spaces, six `$FF`, `5`, six `$FF` at 2575; `$1910C`); in the race five displays in turn, 150 ticks each
+  (`$18ED0`): `Time:  0'07"24` (`$18EE4`, at 3300), `Order:` and the cars' numbers (`$18F50`),
+  `Speed:    km/h`, `Max.:     km/h`, `Ave.:     km/h`; `### FINISH ###` at the goal (`$19093`).
+  Other texts go through `$208F40` like the titles: CHECK POINT (`$CD7A`), the attract mode's
+  (`$1AA27`); the entry screen shows `Entry:1_`.
+
+**The lamps** (Read): `$3FA54` (every VBLANK) drives bits 0 and 1 of `$20E094` from the player's
+`$208F20` and `$208F21`: 0 off, negative on, positive a blink of that many frames. `$314A` sets
+both to `$FF` as the game starts: both lamps are lit throughout a race.
+
+Not transcribed: the object `$18E1E` (the race's own displays) and the lamps. They change nothing
+the radio does.
 
 ### 14.9 The proof (`tools/orradiotest`)
 
@@ -1232,8 +1351,16 @@ radio's tick (another part of the game queues a command: it goes into the model'
 `$3F8DA` (the command the board sends to `$700700` now against the model's); `$19686` outside the
 radio (another part of the game's voice: given to the model's voice clock); `$18C45`/`$18C9F` (the
 voice clock; then `$208F30`, `$208F34` and the radio's title objects compared: C, D, 10, 12, x, the x
-offset). The random state `$208F00` is taken from the board before each radio tick (the game's other
-callers); it was never changed by them in these runs.
+offset); `$18D52` (`$18C45`'s return: the LCD's buffer `$208F10`-`$208F1F` and the scroll's `$208F44`,
+`$208F48`, `$208F49` compared; before `$18C45` the model is given what the rest of the game wrote
+there: its displays between titles and its own titles). The random state `$208F00` is taken from the
+board before each radio tick (the game's other callers); it was never changed by them in these runs.
+
+At every VBLANK the display that the port G writes drive (`ORBoard::lcd`) is compared with the buffer
+of that frame and of the frames before; at the end its character generator RAM with the ROM's
+`$18DBA`. With `-screen` the left screen is drawn while a title of the radio's is up, and every frame
+is compared with the model's titles of its last ticks, drawn from the ROM files
+(`crossover/orradiogfx`: the font, the tick's palette, the position).
 
 Scenarios (9,800 frames each, to GAME OVER and the next attract mode): `buttons` (>> x 3, START,
 << x 7 through the wrap, >> x 2 through the wrap, << with >>, DJ/MUSIC in the slow-down, back, DJ/MUSIC

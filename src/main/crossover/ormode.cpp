@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -21,6 +22,7 @@
 #include "engine/audio/osoundint.hpp"
 #include "crossover/xaudio.hpp"
 #include "crossover/orvehicle.hpp"
+#include "crossover/radio.hpp"
 #include "crossover/balance_push.hpp"
 #include "crossover/balance.hpp"
 #include "ffb/ffb.hpp"
@@ -202,6 +204,11 @@ void ORMode::start(int course, Vehicle v, bool manual)
     acc = 0;
     finished = false;
     active = true;
+    panel = false;
+    panel_wait = 0;
+    // the panel goes with the music choice OUTRUNNERS RADIO (the board's radio plays whatever the choice)
+    panel_wanted = config.crossover.music >= 0 && config.crossover.music < (int) config.sound.music.size() &&
+                   config.sound.music[config.crossover.music].type == music_t::IS_OUTRUNNERS;
     board->run_frame();
     take_sound();
     show_frame();
@@ -213,6 +220,7 @@ void ORMode::stop()
     active = false;
     feeding = false;
     orvehicle.end();
+    xradio.board_panel(nullptr);
     save_eeprom();
     ym.clear(); pcm.clear();
     osoundint.queue_sound(sound::FM_RESET);
@@ -252,6 +260,29 @@ void ORMode::set_inputs()
         next = next || input.is_pressed(Input::RIGHT);
     }
     b.in.p2_a = (uint8_t)(0xFF & ~((dj ? 0x01 : 0) | (prev ? 0x02 : 0) | (next ? 0x04 : 0)));
+    // START (SERVICE12_A bit 4): in a race OutRunners' radio takes it as >> ($192F7)
+    b.set_start(0, input.is_pressed(Input::START));
+}
+
+// The radio panel (crossover/radio draws it): with OUTRUNNERS RADIO chosen, shown while the LCD scrolls a
+// title of the board's radio: from the first tick of a title object of the radio's (18[$201000], routine
+// $1958E: C 1 and its speed $13 after that tick) while $208F44 is in the radio's titles ($196E4-$197CC:
+// the text scrolling in) or a count of spaces (1-16: scrolling out). A title of the game's own taking
+// the LCD (CHECK POINT, $CD7A) ends it. What the panel shows is the board's display as its port G
+// writes leave it (ORBoard::lcd, crossover/orlcd.hpp): the display has a tick's buffer a frame later
+// ($18ACF, $18B2A), so the panel starts the frame after the title's first tick is seen
+void ORMode::radio_panel()
+{
+    const ORBoard& b = *board;
+    auto r32 = [&](uint32_t a) { return (uint32_t)(b.read8(a) | b.read8(a + 1) << 8 | b.read8(a + 2) << 16 | b.read8(a + 3) << 24); };
+    const uint32_t routine = r32(0x201004) & 0xFFFFFF, t = r32(0x201018), f44 = r32(0x208F44);
+    const bool radio = routine == 0x1923F || routine == 0x1924C || routine == 0x19276;
+    const bool fresh = radio && t >= 0x200400 && t < 0x208000 && (r32(t + 4) & 0xFFFFFF) == 0x1958E &&
+                       b.read8(t + 0x0C) == 1 && b.read8(t + 0x12) == 0x13;
+    const bool scrolling = (f44 >= 1 && f44 <= 16) || (f44 >= 0x196E4 && f44 < 0x197CD);
+    if (fresh && !panel && !panel_wait) panel_wait = 2;
+    if (panel_wait) { if (--panel_wait == 0) panel = true; }
+    else if (!fresh && !scrolling) panel = false;
 }
 
 void ORMode::take_sound()
@@ -336,6 +367,19 @@ void ORMode::tick()
             if (s != song || rc != c) fprintf(stderr, "OutRunners: frame %llu radio song %d state %d\n", (unsigned long long) board->frame(), s, rc);
             song = s; c = rc;
         }
+        if (panel_wanted) radio_panel();
+        if (radio_debug && panel)       // testing: the display while the panel is shown (the game's characters 0-7 as digits)
+        {
+            static uint8_t last[OrLcd::CHARS];
+            const uint8_t* d = board->lcd[0].ddram;
+            if (memcmp(last, d, sizeof last))
+            {
+                memcpy(last, d, sizeof last);
+                fprintf(stderr, "OutRunners: frame %llu panel |", (unsigned long long) board->frame());
+                for (int k = 0; k < OrLcd::CHARS; k++) fputc(d[k] < 0x10 ? '0' + (d[k] & 7) : (d[k] < 0x20 || d[k] > 0x7E) ? '?' : d[k], stderr);
+                fprintf(stderr, "|\n");
+            }
+        }
         if (course_ == KENYA && !kenya_goal && board->read8(A_GOAL) == 0xFF)
         {
             for (const auto& w : KENYA_BOOKKEEPING) board->write8(w.first, w.second);
@@ -343,6 +387,7 @@ void ORMode::tick()
         }
     }
     if (config.controls.haptic && cannonball::tick_frame && vehicle == MAD_POWER) ffb_tick();
+    xradio.board_panel(panel ? &board->lcd[0] : nullptr);
     show_frame();
 }
 
