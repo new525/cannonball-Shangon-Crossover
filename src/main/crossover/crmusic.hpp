@@ -30,7 +30,7 @@ public:
     CoolRidersMusic();
     ~CoolRidersMusic();
 
-    bool init(int out_rate);                // after cr_roms is loaded
+    bool init(int out_rate);                // after cr_roms.load(): ready if the set's files were found
     bool ready = false;
 
     void play(uint8_t song);                // song number (the sound test's; HANG ON = $10)
@@ -50,6 +50,7 @@ private:
     uint8_t ring = 8;                       // next command ring entry (8 after the boot writes)
     FrameResampler out;                     // board output at its rate
 
+    bool start_board();                     // the first play: the ROM regions are read, the board made
     void send(const uint32_t* cmds, int n); // ring entries, written at the board's current time
     void send_play(uint8_t song);
     void send_stop();

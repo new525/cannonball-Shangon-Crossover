@@ -4,9 +4,11 @@
 #include "crossover/crmusic.hpp"
 #include "crossover/crsound.hpp"
 #include "crossover/romset.hpp"
+#include "crossover/startlog.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <algorithm>
+#include <iostream>
 
 // The main SH-2's writes to the shared RAM ($03F00000 + offset) in its first 50 frames after
 // power-on, as MAME 0.264 recorded them (coolridr, write taps): attoseconds after power-on,
@@ -181,13 +183,30 @@ CoolRidersMusic::~CoolRidersMusic() {}
 bool CoolRidersMusic::init(int rate)
 {
     ready = false;
-    if (!cr_roms.loaded()) return false;
+    if (!cr_roms.found()) return false;
     out_rate = rate;
-    board.reset(new CRSound());
-    if (!board->init(cr_roms["maincpu"].data, cr_roms["gfx_data"].data, cr_roms["sub"].data)) { board.reset(); return false; }
     state = OFF;
     ready = true;
     return true;
+}
+
+// The set's 18 MB are read, and the board made, when a song is first played. A file that cannot
+// be read then (the files were found at start-up) is reported as at start-up and ends the player.
+bool CoolRidersMusic::start_board()
+{
+    startlog::mark("(Cool Riders' song chosen for the first time)");
+    if (!cr_roms.read())
+        std::cout << "Cool Riders ROMs not loaded: " << cr_roms.error << std::endl;
+    else
+    {
+        board.reset(new CRSound());
+        const bool ok = board->init(cr_roms["maincpu"].data, cr_roms["gfx_data"].data, cr_roms["sub"].data);
+        startlog::mark("Cool Riders: ROMs read, sound board made");
+        if (ok) return true;
+        board.reset();
+    }
+    ready = false;
+    return false;
 }
 
 void CoolRidersMusic::send(const uint32_t* cmds, int n)
@@ -217,6 +236,7 @@ void CoolRidersMusic::send_stop()
 void CoolRidersMusic::play(uint8_t song)
 {
     if (!ready) return;
+    if (!board && !start_board()) return;
     if (getenv("CB_XAUDIO_DEBUG")) fprintf(stderr, "crmusic: play %02x (state %d)\n", song, (int) state);
     switch (state)
     {

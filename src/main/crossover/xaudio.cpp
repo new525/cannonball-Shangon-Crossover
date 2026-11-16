@@ -28,7 +28,7 @@ bool CrossoverAudio::init(int rate)
     if (ho_roms.loaded())
         any |= ch[HANGON].board.init(SegaSoundBoard::Kind::HANGON, ho_roms["soundcpu"].data, ho_roms["pcm"].data, rate, 60);
     startlog::mark("Hang-On sound board");
-    if (cr_roms.loaded())
+    if (cr_roms.found())
         any |= cr.init(rate);
     startlog::mark("Cool Riders sound board");
     if (or_roms.loaded())
