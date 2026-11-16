@@ -237,6 +237,7 @@ void Menu::populate_controls()
     menu_controls.push_back(ENTRY_FFB);
     menu_controls.push_back(ENTRY_FFB_STRENGTH);
     menu_controls.push_back(ENTRY_FFB_SPRING);
+    menu_controls.push_back(ENTRY_FFB_VIBRATION);
     menu_controls.push_back(ENTRY_BACK);
 
     if (menu_controls_gp.size() > 0)
@@ -904,6 +905,11 @@ void Menu::tick_menu()
                 if (config.controls.ffb.centering_strength > 100) config.controls.ffb.centering_strength = 0;
                 ffb::apply_settings();
             }
+            else if (SELECTED(ENTRY_FFB_VIBRATION))
+            {
+                // the cabinets' wheel vibration motors (OutRun's upright, OutRunners'): off, 10-100
+                config.controls.ffb.motor_vibration = config.controls.ffb.motor_vibration >= 100 ? 0 : config.controls.ffb.motor_vibration + 10;
+            }
             else if (SELECTED(ENTRY_BACK))
                 menu_back();
         }
@@ -1125,6 +1131,7 @@ void Menu::refresh_menu()
             else if (SELECTED(ENTRY_FFB))           set_menu_text(ENTRY_FFB, config.controls.haptic ? "ON" : "OFF");
             else if (SELECTED(ENTRY_FFB_STRENGTH))  set_menu_text(ENTRY_FFB_STRENGTH, Utils::to_string(config.controls.ffb.strength));
             else if (SELECTED(ENTRY_FFB_SPRING))    set_menu_text(ENTRY_FFB_SPRING, Utils::to_string(config.controls.ffb.centering_strength));
+            else if (SELECTED(ENTRY_FFB_VIBRATION)) set_menu_text(ENTRY_FFB_VIBRATION, config.controls.ffb.motor_vibration ? Utils::to_string(config.controls.ffb.motor_vibration) : "OFF");
         }
         else if (menu_selected == &menu_controls_gp)
         {

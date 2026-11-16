@@ -102,6 +102,7 @@ const static char* ENTRY_DPEDAL = "DIGITAL PEDAL SPEED ";
 const static char* ENTRY_FFB = "FORCE FEEDBACK ";
 const static char* ENTRY_FFB_STRENGTH = "FFB STRENGTH ";
 const static char* ENTRY_FFB_SPRING = "SPRING ";
+const static char* ENTRY_FFB_VIBRATION = "VIBRATION ";      // crossover: effects.motor_vibration
 
 // GamePad Menu
 const static char* ENTRY_ANALOG = "ANALOG ";

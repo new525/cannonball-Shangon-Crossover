@@ -242,6 +242,7 @@ void Config::load()
         f.invert                   = get("invert", 0, 1);
         f.motor                    = get("effects.motor", 100);
         f.motor_vibration          = get("effects.motor_vibration", 50);
+        f.vibration_cabinet        = get("vibration_cabinet", 1, 2);
         f.sand                     = get("effects.sand", 3);
         f.tyre_slip                = get("effects.tyre_slip", 11);
         f.offroad_rumble_one_wheel = get("effects.offroad_rumble_one_wheel", 20);
@@ -399,6 +400,7 @@ bool Config::save()
     pt_config.put("controls.analog.haptic.<xmlattr>.enabled", controls.haptic);     // crossover: the force feedback menu entries
     pt_config.put("controls.analog.haptic.strength", controls.ffb.strength);
     pt_config.put("controls.analog.haptic.centering_strength", controls.ffb.centering_strength);
+    pt_config.put("controls.analog.haptic.effects.motor_vibration", controls.ffb.motor_vibration);     // VIBRATION
 
     pt_config.put("crossover.vehicle",         crossover.vehicle);
     pt_config.put("crossover.track",           crossover.track);

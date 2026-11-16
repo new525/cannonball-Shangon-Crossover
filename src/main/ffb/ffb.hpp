@@ -6,9 +6,13 @@
         OutRun's deluxe cabinet motor (OOutputs::do_motors, the commands the game writes to its
         motor register: a banking direction and speed, 0-15 with 8 the centre) becomes a constant
         force on the wheel, as Cannonball's force feedback always did, now linear in the motor
-        speed. OutRunners' cabinet has a vibration motor in the wheel (one bit of its I/O chip's
-        port D, MAME's Steering_Wheel_motor): a vibration. Super Hang-On's and Hang-On's ride-on
-        cabinets have no motor: those bikes have no base.
+        speed. OutRun's upright cabinets have a vibration motor in the wheel instead (one output bit,
+        driven by the upright's routine $EAAA or the mini upright's $EBF0: OOutputs::do_vibrate_*), as
+        does OutRunners' cabinet (one bit of its I/O chip's port D, MAME's Steering_Wheel_motor). A
+        one-bit motor plays as a vibration whose strength is the share of the last eight ticks the
+        bit was on (the routines pulse it in patterns of eight ticks or fewer), like the motor's mass
+        spinning up and down, so a steady pattern is a steady vibration. Super Hang-On's and
+        Hang-On's bikes: no base yet.
       - CannonBall-DX's synthesised effects, each an option with its own strength: a loose
         surface's rattle, tyre slip, off-road pull, the gear shift's kick, the traffic contact's
         yank, the scenery crash's impacts and loads, the start line's steering load and rev shake,
@@ -58,7 +62,7 @@ namespace ffb
         int  start_pedal = -1;      // the start line's countdown: the accelerator 0-255 (-1: none)
         int  revs = -1;             // engine revs for the engine shake, 0-0x130 (OFerrari::revs >> 16; -1: none)
         int  motor = -1;            // the arcade motor command, OutRun's 0-15 (8 centre, 0 off; -1: none)
-        int  motor_bit = -1;        // a one-bit vibration motor (OutRunners' wheel): 0/1 (-1: none)
+        int  motor_bit = -1;        // a one-bit wheel vibration motor (OutRun's upright cabinets, OutRunners'): 0/1 (-1: none)
     };
 
     void init();                    // after SDL and the controls: opens the device if controls.haptic is on

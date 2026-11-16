@@ -30,6 +30,7 @@ namespace ffb
     static int  offroad_counter = 0;                // the rumble pattern's phase for vehicles without a motor command
     static int  crash_last_state = -1, crash_last_spin = -1, landing = 0;
     static int  rattle_phase = 0;
+    static uint8_t vib_bits = 0;                    // a one-bit vibration motor's last eight ticks (bit 0 the latest)
     static int  slip_hold = 0;                      // ticks the slip stays on after the state drops it
 
     static int clamp(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -167,6 +168,18 @@ namespace ffb
         slip_hold = 0;
         crash_last_state = crash_last_spin = -1;
         landing = 0;
+        vib_bits = 0;
+    }
+
+    // a one-bit vibration motor: the share of the last eight ticks it was on, as a percentage of its strength
+    // (the arcade routines pulse the bit in patterns of eight ticks or fewer; a steady pattern gives a steady
+    // level, so the vibration is not restarted every tick)
+    static int vibration_level(int bit)
+    {
+        vib_bits = bit < 0 ? 0 : (uint8_t)((vib_bits << 1) | (bit > 0 ? 1 : 0));
+        int on = 0;
+        for (int b = vib_bits; b; b >>= 1) on += b & 1;
+        return pct(cfg().motor_vibration, on * 100 / 8);
     }
 
     // a spring level: a percentage of the SPRING setting
@@ -337,7 +350,7 @@ namespace ffb
         const int motor_base = motor_level(s.motor, c.motor);
         int level = 0;
         int spring = spring_level(c.low_speed);
-        int periodic = s.motor_bit > 0 ? c.motor_vibration : 0, period = 45;    // a one-bit vibration motor: a sine while it is on
+        int periodic = vibration_level(s.motor_bit), period = 45;    // a one-bit vibration motor (see vibration_level)
 
         if (s.phase == START)
         {

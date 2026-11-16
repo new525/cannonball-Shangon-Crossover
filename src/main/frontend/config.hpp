@@ -101,7 +101,8 @@ struct ffb_settings_t
     int invert;                 // 1: the constant forces the other way (a wheel that turns the wrong way)
     // effects
     int motor;                  // the vehicle's own arcade motor output (OutRun's deluxe cabinet motor as a constant force)
-    int motor_vibration;        // a one-bit arcade vibration motor (OutRunners' wheel) as a vibration
+    int motor_vibration;        // a one-bit arcade wheel vibration motor (OutRun's upright cabinets, OutRunners') as a vibration
+    int vibration_cabinet;      // OutRun's vibration routine: 0 none, 1 the upright's ($EAAA), 2 the mini upright's ($EBF0)
     int sand, tyre_slip, offroad_rumble_one_wheel, offroad_rumble_full, offroad_pull_one_wheel, offroad_pull_full,
         gear_shift, traffic_skid, crash_bump, crash_spin_impact, crash_spin, crash_flip_impact, crash_flip,
         crash_flip_landing, start_steering, start_rev_shake, engine, engine_period;

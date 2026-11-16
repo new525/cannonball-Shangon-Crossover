@@ -17,6 +17,16 @@ Based on Cannonball by Chris White: https://github.com/djyt/cannonball
 
 Changes since 0.11.0
 --------------------
+- Force feedback: OutRun's wheel vibration motor. OutRun's upright
+  cabinets shake the wheel off the road, in crashes and in skids, harder
+  the faster you go; that routine from the game now plays on top of the
+  deluxe cabinet's motor (vibration_cabinet in config.xml: 1 upright, the
+  default, 2 mini upright, 0 none). SETTINGS > CONTROLS > VIBRATION sets
+  its strength, and OutRunners' wheel motor's. A vibration motor now plays
+  as a steady vibration whose strength follows how often the game switches
+  it on, instead of a vibration started and stopped every tick.
+  Cannonball's mini upright routine (also used for SmartyPi cabinets) was
+  wrong and never switched the motor on: it is rewritten from the ROM.
 - Steering wheels: a wheel that SDL reads as a plain joystick (most of
   them) had no steering axis and no buttons until set by hand.
   - pad_id -1, the new default, uses a wheel if one is connected.

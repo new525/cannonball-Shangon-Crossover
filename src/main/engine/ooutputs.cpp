@@ -837,6 +837,14 @@ void OOutputs::ffb_tick(int16_t input_motor)
     ffb::State s;
     s.motor = hw_motor_control;
     s.speed = oinitengine.car_increment >> 16;
+    // the upright cabinets' wheel vibration motor (OutRun runs one cabinet's routine, chosen by a DIP switch:
+    // the deluxe motor above, the upright's or the mini upright's; here the motor and one vibration routine)
+    if (config.controls.ffb.vibration_cabinet != 0)
+    {
+        if (config.controls.ffb.vibration_cabinet == 2) do_vibrate_mini();
+        else                                            do_vibrate_upright();
+        s.motor_bit = is_set(D_MOTOR) ? 1 : 0;
+    }
 
     const bool intro   = outrun.game_state == GS_START1 && oferrari.state == OFerrari::FERRARI_SEQ2;
     const bool waiting = outrun.game_state == GS_START2 || outrun.game_state == GS_START3 ||
@@ -978,6 +986,8 @@ void OOutputs::do_vibrate_upright()
 // Mini Upright: Steering Wheel Movement
 // ------------------------------------------------------------------------------------------------
 
+// Source: 0xEBF0 (crossover: rewritten from the ROM; Cannonball's version had the counter's two branches
+// swapped, so it never set the motor, and its speed bands in reverse order)
 void OOutputs::do_vibrate_mini()
 {
     if (outrun.game_state != GS_INGAME)
@@ -987,58 +997,46 @@ void OOutputs::do_vibrate_mini()
     }
 
     const uint16_t speed = oinitengine.car_increment >> 16;
-    uint16_t index = 0;
+    int16_t index;
 
-    // Car Crashing: Disable Motor once speed below 10
-    if (ocrash.crash_counter)
+    if (ocrash.crash_counter || ocrash.skid_counter)
     {
-        if (speed <= 10)
+        // Car Crashing: Disable Motor once speed below 10 (0xEC0A; a skid alone goes straight on)
+        if (ocrash.crash_counter && speed <= 10)
         {
             clear_digital(D_MOTOR);
             return;
         }
+        // 0xEC7A: Car Crashing or Skidding. The slower the car, the longer the gap between pulses
+        if (speed <= 50)      index = 4;
+        else if (speed <= 70) index = 3;
+        else if (speed <= 90) index = 2;
+        else                  index = 1;
     }
-    // Car Normal
-    else if (!ocrash.skid_counter)
+    else
     {
+        // 0xEC28: Disable Vibration below speed 10 or with the wheels on the road
         if (speed < 10 || oferrari.wheel_state == OFerrari::WHEELS_ON)
         {
             clear_digital(D_MOTOR);
             return;
-        }  
-
-        if (speed > 140)      index = 5;
-        else if (speed > 100) index = 4;
-        else if (speed > 60)  index = 3;
-        else if (speed > 20)  index = 2;
-        else                  index = 1;
-
-        if (index > vibrate_counter)
-        {
-            vibrate_counter = 0;
-            clear_digital(D_MOTOR);
         }
-        else
-        {
-            vibrate_counter++;
-            set_digital(D_MOTOR);
-        }
-        return;
+        // 0xEC42: One or both wheels off-road (no difference here, unlike the upright)
+        if (speed <= 60)       index = 5;
+        else if (speed <= 100) index = 4;
+        else if (speed <= 140) index = 3;
+        else                   index = 2;
     }
 
-    // 0xEC7A calc_crash_skid:
-    if (speed > 90)      index = 4;
-    else if (speed > 70) index = 3;
-    else if (speed > 50) index = 2;
-    else if (speed > 30) index = 1;
+    // 0xECBC: the motor is on for one call in every index + 1
     if (index > vibrate_counter)
     {
-        vibrate_counter = 0;
+        vibrate_counter++;
         clear_digital(D_MOTOR);
     }
     else
     {
-        vibrate_counter++;
+        vibrate_counter = 0;
         set_digital(D_MOTOR);
     }
 }

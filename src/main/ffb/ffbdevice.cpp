@@ -30,6 +30,7 @@ namespace ffbdev
     static unsigned int  caps     = 0;
     static bool          is_wheel = false;
     static int           fx_constant = -1, fx_spring = -1, fx_periodic = -1;
+    static bool          periodic_running = false;    // the sine was started and not stopped since
     static bool          supported = false;
     static int           gain = 100;
     static int           cur_constant = 0, cur_spring = 0, cur_periodic = 0, cur_period = 0;
@@ -363,6 +364,7 @@ namespace ffbdev
         caps = 0;
         is_wheel = false;
         fx_constant = fx_spring = fx_periodic = -1;
+        periodic_running = false;
         supported = false;
         cur_constant = cur_spring = cur_periodic = cur_period = 0;
     }
@@ -446,6 +448,7 @@ namespace ffbdev
         if (value == 0)
         {
             SDL_HapticStopEffect(haptic, fx_periodic);
+            periodic_running = false;
             return;
         }
         SDL_HapticEffect e;
@@ -455,8 +458,10 @@ namespace ffbdev
         e.periodic.length = SDL_HAPTIC_INFINITY;
         e.periodic.period = (Uint16) period_ms;
         e.periodic.magnitude = (Sint16) value;
-        if (SDL_HapticUpdateEffect(haptic, fx_periodic, &e) == 0)
-            SDL_HapticRunEffect(haptic, fx_periodic, 1);
+        // a playing vibration takes its new strength in place: started again it would begin a new cycle at
+        // every change (and a one-bit motor's level changes often)
+        if (SDL_HapticUpdateEffect(haptic, fx_periodic, &e) == 0 && !periodic_running)
+            periodic_running = SDL_HapticRunEffect(haptic, fx_periodic, 1) == 0;
     }
 
     bool logging() { return log != nullptr; }
@@ -472,5 +477,6 @@ namespace ffbdev
         if (fx_constant >= 0) SDL_HapticStopEffect(haptic, fx_constant);
         if (fx_spring >= 0)   SDL_HapticStopEffect(haptic, fx_spring);
         if (fx_periodic >= 0) SDL_HapticStopEffect(haptic, fx_periodic);
+        periodic_running = false;
     }
 }

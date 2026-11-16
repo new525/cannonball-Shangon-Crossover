@@ -89,13 +89,35 @@ menu's FFB STRENGTH). All of DX's cadences are on ticks (1/30 s) instead of mill
   ((command - 8) / 7 of full, scaled by `effects.motor`). This is what Cannonball's force feedback
   did, with a linear scale instead of the old 70-85 % band. Outside a race (attract mode, the music
   selection) the motor's stationary centering runs as it always did.
+- OutRun's Ferrari, also: the upright cabinets' wheel vibration motor (output bit 5, `D_MOTOR`;
+  MAME's "Vibration motor"). OutRun runs one cabinet's routine, chosen by its cabinet DIP switch
+  (the dispatcher at `$E642`: moving, upright `$EAAA`, mini upright `$EBF0`, cockpit none); here
+  the deluxe motor above always runs and `haptic/vibration_cabinet` adds one vibration routine
+  (1 upright, the default; 2 mini; 0 none). Both checked against the ROM (rev B):
+  - upright (`OOutputs::do_vibrate_upright`, Cannonball's, matches): off on the road or under
+    30 km/h; one wheel off: an eight-tick pattern by speed band (150 / 210 / 270 km/h), both off
+    (120 / 170 / 220), a crash or skid (60 / 100 / 140), from 1-in-4 to always on; in a crash off at
+    10 km/h or less;
+  - mini upright (`do_vibrate_mini`, rewritten from the ROM: Cannonball's had the counter's branches
+    swapped, so it never switched the motor on, and its speed bands reversed): on one tick in
+    `index + 1`, off-road (either wheel) `index` 5 at up to 60 km/h, 4 to 100, 3 to 140, else 2; a
+    crash or skid 4 up to 50, 3 to 70, 2 to 90, else 1. This also fixes Cannonball's SmartyPi mini
+    cabinet output.
 - OutRunners' MAD POWER: the cabinet's wheel vibration motor, one bit. On the emulated board it is
   the I/O chip's port D bit 4 (MAME's `MA_Steering_Wheel_motor`), read from the board's output
   latch; on OutRun's courses it is the transcribed car's shaker byte (`$20E0D0` + player: 0 on the
   road, the car's `$B970` value off it or in a minor contact, `$10` in a crash), which a board run
   with `CB_OR_MOTOR_LOG=<file>` shows to be exactly what the game writes to that bit (one frame
-  later, the latch's write). Rendered as a sine while the bit is on, at `effects.motor_vibration`.
-- Super Hang-On's and Hang-On's bikes: their ride-on cabinets have no motor; no base.
+  later, the latch's write).
+- A one-bit vibration motor (both of the above) plays as a sine at `effects.motor_vibration` (the
+  menu's VIBRATION) times the share of the last eight ticks the bit was on: the routines pulse it in
+  patterns of up to eight ticks to set how hard the motor shakes, and a real motor's mass spins up
+  and down over them; a steady pattern is a steady vibration rather than a sine started and stopped
+  every tick. A playing sine takes a new strength in place (`ffbdev::set_periodic` no longer starts
+  it again on every change).
+- Super Hang-On's bike: its cabinet's vibration motor (bit 3 of its output port, MAME's "Vibration
+  motor"; the game's routine `$1CBE`, a 16-frame pattern per 16 km/h band) is not driven yet.
+  Hang-On's: MAME's driver has no motor output; no base.
 
 **DX's effects**, each with its strength under `haptic/effects` (0 = off), DX's defaults:
 `sand` (a loose surface's taps, from `OLevelObjs::rough_surface`: a sand or stone strip at the car's
@@ -190,7 +212,7 @@ sees. What a user with a wheel should check first:
 3. the direction: off the road the wheel should pull away from the road and a left-hand bend's
    motor resistance should push right; if reversed, `invert` 1;
 4. the levels: `motor` (the Ferrari's base) against the spring at speed (both centre: set `motor`
-   to 0 for DX's feel), `motor_vibration` for MAD POWER's buzz, the crash loads at 70 of a 50
+   to 0 for DX's feel), `motor_vibration` for the vibration motors' buzz, the crash loads at 70 of a 50
    master;
 5. Linux: the wheel's kernel driver must expose FF_CONSTANT and FF_SPRING (Logitech wheels through
    hid-logitech-hidpp do); SDL's evdev haptic backend is used, DX's raw evdev path was not kept.
