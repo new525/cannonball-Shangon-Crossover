@@ -325,7 +325,7 @@ crossover has to hook in (main loop, menus, music, sprites, traffic, collisions,
     to the other's speed - 80, the bikes brake through their knockback, MAD POWER bounces off Kenya's
     elephants by both speeds. Only the speed its own response takes off is scaled, per contact.
 - **Test harness** (`crossover/harness.*`): headless, scripted runs with traces, screenshots and
-  WAV output, used to check behaviour without a person at the controls.
+  WAV output, used to check behaviour without a person at the controls. `CB_STARTUP_LOG` prints the time and memory of each start-up stage and of a race's start (`crossover/startlog.*`).
 - **From CannonBall-SE and CannonBall-DX** (forks of Cannonball under the same licence; rewritten
   here, not copied): ROMs read from MAME's zips (`crossover/romzip.*`, with miniz); OutRun's Sega PCM
   at the chip's rate, 31,250 Hz (it played 2.4% sharp); the corrected PCM ROM optional, with Sega/M2's

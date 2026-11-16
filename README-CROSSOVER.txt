@@ -30,6 +30,15 @@ Changes since 0.11.0
     from the Linux driver project logitech-rs50-linux-driver; not checked
     on a real wheel.
   - STEERING DEAD ZONE in the same menu (WHEEL SETUP sets it to 0).
+- Faster start and less memory. With loose ROM files the program reaches
+  the menu in about a sixth of the time (60 ms instead of 420 ms on the
+  test machine; zips 140 ms instead of 210 ms) and uses 32 MB there instead
+  of 74 MB. OutRunners' ROM files were read and checked twice at start-up;
+  MAD POWER and OutRunners' board each kept their own copy of OutRunners'
+  27 MB of ROMs (they share one now); Cool Riders' 18 MB are read the first
+  time its song plays. A race on OutRunners' courses after the first no
+  longer decodes the board's tiles again. Missing or wrong ROM files are
+  reported at start-up as before.
 - OUTRUNNERS RADIO: the song title is drawn in OutRunners' own lettering
   and cycles through its eight colours, as OutRunners does (needs the whole
   OutRunners set). The radio panel's display (the DJ's face, its mouth
