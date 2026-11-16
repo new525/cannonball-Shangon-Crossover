@@ -91,7 +91,7 @@ bool read_loose_file(const fs::path& p, std::vector<uint8_t>& out)
 }
 
 // Eight table lookups for eight bytes ("slicing by 8"); the same sum as the bytewise table
-uint32_t rom_crc32(const uint8_t* p, size_t n)
+uint32_t rom_crc32(const uint8_t* p, size_t n, uint32_t crc)
 {
     struct Tables
     {
@@ -110,7 +110,7 @@ uint32_t rom_crc32(const uint8_t* p, size_t n)
     };
     static const Tables tab;
     const uint32_t (*t)[256] = tab.t;
-    uint32_t c = 0xFFFFFFFFu;
+    uint32_t c = ~crc;
     for (; n >= 8; p += 8, n -= 8)
     {
         const uint32_t a = c ^ ((uint32_t) p[0] | (uint32_t) p[1] << 8 | (uint32_t) p[2] << 16 | (uint32_t) p[3] << 24);
@@ -119,8 +119,19 @@ uint32_t rom_crc32(const uint8_t* p, size_t n)
             t[3][b & 0xFF] ^ t[2][(b >> 8) & 0xFF] ^ t[1][(b >> 16) & 0xFF] ^ t[0][b >> 24];
     }
     for (; n; p++, n--) c = t[0][(c ^ *p) & 0xFF] ^ (c >> 8);
-    return c ^ 0xFFFFFFFFu;
+    return ~c;
 }
+
+// miniz's CRC32, when the build defines USE_EXTERNAL_MZCRC (cmake/CMakeLists.txt): miniz.c then
+// leaves the function to us. Its own is a bytewise table, which took more than half the time of
+// reading an entry. Without the definition miniz uses its own.
+#ifdef USE_EXTERNAL_MZCRC
+extern "C" mz_ulong mz_crc32(mz_ulong crc, const unsigned char* ptr, size_t buf_len)
+{
+    if (!ptr) return MZ_CRC32_INIT;
+    return rom_crc32(ptr, buf_len, (uint32_t) crc);
+}
+#endif
 
 bool loose_file_crc32(const fs::path& p, uint32_t& crc)
 {

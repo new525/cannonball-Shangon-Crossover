@@ -41,8 +41,10 @@ bool read_rom_file(const RomFile& f, std::vector<uint8_t>& out);
 // Reads a whole loose file. False if it cannot be opened.
 bool read_loose_file(const std::filesystem::path& p, std::vector<uint8_t>& out);
 
-// CRC32 of a block of bytes (the zips' and MAME's: polynomial $EDB88320)
-uint32_t rom_crc32(const uint8_t* data, size_t size);
+// CRC32 of a block of bytes (the zips' and MAME's: polynomial $EDB88320). `crc`: the sum of the
+// bytes before this block, to carry on from (0: none). miniz checks the entries it decompresses
+// with this function too (the build defines USE_EXTERNAL_MZCRC; romzip.cpp then has its mz_crc32).
+uint32_t rom_crc32(const uint8_t* data, size_t size, uint32_t crc = 0);
 
 // The CRC32 of a loose file's contents. A file is read and summed once per process: the sum is
 // remembered by the file's path, size and modification time, so loaders that list the same

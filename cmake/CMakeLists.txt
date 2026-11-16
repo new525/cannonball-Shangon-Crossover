@@ -383,6 +383,7 @@ target_compile_definitions(cannonball PRIVATE
     MINIZ_NO_STDIO
     MINIZ_NO_TIME
     MINIZ_NO_ZLIB_COMPATIBLE_NAMES
+    USE_EXTERNAL_MZCRC                 # miniz's mz_crc32 is crossover/romzip.cpp's (the same sum, faster)
 )
 
 # -----------------------------------------------------------------------------
